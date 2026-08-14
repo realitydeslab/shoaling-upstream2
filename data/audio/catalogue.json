@@ -1,0 +1,22 @@
+{
+  "generatedBy": "tools/package-audio.sh",
+  "sampleRateHz": 48000,
+  "channels": 1,
+  "note": "Distance layers are derived from a single source recording, not captured at three distances. They demonstrate and tune the crossfade; they are not a substitute for real takes.",
+  "rights": { "status": "unverified", "owner": "yangyangyang@berkeley.edu", "note": "Source folder exposes filenames and metadata but not authorship or licence. Confirm before any public showing." },
+  "clips": [
+    {"clipId":"opening","file":"opening.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"chapter-1-new-life","file":"chapter-1-new-life.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"chapter-2-growing","file":"chapter-2-growing.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"chapter-3-journey-to-the-ocean","file":"chapter-3-journey-to-the-ocean.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"chapter-4-returning-home","file":"chapter-4-returning-home.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"chapter-5-rebirth","file":"chapter-5-rebirth.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"heron","file":"heron.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"strider","file":"strider.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"eat-strider","file":"eat-strider.mp3","layers":["one-shot"]},
+    {"clipId":"lay-egg","file":"lay-egg.mp3","layers":["one-shot"]},
+    {"clipId":"jump","file":"jump.mp3","layers":["one-shot"]},
+    {"clipId":"tree-creek-waterplants-1","missing":true,"source":"Tree creek waterplants 1.wav"},
+    {"clipId":"tree-creek-waterplants-2","missing":true,"source":"Tree creek waterplants 2.wav"}
+  ]
+}

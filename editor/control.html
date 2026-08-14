@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shoaling Upstream — controller</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+/* The controller is used one-handed, outdoors, in sunlight, possibly wet, while walking
+ * beside someone. So: large targets, high contrast, no scrolling lists, and the answer to
+ * "why is it quiet" above the fold — because that is the actual question in the field, not
+ * "which button". */
+
+html, body { overflow: auto; }
+body { background: var(--ground); }
+
+#ctl {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 18px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+}
+
+.ctl-head { display: flex; align-items: baseline; gap: 12px; }
+.ctl-head .brand { font-size: 18px; }
+.ctl-head .spacer { flex: 1; }
+
+/* --- the situational panel: what the operator actually needs --- */
+.status {
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.status-strip {
+  padding: 14px 16px;
+  border-left: 4px solid var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.status-strip.precise { border-left-color: var(--moss); }
+.status-strip.coarse  { border-left-color: var(--amber); }
+.status-strip.lost    { border-left-color: var(--alarm); }
+.status-headline { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.status-detail { font-size: 13px; color: var(--ink-2); }
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--hair);
+}
+.readout { padding: 11px 14px; border-right: 1px solid var(--hair); }
+.readout:last-child { border-right: none; }
+.readout .k {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--muted); display: block;
+}
+.readout .v {
+  font-family: var(--mono); font-size: 19px; font-variant-numeric: tabular-nums;
+  color: var(--ink); margin-top: 2px;
+}
+.readout .v small { font-size: 12px; color: var(--muted); }
+
+/* --- progress along the reach --- */
+.progress { padding: 12px 14px; border-top: 1px solid var(--hair); }
+#ctl-track { width: 100%; height: 34px; display: block; }
+
+/* --- the beats, as big targets --- */
+.beats { display: flex; flex-direction: column; gap: 8px; }
+.ctl-beat {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  background: var(--panel);
+  text-align: left;
+  width: 100%;
+  min-height: 58px;
+}
+.ctl-beat:hover:not(:disabled) { background: var(--panel-2); }
+.ctl-beat .n {
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+}
+.ctl-beat .t { font-size: 15px; }
+.ctl-beat .sub {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted); margin-top: 2px;
+}
+.ctl-beat.done { border-color: var(--moss); }
+.ctl-beat.done .n { color: var(--moss); }
+.ctl-beat.current { border-color: var(--accent); background: #241A1D; }
+.ctl-beat.current .n { color: var(--accent); }
+.ctl-beat .go {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--water);
+  border: 1px solid currentColor; border-radius: 5px; padding: 6px 10px;
+}
+
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions button { min-height: 46px; }
+
+.log {
+  font-family: var(--mono); font-size: 11px; line-height: 1.7;
+  color: var(--muted); max-height: 140px; overflow-y: auto;
+  border-top: 1px solid var(--hair); padding-top: 10px;
+}
+.log b { color: var(--ink-2); font-weight: 600; }
+.log .ok { color: var(--moss); }
+.log .no { color: var(--alarm); }
+</style>
+</head>
+<body>
+
+<div id="ctl">
+
+  <div class="ctl-head">
+    <span class="brand">Shoaling <em>Upstream</em></span>
+    <span class="spacer"></span>
+    <span id="conn" class="pill off">connecting</span>
+  </div>
+
+  <!-- Leads with why, not with buttons. If you are standing in a creek beside someone whose
+       phone has gone quiet, the question is whether it is lost, out of range, or already
+       played — never which button. -->
+  <section class="status">
+    <div class="status-strip" id="strip">
+      <div class="status-headline" id="headline">Waiting for the phone</div>
+      <div class="status-detail" id="detail">No device has connected to this session yet.</div>
+    </div>
+    <div class="readouts">
+      <div class="readout">
+        <span class="k">upstream</span>
+        <div class="v" id="r-s">—<small> m</small></div>
+      </div>
+      <div class="readout">
+        <span class="k">confidence</span>
+        <div class="v" id="r-conf">—</div>
+      </div>
+      <div class="readout">
+        <span class="k">shoal</span>
+        <div class="v" id="r-shoal">—</div>
+      </div>
+    </div>
+    <div class="progress">
+      <canvas id="ctl-track"></canvas>
+    </div>
+  </section>
+
+  <div class="beats" id="ctl-beats"></div>
+
+  <div class="actions">
+    <button id="a-replay">Replay current</button>
+    <button id="a-skip">Skip forward</button>
+    <button id="a-silence">Silence</button>
+    <button id="a-resume">Resume</button>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script type="module" src="/js/control.js"></script>
+</body>
+</html>

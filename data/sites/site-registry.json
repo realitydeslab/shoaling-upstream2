@@ -1,0 +1,93 @@
+{
+  "_comment": "Niantic Spatial (NSDK / 'VPS2') scan inventory for Shoaling Upstream. Harvested 2026-08-13 from scaniverse.nianticspatial.com portal API as user Botao Hu (hupo001@gmail.com, userId e84c8211-c66a-438a-be93-c7851a1a57e8). Signed asset URLs are intentionally NOT stored here: they expire. Re-mint via GET /api/portal-backend/api/v1/assets/{assetId}/splat/signed-url?type=...",
+  "portalApiBase": "https://scaniverse.nianticspatial.com/api/portal-backend/api/v1",
+  "endpoints": {
+    "orgsForUser": "/users/{userId}/organizations",
+    "sitesInOrg": "/orgs/{orgId}/sites",
+    "scansInOrg": "/orgs/{orgId}/scans",
+    "assetMeshGraph": "/assets/{assetId}/mesh",
+    "assetSplatGraph": "/assets/{assetId}/splat",
+    "splatSignedUrl": "/assets/{assetId}/splat/signed-url?type={format}"
+  },
+  "organizations": [
+    { "id": "f35a6672-fc09-4c74-ad33-488c721850fb", "name": "Trout AR",             "createdBy": "sheepy1023@gmail.com", "role": "primary project org" },
+    { "id": "62e5d093-9275-48d5-9f4a-16b1a1d917a7", "name": "Reality Design Lab",   "createdBy": "hupo001@gmail.com" },
+    { "id": "51edd29a-1057-486c-be54-6193b177a79f", "name": "Elan's organization",  "createdBy": "elantao29@gmail.com" }
+  ],
+  "sites": [
+    {
+      "slug": "ucb-strawberry-creek-south",
+      "displayName": "Strawberry Creek South",
+      "campus": "UC Berkeley",
+      "orgId": "f35a6672-fc09-4c74-ad33-488c721850fb",
+      "siteId": "187bbd62-4d21-480e-8f8d-e484754aa22b",
+      "center": { "lat": 37.870617023959184, "lon": -122.26605336422946 },
+      "primary": true,
+      "notes": "The main creek site. 8 scans including a deliberate S1..S4 upstream sequence. Mesh graph is a ~26-node 8m grid; altitude rises 57.9m -> 59.8m from west to east, i.e. EAST IS UPSTREAM (Strawberry Creek flows westward). This altitude gradient is a usable ground-truth signal for the linear upstream progression.",
+      "assets": [
+        { "assetId": "4767ffbb-0ba9-420a-967b-bcd677ab90a5", "kind": "mesh",  "nodes": 26, "edges": 25 },
+        { "assetId": "aa815b01-bed7-416c-9d52-b5aef03892f4", "kind": "splat", "nodes": 1,  "edges": 25 }
+      ],
+      "assetNamesInPortal": ["Strawberry Creek South 2", "Stawberry Creek South (Production)", "Sather Gate"],
+      "splatFile": "data/splats/ucb-strawberry-creek-south.spz",
+      "scans": [
+        { "name": "S1", "id": "b9becbe3-5f10-4c19-b87f-0e8c591fe237", "lat": 37.870954988, "lon": -122.266118637 },
+        { "name": "S2", "id": "f592ebd4-6e06-4fe3-b02f-8da22cc34b44", "lat": 37.870809504, "lon": -122.266108004 },
+        { "name": "S3", "id": "483d9b39-3170-4ab8-a0ff-6f3fa1f53548", "lat": 37.871712736, "lon": -122.266284356 },
+        { "name": "S4", "id": "68737d20-1ef2-435c-a38c-affbfa0121e4", "lat": 37.871734171, "lon": -122.265235759 },
+        { "name": "scan_1785637171000", "id": "9eb235a6-0445-4b27-8ca1-bf24f9daef08", "lat": 37.871764483, "lon": -122.265417936 },
+        { "name": "scan_1785618889000", "id": "51ed4e92-7f68-4e95-ad79-b958e7627670", "lat": 37.871623289, "lon": -122.258591922 },
+        { "name": "scan_1785619139000", "id": "d4b172fb-488b-407f-90a8-e3c4af226b5d", "lat": 37.871558334, "lon": -122.258122494 },
+        { "name": "scan_1785619352000", "id": "7a16e307-b9d8-49d5-a6cd-8dfd5c5d0fa9", "lat": 37.870038662, "lon": -122.259339604 }
+      ]
+    },
+    {
+      "slug": "ubc-nitobe-garden-creek",
+      "displayName": "Garden Creek (Nitobe area)",
+      "campus": "UBC Vancouver",
+      "orgId": "62e5d093-9275-48d5-9f4a-16b1a1d917a7",
+      "siteId": "1a1df855-d2fc-4337-ae6f-c0c2277584b2",
+      "portalSiteName": "garden",
+      "center": { "lat": 49.266644, "lon": -123.25991 },
+      "primary": false,
+      "notes": "Visually the strongest creek scan: mossy stones, running water, dense understory. Site record has no mapPoint set in the portal; center taken from the splat asset's node GPS. Splat asset is NOT yet 'Set to production' in the portal - it must be promoted before NSDK runtime localization will target it.",
+      "assets": [
+        { "assetId": "49bc694d-8121-4509-bad9-14ac23dc3a9d", "kind": "mesh" },
+        { "assetId": "ce4dd8c5-4b83-4081-8efb-b5d38b0a5f50", "kind": "splat", "nodes": 1, "edges": 25,
+          "startingPose": {
+            "rotation": { "w": 0.6342831254005432, "x": 0.06111304089426994, "y": 0.26931247115135193, "z": -0.7220948338508606 },
+            "translation": { "x": -3.700030565261841, "y": 0.721916139125824, "z": -2.35591983795166 }
+          }
+        }
+      ],
+      "splatFile": "data/splats/ubc-nitobe-garden-creek.spz",
+      "scans": [
+        { "name": "scan_1786389422000", "id": "d04de944-4a9b-4072-8cd4-237d59d0ce83", "lat": 49.266806337, "lon": -123.259787143 }
+      ]
+    },
+    {
+      "slug": "ubc-trees",
+      "displayName": "UBC Trees",
+      "campus": "UBC Vancouver",
+      "orgId": "51edd29a-1057-486c-be54-6193b177a79f",
+      "siteId": "ed383e4c-34c7-48cd-b358-3e65377229ba",
+      "center": { "lat": 49.26444034250097, "lon": -123.25683462770797 },
+      "primary": false,
+      "notes": "Open lawn with mature broadleaf trees. No creek. Useful as the 'tree' sound-source rehearsal site and as a second site to prove multi-site switching.",
+      "assets": [
+        { "assetId": "03155c69-bfd6-43f4-84d8-95704c8f7c0a", "kind": "mesh", "rootNodeId": "4016F5F600EC471897252C0AF186D4E9" }
+      ],
+      "splatFile": "data/splats/ubc-trees.spz",
+      "scans": [
+        { "name": "scan_1786323235000", "id": "62859c5e-d101-4e9b-aa3d-6217b685198e", "lat": 49.264550476, "lon": -123.257084318 }
+      ]
+    }
+  ],
+  "splatFileFacts": {
+    "format": "SPZ v3, gzip container, magic 0x5053474e, SH degree 3, 12 fractional bits",
+    "ucb-strawberry-creek-south.spz": { "bytes": 89128960, "splats": 4848429 },
+    "ubc-nitobe-garden-creek.spz":    { "bytes": 100663296, "splats": 4963155 },
+    "ubc-trees.spz":                  { "bytes": 94371840, "splats": 4794667 },
+    "implication": "~5M splats each. Full-res is impractical to ship to a browser editor (85-96 MB each). Plan calls for a decimated LOD proxy (target ~500k-800k splats, SH degree 0-1) for the editor, with full-res reserved for the on-device experience."
+  }
+}

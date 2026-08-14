@@ -1,0 +1,435 @@
+{
+  "schemaVersion": "2.0",
+  "journeyId": "ubc-nitobe-garden-creek",
+  "title": "Shoaling Upstream — UBC garden creek",
+  "revision": 0,
+  "note": "Splat asset is NOT set to production in the portal, so device localization will fail here until it is promoted. Upstream direction along +X is unconfirmed.",
+  "site": {
+    "slug": "ubc-nitobe-garden-creek",
+    "nianticOrgId": "62e5d093-9275-48d5-9f4a-16b1a1d917a7",
+    "nianticSiteId": "1a1df855-d2fc-4337-ae6f-c0c2277584b2",
+    "vpsAssetId": "ce4dd8c5-4b83-4081-8efb-b5d38b0a5f50",
+    "anchorPayload": "",
+    "centreline": [
+      {
+        "x": -9.88,
+        "y": 1.301,
+        "z": 1.25
+      },
+      {
+        "x": -7.84,
+        "y": 1.625,
+        "z": -0.35
+      },
+      {
+        "x": -5.8,
+        "y": 0.097,
+        "z": -0.35
+      },
+      {
+        "x": -3.76,
+        "y": -0.901,
+        "z": -1.95
+      },
+      {
+        "x": -1.72,
+        "y": -1.536,
+        "z": -0.35
+      },
+      {
+        "x": 0.32,
+        "y": -1.846,
+        "z": -0.35
+      },
+      {
+        "x": 2.36,
+        "y": -2.884,
+        "z": 1.25
+      },
+      {
+        "x": 4.4,
+        "y": -2.242,
+        "z": -0.35
+      },
+      {
+        "x": 6.44,
+        "y": -2.14,
+        "z": -0.35
+      },
+      {
+        "x": 8.48,
+        "y": -1.335,
+        "z": -1.95
+      },
+      {
+        "x": 10.52,
+        "y": 4.765,
+        "z": -0.35
+      },
+      {
+        "x": 12.56,
+        "y": -1.825,
+        "z": -0.35
+      },
+      {
+        "x": 14.6,
+        "y": 2.195,
+        "z": 1.25
+      },
+      {
+        "x": 16.3,
+        "y": -1.525,
+        "z": -0.35
+      },
+      {
+        "x": 18,
+        "y": -1.825,
+        "z": -0.35
+      },
+      {
+        "x": 19.7,
+        "y": -1.825,
+        "z": -1.95
+      }
+    ],
+    "upstreamAxis": {
+      "kind": "altitude",
+      "risesToward": "unconfirmed"
+    }
+  },
+  "editorFrame": {
+    "splatFile": "ubc-nitobe-garden-creek.proxy.spz",
+    "calibrated": false,
+    "rotation": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "translation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "scale": 1,
+    "trim": {
+      "enabled": true,
+      "position": {
+        "x": -1.262,
+        "y": -0.784,
+        "z": -1.62
+      },
+      "rotation": [
+        0,
+        0.39564,
+        0,
+        0.91841
+      ],
+      "halfExtent": {
+        "x": 7.466,
+        "y": 2.005,
+        "z": 3.476
+      }
+    },
+    "bounds": {
+      "splats": 4963155,
+      "lo": {
+        "x": -12.593,
+        "y": -1.975,
+        "z": -17.609
+      },
+      "hi": {
+        "x": 21.338,
+        "y": 9.684,
+        "z": 9.998
+      },
+      "centre": {
+        "x": 0.276,
+        "y": 0.117,
+        "z": -0.356
+      },
+      "span": {
+        "x": 33.93,
+        "y": 11.659,
+        "z": 27.606
+      },
+      "note": "1st-99th percentile. Raw min/max is meaningless: every scan carries floater splats hundreds of metres out."
+    }
+  },
+  "beats": [
+    {
+      "id": "tree",
+      "title": "The tree",
+      "prompt": "Come in under the branches where the water runs slow.",
+      "interaction": "proximity",
+      "position": {
+        "x": -9.879999999999999,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "s": 2.72,
+      "trigger": {
+        "enterRadiusM": 2.18,
+        "exitRadiusM": 3.48,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "tree-creek-waterplants-1--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "tree-creek-waterplants-1--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "tree-creek-waterplants-1--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      }
+    },
+    {
+      "id": "redd",
+      "title": "The gravel bed",
+      "prompt": "Get low enough to see into the gravel.",
+      "interaction": "crouch",
+      "position": {
+        "x": -3.76,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "s": 8.84,
+      "trigger": {
+        "enterRadiusM": 2.18,
+        "exitRadiusM": 3.48,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "chapter-1-new-life--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "chapter-1-new-life--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "chapter-1-new-life--intimate",
+          "gainDb": -4,
+          "loop": true
+        },
+        "completion": {
+          "clipId": "lay-egg",
+          "gainDb": -3,
+          "loop": false
+        }
+      }
+    },
+    {
+      "id": "strider",
+      "title": "Water striders",
+      "prompt": "Something is moving on the surface.",
+      "interaction": "catch",
+      "position": {
+        "x": 2.360000000000001,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "s": 14.96,
+      "trigger": {
+        "enterRadiusM": 2.18,
+        "exitRadiusM": 3.48,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "strider--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "strider--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "strider--intimate",
+          "gainDb": -4,
+          "loop": true
+        },
+        "completion": {
+          "clipId": "eat-strider",
+          "gainDb": -3,
+          "loop": false
+        }
+      }
+    },
+    {
+      "id": "heron",
+      "title": "The heron",
+      "prompt": "It has been waiting. Let some of the shoal go.",
+      "interaction": "give",
+      "position": {
+        "x": 8.479999999999999,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "s": 21.08,
+      "trigger": {
+        "enterRadiusM": 2.18,
+        "exitRadiusM": 3.48,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "heron--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "heron--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "heron--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "givesFish": 12
+    },
+    {
+      "id": "barrier",
+      "title": "The barrier",
+      "prompt": "Lift yourself over. Water is above you again on the other side.",
+      "interaction": "lift",
+      "position": {
+        "x": 14.600000000000003,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "s": 27.2,
+      "trigger": {
+        "enterRadiusM": 2.18,
+        "exitRadiusM": 3.48,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "chapter-4-returning-home--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "chapter-4-returning-home--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "chapter-4-returning-home--intimate",
+          "gainDb": -4,
+          "loop": true
+        },
+        "completion": {
+          "clipId": "jump",
+          "gainDb": -3,
+          "loop": false
+        }
+      }
+    },
+    {
+      "id": "headwater",
+      "title": "The headwater",
+      "prompt": "This is as far upstream as the creek goes.",
+      "interaction": "crouch",
+      "position": {
+        "x": 19.699999999999996,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "s": 32.3,
+      "trigger": {
+        "enterRadiusM": 2.18,
+        "exitRadiusM": 3.48,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "chapter-5-rebirth--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "chapter-5-rebirth--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "chapter-5-rebirth--intimate",
+          "gainDb": -4,
+          "loop": true
+        },
+        "completion": {
+          "clipId": "lay-egg",
+          "gainDb": -3,
+          "loop": false
+        }
+      }
+    }
+  ],
+  "ambient": [
+    {
+      "id": "creek-bed",
+      "title": "The creek itself",
+      "position": {
+        "x": 4.4,
+        "y": -0.6,
+        "z": -0.35
+      },
+      "audibleRadiusM": 40,
+      "audio": {
+        "far": {
+          "clipId": "tree-creek-waterplants-2--far",
+          "gainDb": -20,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "tree-creek-waterplants-2--mid",
+          "gainDb": -17,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "tree-creek-waterplants-2--intimate",
+          "gainDb": -15,
+          "loop": true
+        }
+      }
+    }
+  ],
+  "shoal": {
+    "startingCount": 40,
+    "minimumCount": 6
+  },
+  "safety": {
+    "short": "Keep your eyes on the ground, not the screen.",
+    "full": "Wear headphones that let the world through. Move at your own pace; nothing is timed. Do not enter the water where the bank is undercut or the footing is loose. The heron and the shoal are not real; the creek is."
+  }
+}

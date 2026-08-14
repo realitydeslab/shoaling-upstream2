@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shoaling Upstream — editor</title>
+<link rel="stylesheet" href="/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/addons/": "/vendor/three/examples/jsm/",
+    "@sparkjsdev/spark": "/vendor/@sparkjsdev/spark/dist/spark.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="app">
+
+  <header id="topbar">
+    <div class="brand">Shoaling <em>Upstream</em></div>
+
+    <div class="field">
+      <label for="site-select">site</label>
+      <select id="site-select" aria-label="Site"></select>
+    </div>
+
+    <div class="seg" role="group" aria-label="Camera">
+      <button id="view-god"  aria-pressed="true">God</button>
+      <button id="view-user" aria-pressed="false">User</button>
+    </div>
+
+    <div class="topbar-spacer"></div>
+
+    <span id="calib-pill" class="pill warn">uncalibrated</span>
+    <span id="link-pill" class="pill off">no phone</span>
+
+    <button id="btn-add">+ Beat</button>
+    <button id="btn-save">Save draft</button>
+    <button id="btn-publish" class="primary">Publish</button>
+    <a href="/control" target="_blank" rel="noopener"><button class="ghost">Controller ↗</button></a>
+  </header>
+
+  <nav id="rail" aria-label="Beats">
+    <div class="rail-head">
+      <span class="rail-title">Beats</span>
+      <span class="rail-title" id="reach-length">—</span>
+    </div>
+    <ol id="beat-list"></ol>
+
+    <div class="rail-section">
+      <span class="rail-title">Ambient</span>
+      <ol id="ambient-list" style="list-style:none;margin:8px 0 0;padding:0"></ol>
+    </div>
+
+    <div class="rail-section">
+      <span class="rail-title">Checks</span>
+      <div class="notes" id="notes"></div>
+    </div>
+  </nav>
+
+  <main id="stage">
+    <div class="loading" id="loading">
+      <div>loading scan…</div>
+      <div class="loading-bar"><i></i></div>
+      <div id="loading-detail" style="font-size:11px"></div>
+    </div>
+    <div class="stage-overlay">
+      <div class="hud" id="hud"></div>
+      <div class="stage-tools">
+        <button id="btn-frame" class="ghost" title="Frame the whole reach">Frame</button>
+        <button id="btn-place" class="ghost" title="Click the scan to move the selected beat">Place</button>
+        <button id="btn-path" class="ghost" title="Drag the walking route the simulation follows">Path</button>
+        <button id="btn-trim" class="ghost" title="Trim the scan to a bounding box">Trim</button>
+        <button id="btn-splat" class="ghost" aria-pressed="true" title="Show or hide the scan">Scan</button>
+        <div class="seg" role="group" aria-label="Scan quality">
+          <button id="q-full" aria-pressed="true" title="Every splat, as captured">Full</button>
+          <button id="q-fast" aria-pressed="false" title="600k proxy — faster to load">Fast</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="path-panel" hidden>
+    <div class="trim-head">
+      <span class="rail-title">Walking path</span>
+      <button id="path-auto" class="ghost" title="Route a walk past every beat, on the ground">Auto</button>
+      <button id="path-add" class="ghost">+ Point</button>
+      <button id="path-del" class="ghost">Delete</button>
+      <button id="path-close" class="ghost">Done</button>
+    </div>
+    <p class="trim-note">The route the simulated walker follows — <b>not</b> where the points
+      of interest are. Click a handle to select it, then drag. Beats stay where you put them;
+      only their distance along the route is recomputed.</p>
+    <div class="trim-readout" id="path-readout"></div>
+  </div>
+
+  <div id="trim-panel" hidden>
+    <div class="trim-head">
+      <span class="rail-title">Trim</span>
+      <label class="trim-toggle"><input type="checkbox" id="trim-on"> apply</label>
+      <button id="trim-fit" class="ghost">Fit to scan</button>
+      <button id="trim-close" class="ghost">Done</button>
+    </div>
+    <p class="trim-note">Hides splats outside the box. The scan file is never modified — this
+      is a display trim stored with the journey.</p>
+    <div class="seg" role="group" aria-label="Gizmo mode" style="width:100%">
+      <button id="gz-move" aria-pressed="true" style="flex:1">Move</button>
+      <button id="gz-rotate" aria-pressed="false" style="flex:1">Rotate</button>
+      <button id="gz-scale" aria-pressed="false" style="flex:1">Scale</button>
+    </div>
+    <p class="trim-note" style="margin:8px 0 0">
+      Drag the handles in the viewport. <b>G</b> move · <b>R</b> rotate · <b>T</b> scale.
+      Rotating matters: the creek runs diagonally, so a straight box cannot follow it.
+    </p>
+    <div class="trim-readout" id="trim-readout"></div>
+  </div>
+
+  <section id="scrubber" aria-label="Armed zones along the reach">
+    <div class="scrub-head">
+      <button id="t-play" class="transport" title="Walk the journey (space)">▶</button>
+      <button id="t-rewind" class="transport" title="Back to the start">⏮</button>
+      <span id="t-speed-wrap">
+        <input id="t-speed" type="range" min="0.3" max="3" step="0.1" value="0.7"
+               aria-label="Walking speed">
+        <span id="t-speed-label">0.7 m/s</span>
+      </span>
+      <button id="t-audio" class="transport" title="Enable sound">🔇</button>
+      <span id="t-audio-note"></span>
+      <span>armed zones</span>
+      <span class="live" id="scrub-readout">s = 0.0 m</span>
+      <span class="armed-list" id="scrub-armed">nothing armed</span>
+    </div>
+    <canvas id="scrub-canvas"></canvas>
+  </section>
+
+  <aside id="inspector" aria-label="Inspector">
+    <div class="insp-head" id="insp-title">Nothing selected</div>
+    <div class="insp-body" id="insp-body">
+      <p class="empty">Select a beat on the left, or press <b>+ Beat</b> to add one.</p>
+    </div>
+  </aside>
+
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Scan data. Working data, not source: the full captures are ~90 MB each and the streaming
+# LOD sets are ~150 MB each. Regenerate proxies with tools/spz_decimate.py and .rad sets with
+# tools/build-rad.sh.
+data/splats/*.spz
+data/splats/proxy/
+data/splats/rad/
+
+# Source recordings and their packaged layers. Fetched from the shared Drive folder; rights
+# are unverified, so they should not be redistributed through this repo.
+data/audio/source/
+data/audio/packaged/
+
+# Draft backups written by seed-journeys before it overwrites anything.
+data/journeys/*/draft.*.bak.json
+
+node_modules/
+logs/
+.DS_Store
+
+# Unity
+app/Library/
+app/Temp/
+app/Obj/
+app/Build/
+app/Builds/
+app/Logs/
+app/UserSettings/
+app/MemoryCaptures/
+app/Recordings/
+*.csproj
+*.sln
+*.unityproj
+app/Assets/**/*.pdb

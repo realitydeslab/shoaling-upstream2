@@ -1,0 +1,15 @@
+{
+  "name": "ShoalingUpstream.Runtime",
+  "rootNamespace": "ShoalingUpstream",
+  "references": [
+    "Unity.XR.ARFoundation",
+    "Unity.XR.CoreUtils",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

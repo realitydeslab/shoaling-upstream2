@@ -1,0 +1,20 @@
+{
+  "name": "shoaling-upstream-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test test/",
+    "check": "node --check src/server.mjs && node --check src/journey-schema.mjs && node --check src/journey-store.mjs && node --check src/control-bus.mjs"
+  },
+  "dependencies": {
+    "@sparkjsdev/spark": "^2.1.0",
+    "resonance-audio": "^1.0.0",
+    "three": "0.185.1",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
