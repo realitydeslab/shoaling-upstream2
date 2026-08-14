@@ -23,7 +23,9 @@ import { validateJourney, INTERACTIONS, SCHEMA_VERSION } from './journey-schema.
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
 const EDITOR_DIR = path.join(ROOT, 'editor');
-const DATA_DIR = path.join(ROOT, 'data', 'journeys');
+// Overridable so the test suite can point the service at a throwaway directory. Without this
+// every end-to-end test would publish revisions into the artist's real journeys.
+const DATA_DIR = process.env.JOURNEY_DIR ?? path.join(ROOT, 'data', 'journeys');
 const SPLAT_DIR = path.join(ROOT, 'data', 'splats', 'proxy');
 // The editor runs on localhost, where a 96 MB scan costs nothing but decode time. The proxy
 // exists for web delivery; at a desk there is no reason to look at a decimated scan.
@@ -381,15 +383,18 @@ function lanAddresses() {
 
 server.listen(PORT, HOST, () => {
   const addrs = lanAddresses();
+  // The bound port, not the requested one: PORT=0 asks the OS to pick, which is how the tests
+  // avoid colliding with a dev server that is already running.
+  const port = server.address().port;
   console.log(`\n  Shoaling Upstream — authoring service`);
   console.log(`  schema ${SCHEMA_VERSION} · session ${bus.sessionId}\n`);
-  console.log(`  editor      http://localhost:${PORT}/`);
-  console.log(`  controller  http://localhost:${PORT}/control`);
+  console.log(`  editor      http://localhost:${port}/`);
+  console.log(`  controller  http://localhost:${port}/control`);
   for (const { name, address } of addrs) {
-    console.log(`  on ${name.padEnd(10)} http://${address}:${PORT}/`);
+    console.log(`  on ${name.padEnd(10)} http://${address}:${port}/`);
   }
   if (addrs.length > 0) {
-    console.log(`\n  phone connects to  ws://${addrs[0].address}:${PORT}/ws?role=device`);
+    console.log(`\n  phone connects to  ws://${addrs[0].address}:${port}/ws?role=device`);
   }
   console.log('');
 });
