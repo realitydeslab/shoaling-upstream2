@@ -13,6 +13,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+// The service is plain ES modules with no build step, so it is imported as JavaScript and its
+// signatures are inferred. That asymmetry is the point of this file: two implementations, one
+// typed and one not, asserted to agree.
 import {
   projectToCentreline as projectService,
   centrelineLength as lengthService,
@@ -21,9 +24,10 @@ import {
   projectToCentreline as projectEditor,
   centrelineLength as lengthEditor,
   pointAtS,
-} from '../editor/js/geom.js';
+} from '../editor/src/geom.ts';
+import type { Vec3 } from '../editor/src/types.ts';
 
-const STRAIGHT = [
+const STRAIGHT: Vec3[] = [
   { x: 0, y: 0, z: 0 },
   { x: 5, y: 0, z: 0 },
   { x: 10, y: 0, z: 0 },
@@ -66,14 +70,14 @@ test('projection is clamped to the ends rather than extrapolated', () => {
 
 test('the two implementations agree across a bent path', () => {
   // An L-bend, which is where a naive per-segment projection most easily disagrees.
-  const bent = [
+  const bent: Vec3[] = [
     { x: 0, y: 0, z: 0 },
     { x: 4, y: 0, z: 0 },
     { x: 4, y: 0, z: 4 },
   ];
   for (let x = -2; x <= 7; x += 0.5) {
     for (let z = -2; z <= 7; z += 0.5) {
-      const point = { x, y: 0, z };
+      const point: Vec3 = { x, y: 0, z };
       const a = projectService(point, bent).s;
       const b = projectEditor(point, bent).s;
       assert.ok(Math.abs(a - b) < 1e-9,
@@ -100,7 +104,7 @@ test('pointAtS and projectToCentreline are inverses along the path', () => {
 test('the path carries height, so s is a 3D distance', () => {
   // The route is stored at chest height and climbs a waterfall; a projection that ignored y
   // would under-report the reach and put every beat's s slightly short.
-  const climbing = [
+  const climbing: Vec3[] = [
     { x: 0, y: 0, z: 0 },
     { x: 3, y: 4, z: 0 },   // 3-4-5
   ];

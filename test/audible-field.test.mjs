@@ -15,7 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { audibleField } from '../editor/js/audition.js';
-import { makeBeat } from './helpers.mjs';
+import { makeBeat } from './helpers.ts';
 
 test('a beat with no audio has no field at all', () => {
   assert.equal(audibleField(makeBeat('silent', 0, { audio: {} })), null);

@@ -1,0 +1,36 @@
+{
+  // The editor has no bundler and is not getting one. tsc emits plain ES modules straight into
+  // editor/js/, which index.html already loads and the service already serves, so the runtime
+  // architecture is unchanged: no build server, no dev middleware, and a clone still runs by
+  // starting the service. The import map in index.html keeps resolving three and spark from
+  // /vendor/, and nothing is rewritten or inlined.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    "rootDir": "editor/src",
+    "outDir": "editor/js",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "verbatimModuleSyntax": true,
+
+    // The emitted .js is what runs and what the tests import, so it is committed rather than
+    // gitignored. Declarations and maps come with it: the maps make a stack trace from the
+    // browser point at the .ts, which is the whole reason for doing this.
+    "declaration": true,
+    "sourceMap": true,
+    "removeComments": false,
+
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["editor/src/**/*.ts"]
+}

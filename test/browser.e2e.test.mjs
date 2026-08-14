@@ -26,7 +26,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { makeDataRoot, makeJourney, SLUG, until } from './helpers.mjs';
+import { makeDataRoot, makeJourney, SLUG, until } from './helpers.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -199,9 +199,12 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     page.evaluate(() => window.__editor.state.journey.site.centreline.length);
   const pressed = (sel) => page.getAttribute(sel, 'aria-pressed');
 
-  const waitForToast = (pattern, timeout = 15_000) => page.waitForFunction(
-    (source) => window.__toasts.some((t) => new RegExp(source).test(t.text)),
-    pattern.source, { timeout });
+  const toastCount = () => page.evaluate(() => window.__toasts.length);
+  // `from` keeps an assertion honest when the expected wording has been seen before: a save
+  // that silently did nothing would otherwise pass on the previous save's toast.
+  const waitForToast = (pattern, { from = 0, timeout = 15_000 } = {}) => page.waitForFunction(
+    ({ source, since }) => window.__toasts.slice(since).some((t) => new RegExp(source).test(t.text)),
+    { source: pattern.source, since: from }, { timeout });
 
   test('booting raises no uncaught page error', () => {
     assert.deepEqual(pageErrors, [], `the editor threw during boot:\n${pageErrors.join('\n')}`);
@@ -260,7 +263,9 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     // into its own bezel with nothing on the stage to read, so it is checked through state.
     const probes = [
       ['btn-beats', 'beats', () => window.__editor.stage.gizmos.visible],
-      ['btn-splat', 'scan', () => window.__editor.stage.splat?.visible],
+      // null when there is no scan to hide, which is a valid state on a machine without the
+      // captures rather than a failure.
+      ['btn-splat', 'scan', () => window.__editor.stage.splat?.visible ?? null],
       ['btn-phone', 'phone', null],
     ];
 
@@ -272,7 +277,8 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
 
       assert.equal((await layers())[key], !was, `${id} did not toggle the "${key}" layer`);
       assert.equal(await pressed(`#${id}`), String(!was), `${id} did not update aria-pressed`);
-      if (probe) assert.equal(await page.evaluate(probe), !was, `${id} did not reach the scene`);
+      const seen = probe ? await page.evaluate(probe) : null;
+      if (seen !== null) assert.equal(seen, !was, `${id} did not reach the scene`);
 
       await page.click(`#${id}`);
       await page.waitForFunction(
@@ -345,8 +351,9 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
   test('the save button is never disabled, and saving says so', async () => {
     assert.equal(await page.isDisabled('#btn-save'), false,
       'an explicit save is also how you confirm what is on disk, so it is always available');
+    const from = await toastCount();
     await page.click('#btn-save');
-    await waitForToast(/Draft saved|Saved with \d+ warning/);
+    await waitForToast(/Draft saved|Saved with \d+ warning/, { from });
 
     const failed = (await toasts()).filter((t) => t.error && /saved/i.test(t.text));
     assert.deepEqual(failed, [], `saving reported a failure:\n${failed.map((t) => t.text).join('\n')}`);

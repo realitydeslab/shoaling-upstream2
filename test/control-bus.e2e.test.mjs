@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { makeDataRoot, makeJourney, until } from './helpers.mjs';
+import { makeDataRoot, makeJourney, until } from './helpers.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 

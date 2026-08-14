@@ -11,10 +11,12 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+import type { Beat, JourneyDocument } from '../editor/src/types.ts';
+
 export const SLUG = 'test-creek';
 
 /** A minimal journey that passes validation. Callers mutate what they are testing. */
-export function makeJourney(overrides = {}) {
+export function makeJourney(overrides: Partial<JourneyDocument> = {}): JourneyDocument {
   return {
     schemaVersion: '2.0',
     journeyId: 'test-creek-journey',
@@ -49,7 +51,7 @@ export function makeJourney(overrides = {}) {
   };
 }
 
-export function makeBeat(id, alongX, overrides = {}) {
+export function makeBeat(id: string, alongX: number, overrides: Partial<Beat> = {}): Beat {
   return {
     id,
     title: `Beat ${id}`,
@@ -79,7 +81,7 @@ export function makeBeat(id, alongX, overrides = {}) {
  * `journeysRoot` is what the store takes: it joins the slug straight onto it, so this is the
  * directory that holds one subdirectory per site, not its parent.
  */
-export async function makeDataRoot(journey = makeJourney()) {
+export async function makeDataRoot(journey: JourneyDocument = makeJourney()) {
   const base = await mkdtemp(path.join(tmpdir(), 'shoaling-test-'));
   const journeysRoot = path.join(base, 'journeys');
   const dir = path.join(journeysRoot, SLUG);
@@ -89,11 +91,14 @@ export async function makeDataRoot(journey = makeJourney()) {
 }
 
 /** Resolve when `check()` is true, or reject at the deadline. Keeps socket tests honest. */
-export function until(check, { timeoutMs = 2500, label = 'condition' } = {}) {
-  return new Promise((resolve, reject) => {
+export function until<T>(
+  check: () => T | Promise<T>,
+  { timeoutMs = 2500, label = 'condition' }: { timeoutMs?: number; label?: string } = {},
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
     const started = Date.now();
     const poll = () => {
-      let value;
+      let value: T | Promise<T>;
       try { value = check(); } catch (err) { return reject(err); }
       if (value) return resolve(value);
       if (Date.now() - started > timeoutMs) return reject(new Error(`timed out waiting for ${label}`));

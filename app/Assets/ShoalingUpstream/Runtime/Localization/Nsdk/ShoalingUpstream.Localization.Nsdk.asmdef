@@ -1,0 +1,24 @@
+{
+  "name": "ShoalingUpstream.Localization.Nsdk",
+  "rootNamespace": "ShoalingUpstream.Localization.Nsdk",
+  "references": [
+    "ShoalingUpstream.Runtime",
+    "ShoalingUpstream.Localization",
+    "NianticSpatial.NSDK.AR",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.CoreUtils"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false,
+  "versionDefines": [
+    {
+      "name": "com.nianticspatial.nsdk",
+      "expression": "",
+      "define": "NSDK_PRESENT"
+    }
+  ]
+}

@@ -14,7 +14,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { JourneyStore } from '../service/src/journey-store.mjs';
-import { makeDataRoot, makeJourney, makeBeat, SLUG } from './helpers.mjs';
+import { makeDataRoot, makeJourney, makeBeat, SLUG } from './helpers.ts';
 
 /** The trim box the artist positioned at UBC, as a realistic shape to patch with. */
 const FULL_TRIM = {

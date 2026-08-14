@@ -18,7 +18,7 @@ import {
   LAYERS,
   SCHEMA_VERSION,
 } from '../service/src/journey-schema.mjs';
-import { makeJourney, makeBeat } from './helpers.mjs';
+import { makeJourney, makeBeat } from './helpers.ts';
 
 /** Build the passing fixture, break one thing, validate. */
 function check(mutate) {

@@ -6,12 +6,19 @@
   "description": "Site-specific spatial-audio artwork on a creek reach: authoring editor, control service, and iOS app.",
   "scripts": {
     "start": "node service/src/server.mjs",
-    "test": "node --test \"test/**/*.test.mjs\"",
-    "test:unit": "node --test test/geometry.test.mjs test/journey-store.test.mjs test/audible-field.test.mjs test/journey-schema.test.mjs",
-    "test:e2e": "node --test \"test/*.e2e.test.mjs\"",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "node --test \"test/**/*.test.@(ts|mjs)\"",
+    "verify": "npm run build && npm run typecheck && npm test",
     "check": "npm --prefix service run check"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/three": "^0.185.4",
+    "typescript": "^7.0.2"
   }
 }

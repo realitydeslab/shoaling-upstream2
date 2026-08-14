@@ -23,6 +23,25 @@ namespace ShoalingUpstream.Config
     /// </summary>
     public enum JourneyEnvironment { Device, Simulation }
 
+    /// <summary>What became of one candidate.</summary>
+    public enum CandidateVerdict
+    {
+        /// <summary>Running this one.</summary>
+        Accepted,
+
+        /// <summary>Good, but another source offered a newer revision.</summary>
+        Superseded,
+
+        /// <summary>Did not parse: malformed, truncated, empty, or a schema we do not read.</summary>
+        Unreadable,
+
+        /// <summary>A journey for some other site.</summary>
+        WrongSite,
+
+        /// <summary>Uncalibrated, and this is a device rather than a simulation.</summary>
+        Uncalibrated,
+    }
+
     /// <summary>One source's answer, as raw text. Text, not a document, because refusing to
     /// parse is itself one of the outcomes the resolver has to report on.</summary>
     public readonly struct JourneyCandidate
@@ -37,6 +56,23 @@ namespace ShoalingUpstream.Config
         }
     }
 
+    /// <summary>One line of the account of how the journey was chosen.</summary>
+    public readonly struct CandidateOutcome
+    {
+        public readonly JourneySourceKind Source;
+        public readonly CandidateVerdict Verdict;
+        public readonly string Note;
+
+        public CandidateOutcome(JourneySourceKind source, CandidateVerdict verdict, string note)
+        {
+            Source = source;
+            Verdict = verdict;
+            Note = note;
+        }
+
+        public override string ToString() => $"{Source}: {Verdict.ToString().ToLowerInvariant()} — {Note}";
+    }
+
     /// <summary>What the app will run, and the full account of how that was decided.</summary>
     public sealed class JourneyResolution
     {
@@ -44,9 +80,22 @@ namespace ShoalingUpstream.Config
         public JourneySourceKind Source { get; internal set; }
         public bool HasJourney => Document != null;
 
-        /// <summary>One line per candidate, accepted or refused, with the reason. Logged at
-        /// launch: when a field test plays the wrong revision this is the only record of why.</summary>
+        /// <summary>Every candidate the resolver saw, in the order it saw them.</summary>
+        public List<CandidateOutcome> Outcomes { get; } = new();
+
+        /// <summary>Free-text lines the provider adds for sources that never produced a
+        /// candidate at all — an unreachable laptop, an empty cache. Logged with the outcomes:
+        /// when a field test plays the wrong revision this is the only record of why.</summary>
         public List<string> Notes { get; } = new();
+
+        public CandidateVerdict? VerdictFor(JourneySourceKind source)
+        {
+            foreach (var outcome in Outcomes)
+            {
+                if (outcome.Source == source) return outcome.Verdict;
+            }
+            return null;
+        }
 
         public override string ToString() =>
             HasJourney
@@ -84,8 +133,10 @@ namespace ShoalingUpstream.Config
     ///   numbered candidate, so a fresher build or a reachable service overtakes it without any
     ///   invalidation step.
     ///
-    /// Ties go to bundled because a bundled journey is the only one whose audio is guaranteed
-    /// to be in the build beside it; the same revision fetched over the wire is at best equal.
+    /// Ties go to bundled because a bundled journey is the only one whose audio is guaranteed to
+    /// be in the build beside it; the same revision fetched over the wire is at best equal. That
+    /// is expressed by offering candidates bundled-first and requiring a challenger to be
+    /// strictly newer.
     ///
     /// REFUSALS. Two conditions disqualify a candidate outright rather than degrading it:
     ///
@@ -100,8 +151,8 @@ namespace ShoalingUpstream.Config
     ///   to arrive at one.
     ///
     /// Refusing everything is a legitimate outcome and the caller must handle it — but it can
-    /// only happen when the bundled journey is itself refused, which is a build error the
-    /// exporter is there to prevent.
+    /// only happen when the bundled journey is itself refused, which is a build error that
+    /// tools/export-to-unity.mjs exists to prevent.
     /// </summary>
     public static class JourneyResolver
     {
@@ -116,57 +167,61 @@ namespace ShoalingUpstream.Config
             {
                 if (!JourneyParser.TryParse(candidate.Json, out var document, out var error))
                 {
-                    resolution.Notes.Add($"{candidate.Source}: refused — {error}");
+                    Record(resolution, candidate.Source, CandidateVerdict.Unreadable, error);
                     continue;
                 }
 
                 if (!string.IsNullOrEmpty(expectedSlug) && document.site.slug != expectedSlug)
                 {
-                    resolution.Notes.Add(
-                        $"{candidate.Source}: refused — is for site \"{document.site.slug}\", "
-                        + $"this build is walking \"{expectedSlug}\"");
+                    Record(resolution, candidate.Source, CandidateVerdict.WrongSite,
+                        $"is for \"{document.site.slug}\", this build walks \"{expectedSlug}\"");
                     continue;
                 }
 
                 bool calibrated = document.editorFrame != null && document.editorFrame.calibrated;
                 if (!calibrated && environment == JourneyEnvironment.Device)
                 {
-                    resolution.Notes.Add(
-                        $"{candidate.Source}: refused — r{document.revision} is not calibrated, "
-                        + "and uncalibrated coordinates against a real anchor put every beat in "
-                        + "the wrong place. It will run in simulation.");
+                    Record(resolution, candidate.Source, CandidateVerdict.Uncalibrated,
+                        $"r{document.revision} has never been matched to three physical points, "
+                        + "so against a real anchor every beat would be in the wrong place. "
+                        + "It runs in simulation only.");
                     continue;
                 }
 
-                if (!resolution.HasJourney || IsNewer(document, resolution))
+                if (resolution.HasJourney && document.revision <= resolution.Document.revision)
                 {
-                    resolution.Notes.Add(
-                        $"{candidate.Source}: r{document.revision} accepted"
-                        + (calibrated ? "" : " (uncalibrated, simulation only)"));
-                    resolution.Document = document;
-                    resolution.Source = candidate.Source;
+                    Record(resolution, candidate.Source, CandidateVerdict.Superseded,
+                        $"r{document.revision} is not newer than {resolution.Source} "
+                        + $"r{resolution.Document.revision}");
+                    continue;
                 }
-                else
-                {
-                    resolution.Notes.Add(
-                        $"{candidate.Source}: r{document.revision} is not newer than "
-                        + $"{resolution.Source} r{resolution.Document.revision} — kept "
-                        + $"{resolution.Source}");
-                }
+
+                Record(resolution, candidate.Source, CandidateVerdict.Accepted,
+                    $"r{document.revision}{(calibrated ? "" : ", uncalibrated (simulation)")}");
+                resolution.Document = document;
+                resolution.Source = candidate.Source;
             }
 
-            if (!resolution.HasJourney)
+            // An earlier acceptance that a newer revision has since overtaken is reported as
+            // superseded, not as the answer — otherwise the log claims two winners.
+            for (int i = 0; i < resolution.Outcomes.Count; i++)
             {
-                resolution.Notes.Add("no journey could be resolved");
+                var outcome = resolution.Outcomes[i];
+                if (outcome.Verdict != CandidateVerdict.Accepted) continue;
+                if (resolution.HasJourney && outcome.Source == resolution.Source) continue;
+
+                resolution.Outcomes[i] = new CandidateOutcome(
+                    outcome.Source, CandidateVerdict.Superseded,
+                    $"{outcome.Note}, overtaken by {resolution.Source}");
             }
 
             return resolution;
         }
 
-        /// <summary>Strictly newer. Equal revisions keep the incumbent, and candidates are
-        /// offered bundled-first, which is how ties end up on the bundled copy.</summary>
-        private static bool IsNewer(JourneyDocument document, JourneyResolution incumbent) =>
-            document.revision > incumbent.Document.revision;
+        private static void Record(
+            JourneyResolution resolution, JourneySourceKind source,
+            CandidateVerdict verdict, string note) =>
+            resolution.Outcomes.Add(new CandidateOutcome(source, verdict, note));
 
         /// <summary>Device on a phone, simulation everywhere else. The editor is a desk even
         /// when the build target is iOS, which is why this is not a platform test alone.</summary>
