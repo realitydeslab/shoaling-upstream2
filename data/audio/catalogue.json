@@ -16,7 +16,7 @@
     {"clipId":"eat-strider","file":"eat-strider.mp3","layers":["one-shot"]},
     {"clipId":"lay-egg","file":"lay-egg.mp3","layers":["one-shot"]},
     {"clipId":"jump","file":"jump.mp3","layers":["one-shot"]},
-    {"clipId":"tree-creek-waterplants-1","missing":true,"source":"Tree creek waterplants 1.wav"},
-    {"clipId":"tree-creek-waterplants-2","missing":true,"source":"Tree creek waterplants 2.wav"}
+    {"clipId":"tree-creek-waterplants-1","file":"tree-creek-waterplants-1.mp3","layers":["far","mid","intimate"]},
+    {"clipId":"tree-creek-waterplants-2","file":"tree-creek-waterplants-2.mp3","layers":["far","mid","intimate"]}
   ]
 }
