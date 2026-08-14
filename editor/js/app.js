@@ -930,7 +930,7 @@ function applyLayers() {
   stage.trimLayerVisible = L.trim;
   stage.setLayerVisible('trim', L.trim);
   stage.setSplatVisible(L.scan);
-  phone.enabled = L.phone;
+  if (phone) phone.enabled = L.phone;
 
   for (const [key, id] of [['beats', 'btn-beats'], ['path', 'btn-path'], ['trim', 'btn-trim'],
                            ['scan', 'btn-splat'], ['phone', 'btn-phone']]) {
@@ -1032,6 +1032,11 @@ function bindToolbar() {
   $('#btn-path').addEventListener('click', () => toggleLayer('path'));
   $('#btn-trim').addEventListener('click', () => toggleLayer('trim'));
   $('#btn-phone').addEventListener('click', () => toggleLayer('phone'));
+  // The phone view is parked; the button stays but says so rather than doing nothing silently.
+  if (!phone) {
+    $('#btn-phone').disabled = true;
+    $('#btn-phone').title = 'Phone screen is temporarily disabled';
+  }
   $('#path-close').addEventListener('click', () => {
     state.layers.path = false;
     setPathPanel(false);
