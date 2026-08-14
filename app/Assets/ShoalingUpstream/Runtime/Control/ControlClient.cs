@@ -273,6 +273,10 @@ namespace ShoalingUpstream.Control
                     }
                     break;
 
+                case ControlMessageKind.Pose:
+                    ApplyStreamedPose(message, nowLocalMs);
+                    break;
+
                 case ControlMessageKind.Command:
                     Receive(message.Command, nowLocalMs);
                     break;
@@ -281,6 +285,36 @@ namespace ShoalingUpstream.Control
                     LastNote = $"service: {message.Message}";
                     break;
             }
+        }
+
+        /// <summary>
+        /// The editor's walk simulation, applied the moment it lands.
+        ///
+        /// Not scheduled, not queued, not acked. A pose is state rather than an instruction:
+        /// latest wins and there is no history worth keeping — after a wifi stall the operator
+        /// wants where the walker is now, not ten seconds of replay at ten times speed. The bus
+        /// sends a pose with no fireAtMs at all, so unlike the simulatePose command there is no
+        /// schedule to honour even if one were wanted.
+        ///
+        /// The cost, and it is a real one: a beat the device fires by crossing a trigger against
+        /// a followed pose lands up to a lead time before an operator's fireBeat aimed at the
+        /// same moment, because the command is scheduled and this is not. Two time bases, and
+        /// that is the trade the separate message type makes. On a desk, where this channel is
+        /// the whole point, the walk being live is worth more than agreeing with a button.
+        ///
+        /// The pose's `slug` is not checked against the site this build is walking. Nothing here
+        /// knows that slug — see docs/unity-integration.md.
+        /// </summary>
+        private void ApplyStreamedPose(ControlMessage message, double nowLocalMs)
+        {
+            if (!message.HasPose)
+            {
+                // Every field nulled is what the bus sends when the editor has nothing to say.
+                // Leaving the previous pose standing is right: it expires on its own lease.
+                LastNote = "a pose arrived carrying neither s nor a position";
+                return;
+            }
+            _simulated.Apply(message.Pose, nowLocalMs);
         }
 
         private void Receive(ControlCommand command, double nowLocalMs)

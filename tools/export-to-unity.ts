@@ -27,21 +27,22 @@
  *    build byte-identical, so that "the assets changed" always means something changed. The
  *    time of the run goes to the terminal, not into the build.
  *
- *   node tools/export-to-unity.mjs --site ubc-nitobe-garden-creek --allow-uncalibrated
- *   node tools/export-to-unity.mjs --site ubc-nitobe-garden-creek --check
- *   node tools/export-to-unity.mjs --site ucb-strawberry-creek-south --from-service
+ *   node tools/export-to-unity.ts --site ubc-nitobe-garden-creek --allow-uncalibrated
+ *   node tools/export-to-unity.ts --site ubc-nitobe-garden-creek --check
+ *   node tools/export-to-unity.ts --site ucb-strawberry-creek-south --from-service
  */
 
 import { readFile, writeFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateJourney, SCHEMA_VERSION, LAYERS } from '../service/src/journey-schema.mjs';
+import { validateJourney, SCHEMA_VERSION, LAYERS } from '../service/src/journey-schema.ts';
+import type { AudioLayer, BeatAudio, JourneyDocument } from '../editor/src/types.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Paths inside the repo read better relative; anything else has to stay absolute. */
-const show = (p) => (p.startsWith(ROOT + path.sep) ? path.relative(ROOT, p) : p);
+const show = (p: string): string => (p.startsWith(ROOT + path.sep) ? path.relative(ROOT, p) : p);
 
 const DEFAULTS = {
   site: 'ubc-nitobe-garden-creek',
@@ -51,10 +52,23 @@ const DEFAULTS = {
   out: path.join(ROOT, 'app', 'Assets', 'StreamingAssets', 'ShoalingUpstream'),
 };
 
+interface Options {
+  site: string;
+  service: string;
+  journeyDir: string;
+  audioDir: string;
+  out: string;
+  allowUncalibrated: boolean;
+  fromService: boolean;
+  check: boolean;
+  prune: boolean;
+  makeDefault: boolean;
+}
+
 // --- arguments ------------------------------------------------------------
 
-function parseArgs(argv) {
-  const opts = {
+function parseArgs(argv: string[]): Options {
+  const opts: Options = {
     ...DEFAULTS,
     allowUncalibrated: false,
     fromService: false,
@@ -63,8 +77,8 @@ function parseArgs(argv) {
     makeDefault: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    const value = () => {
+    const arg = argv[i]!;
+    const value = (): string => {
       const next = argv[i + 1];
       if (next === undefined || next.startsWith('--')) die(`${arg} needs a value`);
       i += 1;
@@ -88,9 +102,9 @@ function parseArgs(argv) {
   return opts;
 }
 
-function usage() {
+function usage(): void {
   console.log(`
-  node tools/export-to-unity.mjs [options]
+  node tools/export-to-unity.ts [options]
 
     --site <slug>            which site to package (default ${DEFAULTS.site})
     --from-service           read GET /published from the running service instead of the
@@ -108,33 +122,38 @@ function usage() {
 `);
 }
 
-function die(message) {
+function die(message: string): never {
   console.error(`\n  ${message}\n`);
   process.exit(2);
 }
 
 // --- reading the published revision ---------------------------------------
 
-async function latestRevisionOnDisk(journeyDir, slug) {
+interface Source {
+  document: JourneyDocument;
+  from: string;
+}
+
+async function latestRevisionOnDisk(journeyDir: string, slug: string): Promise<Source | null> {
   const dir = path.join(journeyDir, slug, 'revisions');
   if (!existsSync(dir)) return null;
   const numbers = (await readdir(dir))
     .map((f) => /^r(\d+)\.json$/.exec(f))
-    .filter(Boolean)
+    .filter((m): m is RegExpExecArray => Boolean(m))
     .map((m) => Number(m[1]))
     .sort((a, b) => a - b);
   if (numbers.length === 0) return null;
 
   const file = path.join(dir, `r${String(numbers.at(-1)).padStart(6, '0')}.json`);
-  return { document: JSON.parse(await readFile(file, 'utf8')), from: show(file) };
+  return { document: JSON.parse(await readFile(file, 'utf8')) as JourneyDocument, from: show(file) };
 }
 
-async function publishedFromService(base, slug) {
+async function publishedFromService(base: string, slug: string): Promise<Source> {
   const url = `${base.replace(/\/$/, '')}/api/sites/${slug}/published`;
-  const res = await fetch(url).catch((err) => die(`${url}: ${err.message}`));
+  const res = await fetch(url).catch((err: Error) => die(`${url}: ${err.message}`));
   if (res.status === 404) die(`${slug} has no published revision — press Publish in the editor`);
   if (!res.ok) die(`${url}: HTTP ${res.status}`);
-  return { document: await res.json(), from: url };
+  return { document: await res.json() as JourneyDocument, from: url };
 }
 
 // --- what a journey plays -------------------------------------------------
@@ -146,12 +165,12 @@ async function publishedFromService(base, slug) {
  * asks for something this script never packaged, which is exactly the silent beat the whole
  * script exists to prevent — so keep them in step.
  */
-function clipIdsIn(document) {
-  const ids = new Set();
-  const add = (layer) => {
+function clipIdsIn(document: JourneyDocument): string[] {
+  const ids = new Set<string>();
+  const add = (layer: AudioLayer | undefined): void => {
     if (layer && typeof layer.clipId === 'string' && layer.clipId.trim()) ids.add(layer.clipId);
   };
-  const addAll = (audio) => {
+  const addAll = (audio: BeatAudio | undefined): void => {
     if (!audio) return;
     for (const layer of LAYERS) add(audio[layer]);
     add(audio.completion);
@@ -164,7 +183,11 @@ function clipIdsIn(document) {
 // --- idempotent writes ----------------------------------------------------
 
 /** Write only when the bytes differ, and say which happened. */
-async function put(file, contents, { check }) {
+async function put(
+  file: string,
+  contents: Buffer | string,
+  { check }: { check: boolean },
+): Promise<'unchanged' | 'wrote'> {
   const buffer = Buffer.isBuffer(contents) ? contents : Buffer.from(contents, 'utf8');
   if (existsSync(file)) {
     const current = await readFile(file);
@@ -177,7 +200,7 @@ async function put(file, contents, { check }) {
   return 'wrote';
 }
 
-const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
 // --- main -----------------------------------------------------------------
 
@@ -222,9 +245,15 @@ if (doc.site?.slug !== opts.site) {
 
 // --- clips ----------------------------------------------------------------
 
+interface PackagedClip {
+  clipId: string;
+  file: string;
+  bytes: number;
+}
+
 const clipIds = clipIdsIn(doc);
-const clips = [];
-const missing = [];
+const clips: PackagedClip[] = [];
+const missing: string[] = [];
 
 for (const clipId of clipIds) {
   const file = path.join(opts.audioDir, `${clipId}.mp3`);
@@ -255,8 +284,21 @@ if (emptyClips.length) {
 
 // --- write ----------------------------------------------------------------
 
+interface ManifestSite {
+  slug: string;
+  title: string;
+  revision: number;
+  calibrated: boolean;
+}
+
+interface Manifest {
+  generatedBy: string;
+  defaultSlug: string | null;
+  sites: ManifestSite[];
+}
+
 const audioDir = path.join(opts.out, 'audio');
-const results = [];
+const results: [string, string, 'wrote' | 'unchanged'][] = [];
 
 results.push(['journey', `journeys/${opts.site}.json`, await put(
   path.join(opts.out, 'journeys', `${opts.site}.json`), json(doc), opts)]);
@@ -274,11 +316,11 @@ results.push(['index', 'audio/index.json', await put(
 // The manifest accumulates: packaging UBC must not unpackage Berkeley, because switching site
 // is meant to be a switch rather than a rebuild of the assets.
 const manifestPath = path.join(opts.out, 'manifest.json');
-const manifest = existsSync(manifestPath)
-  ? JSON.parse(await readFile(manifestPath, 'utf8'))
-  : { generatedBy: 'tools/export-to-unity.mjs', defaultSlug: null, sites: [] };
+const manifest: Manifest = existsSync(manifestPath)
+  ? JSON.parse(await readFile(manifestPath, 'utf8')) as Manifest
+  : { generatedBy: 'tools/export-to-unity.ts', defaultSlug: null, sites: [] };
 
-manifest.generatedBy = 'tools/export-to-unity.mjs';
+manifest.generatedBy = 'tools/export-to-unity.ts';
 manifest.sites = [
   ...(manifest.sites ?? []).filter((s) => s.slug !== opts.site),
   { slug: opts.site, title: doc.title ?? opts.site, revision: doc.revision, calibrated },
@@ -299,7 +341,7 @@ for (const other of manifest.sites) {
   if (other.slug === opts.site) continue;
   const file = path.join(opts.out, 'journeys', `${other.slug}.json`);
   if (!existsSync(file)) continue;
-  for (const clipId of clipIdsIn(JSON.parse(await readFile(file, 'utf8')))) {
+  for (const clipId of clipIdsIn(JSON.parse(await readFile(file, 'utf8')) as JourneyDocument)) {
     keep.add(`${clipId}.mp3`);
   }
 }

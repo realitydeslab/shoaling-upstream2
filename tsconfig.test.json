@@ -1,21 +1,33 @@
 {
-  // Tests are run directly by Node, which strips types without checking them. Stripping is not
-  // checking, so this config exists purely to type-check them — `npm run typecheck` — while
-  // `node --test` runs the behaviour. Two separate guarantees, deliberately not conflated.
+  // Everything here is run directly by Node, which strips types without checking them.
+  // Stripping is not checking, so this config exists purely to type-check — `npm run typecheck`
+  // — while `node --test` and `node service/src/server.ts` run the behaviour. Two separate
+  // guarantees, deliberately not conflated.
+  //
+  // The service and the tools are in this config rather than the emitting one because they
+  // have NO BUILD: `node service/src/server.ts` is how the service starts, and a laptop in a
+  // park restarts it with no toolchain. tsc never emits them; it only ever checks them. That is
+  // also why they must be listed explicitly — only journey-schema is reachable from a test
+  // import, so the rest would otherwise be checked by nothing at all.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
     // rootDir is inherited from the emitting config and would exclude test/. Under noEmit there
     // is no output tree to root, so clear it.
     "rootDir": ".",
-    // Tests import editor sources by their real filenames, because that is what Node resolves
+    // Tests and the service import by their real filenames, because that is what Node resolves
     // at runtime. Only legal under noEmit.
     "allowImportingTsExtensions": true,
-    // The service is plain ES modules and is staying that way — it has no build step and runs
-    // straight from source. Tests import it for real, so allow the JS without checking it.
+    // Some suites are still plain ES modules. They are imported for real, so allow the JS
+    // through without checking it.
     "allowJs": true,
     "checkJs": false,
     "types": ["node"]
   },
-  "include": ["editor/src/**/*.ts", "test/**/*.ts"]
+  "include": [
+    "editor/src/**/*.ts",
+    "test/**/*.ts",
+    "service/src/**/*.ts",
+    "tools/**/*.ts"
+  ]
 }

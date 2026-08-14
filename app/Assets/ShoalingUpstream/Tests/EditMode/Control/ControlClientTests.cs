@@ -211,6 +211,101 @@ namespace ShoalingUpstream.Tests.Control
         }
 
         [Test]
+        public void AStreamedPoseMovesTheWalkerTheMomentItLands()
+        {
+            var rig = new Rig().Online();
+
+            rig.Transport.Deliver(Frames.StreamedPose(s: 27.5, headingRad: 1.2));
+            rig.Client.Pump(1_041);   // one millisecond after the frame, not one lead time
+
+            Assert.IsTrue(rig.Poses.TryGetPose(1_041, out var pose),
+                "a pose is state, not an instruction — nothing schedules it");
+            Assert.AreEqual(PoseOrigin.Simulated, pose.Origin);
+            Assert.AreEqual(27.5f, pose.S, 0.001f);
+            Assert.AreEqual(27.5f, pose.AnchorLocalPosition.z, 0.001f,
+                "the editor sends s alone; the point downstream needs is reconstructed here");
+            Assert.AreEqual(LocalizationQuality.Precise, pose.Quality);
+
+            CollectionAssert.IsEmpty(rig.Effects.Calls, "a pose is not an effect");
+            CollectionAssert.IsEmpty(rig.Transport.SentOfType("ack"),
+                "acking twenty scrub frames a second would spend the socket on bookkeeping "
+                + "nobody reads");
+            Assert.AreEqual(0, rig.Client.Scheduler.PendingCount,
+                "and nothing of it is left waiting in the command queue");
+        }
+
+        [Test]
+        public void TheLatestStreamedPoseWins()
+        {
+            // No history and no replay: after a stall the operator wants where the walker is now,
+            // not ten seconds of queued positions played back at ten times speed.
+            var rig = new Rig().Online();
+
+            rig.Transport.Deliver(Frames.StreamedPose(s: 5));
+            rig.Transport.Deliver(Frames.StreamedPose(s: 12));
+            rig.Transport.Deliver(Frames.StreamedPose(s: 30));
+            rig.Client.Pump(1_050);
+
+            Assert.IsTrue(rig.Poses.TryGetPose(1_050, out var pose));
+            Assert.AreEqual(30f, pose.S, 0.001f);
+            Assert.AreEqual(0, rig.Client.Scheduler.PendingCount);
+        }
+
+        [Test]
+        public void AStreamedPoseCarryingNothingLeavesThePreviousOneStanding()
+        {
+            var rig = new Rig().Online();
+
+            rig.Transport.Deliver(Frames.StreamedPose(s: 27.5));
+            rig.Client.Pump(1_050);
+
+            rig.Transport.Deliver(Frames.StreamedPose(s: null, position: null));
+            rig.Client.Pump(1_060);
+
+            Assert.IsTrue(rig.Poses.TryGetPose(1_060, out var pose));
+            Assert.AreEqual(27.5f, pose.S, 0.001f,
+                "an unreadable frame must not teleport the visitor to the end of the creek");
+            StringAssert.Contains("neither s nor a position", rig.Client.LastNote);
+        }
+
+        [Test]
+        public void ADroppedSocketStopsAStreamedWalkAtOnce()
+        {
+            // An operator who has vanished is not still scrubbing, and the two-second lease is
+            // too long to leave the visitor pinned to wherever the last frame put them.
+            var rig = new Rig().Online();
+            rig.Transport.Deliver(Frames.StreamedPose(s: 27.5));
+            rig.Client.Pump(1_050);
+            Assert.IsTrue(rig.Poses.IsLive(1_050));
+
+            rig.Transport.Drop();
+            rig.Client.Pump(1_060);
+
+            Assert.IsFalse(rig.Poses.IsLive(1_060));
+        }
+
+        [Test]
+        public void BothPoseCarriersDriveTheSameWalker()
+        {
+            // The older simulatePose command is still live: a phone in the field may be sent one,
+            // and dropping it would be a second break. Whichever arrives last wins, and nothing
+            // downstream can tell which carried it.
+            var rig = new Rig().Online();
+
+            rig.Transport.Deliver(Frames.Pose(s: 10, issuedAtMs: 1_000));
+            rig.Client.Pump(1_500);
+            Assert.IsTrue(rig.Poses.TryGetPose(1_500, out var viaCommand));
+            Assert.AreEqual(10f, viaCommand.S, 0.001f);
+            Assert.AreEqual(PoseOrigin.Simulated, viaCommand.Origin);
+
+            rig.Transport.Deliver(Frames.StreamedPose(s: 42));
+            rig.Client.Pump(1_510);
+            Assert.IsTrue(rig.Poses.TryGetPose(1_510, out var viaStream));
+            Assert.AreEqual(42f, viaStream.S, 0.001f);
+            Assert.AreEqual(PoseOrigin.Simulated, viaStream.Origin);
+        }
+
+        [Test]
         public void TheStatusReportedIsTheOneThePieceIsActuallyRunningOn()
         {
             // Whichever source is steering is what the operator sees, or a simulated walk shows

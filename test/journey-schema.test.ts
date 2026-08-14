@@ -17,24 +17,45 @@ import {
   INTERACTIONS,
   LAYERS,
   SCHEMA_VERSION,
-} from '../service/src/journey-schema.mjs';
+} from '../service/src/journey-schema.ts';
 import { makeJourney, makeBeat } from './helpers.ts';
+import type { Interaction, ValidationResult } from '../editor/src/types.ts';
+
+/**
+ * The fixture, opened up so that it can be broken.
+ *
+ * Almost every test below feeds the validator a document the type system says cannot exist —
+ * `beats` as a string, a rotation of three numbers, a missing `calibrated` flag. That is the
+ * point of the file: nothing type-checks what the editor PUTs, and this validator is the only
+ * thing between a malformed body and a draft on a phone. Typing the mutator as JourneyDocument
+ * would need a cast on nearly every line and would claim a guarantee that does not exist here.
+ */
+type Malformed = any;
+
+/**
+ * The interaction kinds, as the type system knows them.
+ *
+ * `INTERACTIONS` comes from the unchecked JavaScript validator, so iterating it yields bare
+ * strings; `Interaction` in types.ts is meant to be the same closed vocabulary, and the last
+ * test in this file is what holds the two together.
+ */
+const KINDS = Object.keys(INTERACTIONS) as Interaction[];
 
 /** Build the passing fixture, break one thing, validate. */
-function check(mutate) {
+function check(mutate?: (journey: Malformed) => void): ValidationResult {
   const journey = makeJourney();
   mutate?.(journey);
   return validateJourney(journey);
 }
 
-const hasError = (result, fragment) =>
+const hasError = (result: ValidationResult, fragment: string) =>
   result.errors.some((e) => e.includes(fragment));
 
-const hasWarning = (result, fragment) =>
+const hasWarning = (result: ValidationResult, fragment: string) =>
   result.warnings.some((w) => w.includes(fragment));
 
 /** Assert a mutation is rejected, and rejected for the reason we meant to test. */
-function rejects(mutate, fragment) {
+function rejects(mutate: (journey: Malformed) => void, fragment: string): ValidationResult {
   const result = check(mutate);
   assert.equal(result.ok, false, `expected rejection, got ${JSON.stringify(result.errors)}`);
   assert.ok(hasError(result, fragment),
@@ -139,7 +160,7 @@ test('unknown keys are ignored rather than rejected', () => {
 // --- interactions -------------------------------------------------------
 
 test('every interaction kind is accepted', () => {
-  for (const kind of Object.keys(INTERACTIONS)) {
+  for (const kind of KINDS) {
     const extra = kind === 'give' ? { givesFish: 2 } : {};
     const result = check((j) => {
       j.beats = [makeBeat(kind, 2, { interaction: kind, ...extra })];
@@ -151,7 +172,7 @@ test('every interaction kind is accepted', () => {
 test('a beat with an unknown interaction is rejected', () => {
   const result = rejects((j) => { j.beats[0].interaction = 'teleport'; }, 'interaction must be one of');
   // The message lists the legal kinds, because the person reading it is usually hand-editing JSON.
-  for (const kind of Object.keys(INTERACTIONS)) {
+  for (const kind of KINDS) {
     assert.ok(hasError(result, kind), `${kind} missing from the error message`);
   }
 });
@@ -519,7 +540,7 @@ test('INTERACTIONS describes each kind well enough to build a picker from', () =
   // Which kinds need bespoke gesture detection drives real work, so pin the set: `give` changes
   // state but is chosen, not performed, and `proximity` is arrival alone.
   assert.deepEqual(
-    Object.keys(INTERACTIONS).filter((k) => INTERACTIONS[k].needsGesture),
+    KINDS.filter((k) => INTERACTIONS[k].needsGesture),
     ['crouch', 'catch', 'lift']
   );
 });

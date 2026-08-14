@@ -16,14 +16,90 @@
  *    fired late, which is the failure mode that would actually ruin a walk.
  */
 
+import type { WebSocket } from 'ws';
+import type { CommandMessage, PoseMessage, Vec3 } from '../../editor/src/types.ts';
+
 const DEFAULT_LEAD_MS = 400;
 const COMMAND_TTL_MS = 10_000;
 const HEARTBEAT_TIMEOUT_MS = 12_000;
 
+export type ClientRole = 'device' | 'operator';
+
+/** What a `hello` told us about a phone. Null rather than absent: the phone may not know. */
+export interface DeviceInfo {
+  device?: string | null;
+  os?: string | null;
+  build?: string | null;
+}
+
+interface Client {
+  socket: WebSocket;
+  role: ClientRole;
+  lastSeen: number;
+  info: DeviceInfo;
+}
+
+/**
+ * The authoritative view of what the phone is doing.
+ *
+ * Mirrored by `ServerState` in editor/src/control.ts, which is its only reader in the browser,
+ * and by the Unity side in app/…/Control/ControlProtocol.cs.
+ */
+export interface BusState {
+  sessionId: string;
+  site: string | null;
+  revision: number | null;
+  /** unavailable | coarse | precise */
+  localization: string;
+  trackingConfidence: number | null;
+  /** Metres along the creek centreline. */
+  s: number | null;
+  lateralM: number | null;
+  currentBeat: string | null;
+  highWaterMark: number;
+  completed: string[];
+  shoalCount: number | null;
+  updatedAt: number;
+}
+
+/** A pose as it arrives on the wire from the editor's walk simulation. */
+export interface PoseInput {
+  s?: number | null;
+  position?: Vec3 | null;
+  headingRad?: number | null;
+  slug?: string | null;
+}
+
+/** A command as an operator sends it. Only `action` is required, and even that is untrusted. */
+export interface CommandInput {
+  action: string;
+  beatId?: string | null;
+  value?: unknown;
+}
+
+export interface AckInput {
+  sessionId?: string;
+  commandId?: string;
+  applied?: unknown;
+  note?: string | null;
+}
+
+export interface ControlBusOptions {
+  leadMs?: number;
+}
+
 export class ControlBus {
-  constructor({ leadMs = DEFAULT_LEAD_MS } = {}) {
+  leadMs: number;
+  clients: Map<number, Client>;
+  nextId: number;
+  sessionId: string;
+  state: BusState;
+  commandLog: CommandMessage[];
+  lastPose?: PoseMessage;
+
+  constructor({ leadMs = DEFAULT_LEAD_MS }: ControlBusOptions = {}) {
     this.leadMs = leadMs;
-    this.clients = new Map(); // id -> {socket, role, lastSeen, info}
+    this.clients = new Map();
     this.nextId = 1;
     this.sessionId = `s${Date.now().toString(36)}`;
 
@@ -48,7 +124,7 @@ export class ControlBus {
     this.commandLog = [];
   }
 
-  add(socket, role) {
+  add(socket: WebSocket, role: ClientRole): number {
     const id = this.nextId++;
     this.clients.set(id, { socket, role, lastSeen: Date.now(), info: {} });
     this.send(socket, { type: 'welcome', clientId: id, role, sessionId: this.sessionId });
@@ -57,25 +133,25 @@ export class ControlBus {
     return id;
   }
 
-  remove(id) {
+  remove(id: number): void {
     this.clients.delete(id);
     this.broadcastPresence();
   }
 
-  send(socket, payload) {
+  send(socket: WebSocket, payload: unknown): void {
     if (socket.readyState === 1) {
       socket.send(JSON.stringify(payload));
     }
   }
 
-  broadcast(payload, { role } = {}) {
+  broadcast(payload: unknown, { role }: { role?: ClientRole } = {}): void {
     for (const [, client] of this.clients) {
       if (role && client.role !== role) continue;
       this.send(client.socket, payload);
     }
   }
 
-  broadcastPresence() {
+  broadcastPresence(): void {
     const now = Date.now();
     const devices = [];
     let operators = 0;
@@ -95,19 +171,21 @@ export class ControlBus {
   }
 
   /** Merge a device's status report into authoritative state and fan it out to operators. */
-  applyStatus(id, patch) {
+  applyStatus(id: number, patch: Record<string, unknown>): void {
     const client = this.clients.get(id);
     if (client) {
       client.lastSeen = Date.now();
     }
-    const allowed = [
+    const allowed: readonly (keyof BusState)[] = [
       'site', 'revision', 'localization', 'trackingConfidence',
       's', 'lateralM', 'currentBeat', 'highWaterMark', 'completed', 'shoalCount',
     ];
     let changed = false;
     for (const key of allowed) {
       if (Object.hasOwn(patch, key) && patch[key] !== undefined) {
-        this.state[key] = patch[key];
+        // The allowlist is the check. What a device puts under an allowed key is its own
+        // report of itself and is written through as-is, exactly as the JavaScript did.
+        (this.state as unknown as Record<string, unknown>)[key] = patch[key];
         changed = true;
       }
     }
@@ -129,8 +207,8 @@ export class ControlBus {
    * follow the browser's walk simulation and play the same beats without anyone standing in a
    * creek. On device this channel is silent — VPS2 supplies the pose, and the app ignores this.
    */
-  streamPose(pose) {
-    const message = {
+  streamPose(pose: PoseInput): PoseMessage {
+    const message: PoseMessage = {
       type: 'pose',
       s: pose.s ?? null,
       position: pose.position ?? null,
@@ -150,9 +228,9 @@ export class ControlBus {
    * responsiveness has to be decoupled from delivery, because the person pressing and the
    * person hearing are different people and nothing is fusing across the network anyway.
    */
-  issue(command) {
+  issue(command: CommandInput): CommandMessage {
     const now = Date.now();
-    const scheduled = {
+    const scheduled: CommandMessage = {
       type: 'command',
       id: `${this.sessionId}-${this.commandLog.length + 1}`,
       action: command.action,
@@ -171,7 +249,7 @@ export class ControlBus {
     return scheduled;
   }
 
-  acknowledge(id, ack) {
+  acknowledge(id: number, ack: AckInput): boolean {
     const client = this.clients.get(id);
     if (client) client.lastSeen = Date.now();
     // Acknowledgements from a previous server session are meaningless — the command IDs they
@@ -181,7 +259,7 @@ export class ControlBus {
     return true;
   }
 
-  touch(id) {
+  touch(id: number): void {
     const client = this.clients.get(id);
     if (client) {
       client.lastSeen = Date.now();
@@ -189,7 +267,7 @@ export class ControlBus {
     }
   }
 
-  describeDevice(id, info) {
+  describeDevice(id: number, info: DeviceInfo): void {
     const client = this.clients.get(id);
     if (client) {
       client.info = { ...client.info, ...info };

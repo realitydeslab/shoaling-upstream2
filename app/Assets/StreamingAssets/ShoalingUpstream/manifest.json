@@ -1,0 +1,12 @@
+{
+  "generatedBy": "tools/export-to-unity.mjs",
+  "defaultSlug": "ubc-nitobe-garden-creek",
+  "sites": [
+    {
+      "slug": "ubc-nitobe-garden-creek",
+      "title": "Shoaling Upstream — UBC garden creek",
+      "revision": 1,
+      "calibrated": false
+    }
+  ]
+}

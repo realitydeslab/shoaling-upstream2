@@ -23,12 +23,14 @@
  * The two beats at the end are the artist's instruction: lift yourself over the falls, then
  * spawn in the water above them.
  *
- *   node tools/replan-garden.mjs
+ *   node tools/replan-garden.ts
  */
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Beat, BeatAudio, Interaction, JourneyDocument, Vec3 }
+  from '../editor/src/types.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SLUG = 'ubc-nitobe-garden-creek';
@@ -36,11 +38,13 @@ const BASE = process.env.SERVICE ?? 'http://localhost:8710';
 
 const draft = JSON.parse(
   await readFile(path.join(ROOT, 'data', 'journeys', SLUG, 'draft.json'), 'utf8')
-);
+) as JourneyDocument;
 
 // The trim box the artist positioned is the best statement anyone has made about where the
-// creek runs, so the route is built in its frame rather than in world axes.
-const trim = draft.editorFrame.trim;
+// creek runs, so the route is built in its frame rather than in world axes. Nothing here works
+// without one, which is why it is asserted rather than defaulted: the JavaScript threw on the
+// destructure below, and it should still stop rather than plan against a box it invented.
+const trim = draft.editorFrame.trim!;
 const [qx, qy, qz, qw] = trim.rotation;
 const yaw = Math.asin(Math.max(-1, Math.min(1, 2 * (qw * qy - qz * qx))));
 const ax = Math.cos(yaw), az = -Math.sin(yaw);   // along the creek
@@ -61,9 +65,9 @@ const LIMIT = {
   yLo: c.y - trim.halfExtent.y + 0.1,
   yHi: c.y + trim.halfExtent.y - 0.1,
 };
-const clamped = [];
+const clamped: string[] = [];
 
-const at = (along, across, y, label = '') => {
+const at = (along: number, across: number, y: number, label = ''): Vec3 => {
   const a = Math.max(-LIMIT.along, Math.min(LIMIT.along, along));
   const r = Math.max(-LIMIT.across, Math.min(LIMIT.across, across));
   const h = Math.max(LIMIT.yLo, Math.min(LIMIT.yHi, y));
@@ -90,7 +94,7 @@ const at = (along, across, y, label = '') => {
  * leaves above it — and CHEST is added when the route is built.
  */
 const CHEST = 1.40;
-const PATH = [
+const PATH: [number, number, number][] = [
   [ +7.2, +0.4, -2.01],   // downstream face of the box — the pool at the bottom
   [ +5.8, -0.5, -2.01],
   [ +4.4, +0.6, -2.00],
@@ -106,13 +110,26 @@ const PATH = [
   [ -7.3,  0.0, +0.55],   // climbing it, as far as the box reaches
 ];
 
+interface PlannedBeat {
+  id: string;
+  along: number;
+  across: number;
+  y: number;
+  title: string;
+  prompt: string;
+  interaction: Interaction;
+  clip: string;
+  completion: string | null;
+  givesFish?: number;
+}
+
 /**
  * Six beats. The last two are the artist's instruction and they are what gives the piece its
  * ending: you lift yourself over the falls, and you spawn in the water above them. That is
  * the salmon story, and it is also the only place on this reach where a lift is physically
  * legible — there is a real step there to get over.
  */
-const BEATS = [
+const BEATS: PlannedBeat[] = [
   { id: 'tree',      along: +6.4, across: -1.2, y: -2.01,
     title: 'The tree',
     prompt: 'Come in under the branches where the water runs slow.',
@@ -144,7 +161,9 @@ const BEATS = [
     interaction: 'crouch', clip: 'chapter-5-rebirth', completion: 'lay-egg' },
 ];
 
-const layers = (clip, g = { far: -14, mid: -8, intimate: -4 }) => ({
+interface LayerGains { far: number; mid: number; intimate: number }
+
+const layers = (clip: string, g: LayerGains = { far: -14, mid: -8, intimate: -4 }): BeatAudio => ({
   far: { clipId: `${clip}--far`, gainDb: g.far, loop: true },
   mid: { clipId: `${clip}--mid`, gainDb: g.mid, loop: true },
   intimate: { clipId: `${clip}--intimate`, gainDb: g.intimate, loop: true },
@@ -154,14 +173,14 @@ const centreline = PATH.map(([along, across, ground], i) =>
   at(along, across, ground + CHEST, `path[${i}]`));
 
 // Distance along the route, for gate geometry.
-const lengthOf = (pts) => pts.reduce((t, p, i) =>
-  i === 0 ? 0 : t + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y, p.z - pts[i - 1].z), 0);
+const lengthOf = (pts: readonly Vec3[]): number => pts.reduce((t, p, i) =>
+  i === 0 ? 0 : t + Math.hypot(p.x - pts[i - 1]!.x, p.y - pts[i - 1]!.y, p.z - pts[i - 1]!.z), 0);
 const total = lengthOf(centreline);
 
-function sOf(point) {
+function sOf(point: Vec3): number {
   let best = { s: 0, d: Infinity }, travelled = 0;
   for (let i = 0; i < centreline.length - 1; i += 1) {
-    const a = centreline[i], b = centreline[i + 1];
+    const a = centreline[i]!, b = centreline[i + 1]!;
     const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
     const len = Math.hypot(abx, aby, abz);
     if (len < 1e-6) continue;
@@ -177,9 +196,10 @@ function sOf(point) {
 // Beats sit ~3.3 m apart on this reach, so the gates have to be tighter than the seed's.
 const ENTER = 1.9, EXIT = ENTER * 1.6;
 
-const beats = BEATS.map((b) => {
+const beats: Beat[] = BEATS.map((b) => {
   const position = at(b.along, b.across, b.y, b.id);
-  const node = {
+  const audio = layers(b.clip);
+  const node: Beat = {
     id: b.id,
     title: b.title,
     prompt: b.prompt,
@@ -193,15 +213,15 @@ const beats = BEATS.map((b) => {
       minimumHoldSeconds: 25,
       requiresPreviousComplete: true,
     },
-    audio: layers(b.clip),
+    audio,
   };
-  if (b.completion) node.audio.completion = { clipId: b.completion, gainDb: -3, loop: false };
+  if (b.completion) audio.completion = { clipId: b.completion, gainDb: -3, loop: false };
   if (b.givesFish) node.givesFish = b.givesFish;
   return node;
 });
 
 // --- write it through the service so both stores agree -------------------
-const put = async (suffix, body) => {
+const put = async (suffix: string, body: unknown): Promise<unknown> => {
   const res = await fetch(`${BASE}/api/sites/${SLUG}${suffix}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -224,7 +244,7 @@ await put('/draft', updated);
 console.log(`\n  path      ${centreline.length} points, ${total.toFixed(1)} m`);
 console.log(`            from ${JSON.stringify(centreline[0])}`);
 console.log(`            to   ${JSON.stringify(centreline.at(-1))}`);
-console.log(`            climbing ${(centreline.at(-1).y - centreline[0].y).toFixed(2)} m\n`);
+console.log(`            climbing ${(centreline.at(-1)!.y - centreline[0]!.y).toFixed(2)} m\n`);
 console.log(`  ${'beat'.padEnd(10)}${'s'.padStart(7)}  interaction  position`);
 for (const b of beats) {
   console.log(`  ${b.id.padEnd(10)}${b.s.toFixed(1).padStart(7)}  ${b.interaction.padEnd(11)}  `
@@ -232,7 +252,7 @@ for (const b of beats) {
 }
 // Refuse to ship a layout that leaves the box. Better to fail here than to discover a beat
 // standing in trimmed-away space on site.
-const outside = [];
+const outside: Vec3[] = [];
 for (const p of [...centreline, ...beats.map((b) => b.position)]) {
   const dx = p.x - c.x, dz = p.z - c.z;
   const a = dx * ax + dz * az, r = dx * cx + dz * cz;

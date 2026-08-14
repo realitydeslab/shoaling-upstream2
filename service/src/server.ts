@@ -5,7 +5,10 @@
  * live control bus that the operator's controller and the phone both connect to.
  *
  * Deliberately dependency-light: one package (`ws`) and Node's own http/fs. The editor is
- * served as plain ES modules with an import map, so there is no build step to go stale.
+ * served as plain ES modules with an import map, so there is no build step to go stale — and
+ * neither has this file: Node 22 runs TypeScript by stripping the types, so `node
+ * service/src/server.ts` starts the service with no toolchain in front of it. Stripping is not
+ * checking, so `npm run typecheck` is where the types are actually verified.
  */
 
 import http from 'node:http';
@@ -14,11 +17,15 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
+import type { AddressInfo } from 'node:net';
 import { WebSocketServer } from 'ws';
 
-import { JourneyStore } from './journey-store.mjs';
-import { ControlBus } from './control-bus.mjs';
-import { validateJourney, INTERACTIONS, SCHEMA_VERSION } from './journey-schema.mjs';
+import { JourneyStore } from './journey-store.ts';
+import type { CodedError } from './journey-store.ts';
+import { ControlBus } from './control-bus.ts';
+import type { AckInput, CommandInput, PoseInput } from './control-bus.ts';
+import { validateJourney, INTERACTIONS, SCHEMA_VERSION } from './journey-schema.ts';
+import type { ScanOption } from '../../editor/src/types.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..');
@@ -43,7 +50,7 @@ const HOST = process.env.HOST ?? '0.0.0.0';
 const store = new JourneyStore(DATA_DIR);
 const bus = new ControlBus();
 
-const MIME = {
+const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -59,7 +66,14 @@ const MIME = {
   '.map': 'application/json; charset=utf-8',
 };
 
-function sendJson(res, status, body) {
+/**
+ * A view of whatever was thrown, for the `code` the store and Node's fs both set. Not a claim
+ * that it IS an Error — every field on CodedError is optional, so a thrown string reads as
+ * having no code, exactly as `err.code` did.
+ */
+const coded = (err: unknown): CodedError => err as CodedError;
+
+function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body, null, 2);
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -69,12 +83,22 @@ function sendJson(res, status, body) {
   res.end(payload);
 }
 
-function sendError(res, status, message, extra = {}) {
+function sendError(
+  res: http.ServerResponse,
+  status: number,
+  message: string,
+  extra: Record<string, unknown> = {},
+): void {
   sendJson(res, status, { error: message, ...extra });
 }
 
 /** Serve a file, refusing anything that escapes its base directory. */
-function serveFile(res, baseDir, relPath, { cache = false } = {}) {
+function serveFile(
+  res: http.ServerResponse,
+  baseDir: string,
+  relPath: string,
+  { cache = false }: { cache?: boolean } = {},
+): void {
   const resolved = path.resolve(baseDir, `.${path.posix.normalize(`/${relPath}`)}`);
   if (!resolved.startsWith(path.resolve(baseDir))) {
     return sendError(res, 403, 'path escapes the served directory');
@@ -93,13 +117,16 @@ function serveFile(res, baseDir, relPath, { cache = false } = {}) {
   createReadStream(resolved).pipe(res);
 }
 
-async function readBody(req, limitBytes = 4 * 1024 * 1024) {
-  const chunks = [];
+async function readBody(
+  req: http.IncomingMessage,
+  limitBytes = 4 * 1024 * 1024,
+): Promise<unknown> {
+  const chunks: Buffer[] = [];
   let total = 0;
   for await (const chunk of req) {
     total += chunk.length;
     if (total > limitBytes) {
-      const err = new Error('request body too large');
+      const err: CodedError = new Error('request body too large');
       err.code = 'TOO_LARGE';
       throw err;
     }
@@ -110,7 +137,7 @@ async function readBody(req, limitBytes = 4 * 1024 * 1024) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+  const url = new URL(req.url!, `http://${req.headers.host ?? 'localhost'}`);
   const { pathname } = url;
 
   res.setHeader('access-control-allow-origin', '*');
@@ -137,12 +164,12 @@ const server = http.createServer(async (req, res) => {
     // rather than probing for 404s, so a missing .rad degrades quietly to the full capture.
     if (pathname === '/api/scans') {
       const sites = await store.listSites();
-      const scans = {};
+      const scans: Record<string, ScanOption[]> = {};
       for (const site of sites) {
         const proxy = site.splatFile;
         if (!proxy) continue;
         const base = proxy.replace(/\.proxy\.spz$/, '');
-        const options = [];
+        const options: ScanOption[] = [];
         if (existsSync(path.join(SPLAT_RAD_DIR, `${base}.rad`))) {
           options.push({ kind: 'rad', url: `/splats-rad/${base}.rad`, paged: true,
                          label: 'streaming, precomputed LOD' });
@@ -176,7 +203,7 @@ const server = http.createServer(async (req, res) => {
     // /api/sites/:slug/...
     const siteMatch = /^\/api\/sites\/([a-z0-9][a-z0-9-]{0,63})(\/.*)?$/.exec(pathname);
     if (siteMatch) {
-      const slug = siteMatch[1];
+      const slug = siteMatch[1]!;
       const rest = siteMatch[2] ?? '';
 
       if (rest === '/draft' && req.method === 'GET') {
@@ -194,8 +221,8 @@ const server = http.createServer(async (req, res) => {
           const result = await store.writeDraft(slug, body);
           return sendJson(res, 200, { ok: true, warnings: result.warnings });
         } catch (err) {
-          if (err.code === 'INVALID_JOURNEY') {
-            return sendError(res, 422, 'journey failed validation', { errors: err.errors });
+          if (coded(err).code === 'INVALID_JOURNEY') {
+            return sendError(res, 422, 'journey failed validation', { errors: coded(err).errors });
           }
           throw err;
         }
@@ -209,10 +236,10 @@ const server = http.createServer(async (req, res) => {
           const frame = await store.patchEditorFrame(slug, body);
           return sendJson(res, 200, { ok: true, editorFrame: frame });
         } catch (err) {
-          if (err.code === 'INVALID_JOURNEY') {
-            return sendError(res, 422, 'invalid editorFrame', { errors: err.errors });
+          if (coded(err).code === 'INVALID_JOURNEY') {
+            return sendError(res, 422, 'invalid editorFrame', { errors: coded(err).errors });
           }
-          if (err.code === 'ENOENT') return sendError(res, 404, `no draft for "${slug}"`);
+          if (coded(err).code === 'ENOENT') return sendError(res, 404, `no draft for "${slug}"`);
           throw err;
         }
       }
@@ -224,10 +251,10 @@ const server = http.createServer(async (req, res) => {
         try {
           return sendJson(res, 200, { ok: true, ...(await store.patchSite(slug, body)) });
         } catch (err) {
-          if (err.code === 'INVALID_JOURNEY') {
-            return sendError(res, 422, 'invalid site patch', { errors: err.errors });
+          if (coded(err).code === 'INVALID_JOURNEY') {
+            return sendError(res, 422, 'invalid site patch', { errors: coded(err).errors });
           }
-          if (err.code === 'ENOENT') return sendError(res, 404, `no draft for "${slug}"`);
+          if (coded(err).code === 'ENOENT') return sendError(res, 404, `no draft for "${slug}"`);
           throw err;
         }
       }
@@ -241,7 +268,7 @@ const server = http.createServer(async (req, res) => {
         try {
           return sendJson(res, 200, await store.readPublished(slug));
         } catch (err) {
-          if (err.code === 'NOT_PUBLISHED') return sendError(res, 404, err.message);
+          if (coded(err).code === 'NOT_PUBLISHED') return sendError(res, 404, coded(err).message);
           throw err;
         }
       }
@@ -256,8 +283,8 @@ const server = http.createServer(async (req, res) => {
             ok: true, revision: result.revision, warnings: result.warnings,
           });
         } catch (err) {
-          if (err.code === 'INVALID_JOURNEY') {
-            return sendError(res, 422, 'cannot publish', { errors: err.errors });
+          if (coded(err).code === 'INVALID_JOURNEY') {
+            return sendError(res, 422, 'cannot publish', { errors: coded(err).errors });
           }
           throw err;
         }
@@ -285,9 +312,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/control/command' && req.method === 'POST') {
-      const body = await readBody(req);
+      const body = await readBody(req) as { action?: unknown } | null;
       if (!body?.action) return sendError(res, 400, 'action is required');
-      return sendJson(res, 200, bus.issue(body));
+      return sendJson(res, 200, bus.issue(body as CommandInput));
     }
 
     // ---------- static ----------
@@ -315,7 +342,7 @@ const server = http.createServer(async (req, res) => {
     return serveFile(res, EDITOR_DIR, pathname);
   } catch (err) {
     if (err instanceof SyntaxError) return sendError(res, 400, 'body is not valid JSON');
-    if (err.code === 'TOO_LARGE') return sendError(res, 413, 'request body too large');
+    if (coded(err).code === 'TOO_LARGE') return sendError(res, 413, 'request body too large');
     console.error('[server]', err);
     return sendError(res, 500, 'internal error');
   }
@@ -324,13 +351,22 @@ const server = http.createServer(async (req, res) => {
 // ---------- WebSocket ----------
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+/** Whatever a client sent, once it parsed as JSON. Never trusted beyond `type`. */
+interface ClientMessage {
+  type?: string;
+  device?: string;
+  os?: string;
+  build?: string;
+  [key: string]: unknown;
+}
+
 wss.on('connection', (socket, req) => {
-  const url = new URL(req.url, 'http://localhost');
+  const url = new URL(req.url!, 'http://localhost');
   const role = url.searchParams.get('role') === 'device' ? 'device' : 'operator';
   const id = bus.add(socket, role);
 
   socket.on('message', (raw) => {
-    let msg;
+    let msg: ClientMessage;
     try {
       msg = JSON.parse(raw.toString());
     } catch {
@@ -353,15 +389,15 @@ wss.on('connection', (socket, req) => {
         bus.send(socket, { type: 'pong', serverNowMs: Date.now() });
         break;
       case 'ack':
-        bus.acknowledge(id, msg);
+        bus.acknowledge(id, msg as unknown as AckInput);
         break;
       case 'command':
         // Operators issue commands over the socket too, so the UI has one code path.
-        if (role === 'operator') bus.issue(msg);
+        if (role === 'operator') bus.issue(msg as unknown as CommandInput);
         break;
       case 'pose':
         // The editor's walk simulation, streamed to any device following along at a desk.
-        if (role === 'operator') bus.streamPose(msg);
+        if (role === 'operator') bus.streamPose(msg as PoseInput);
         break;
       default:
         bus.send(socket, { type: 'error', message: `unknown message type: ${msg.type}` });
@@ -375,8 +411,8 @@ wss.on('connection', (socket, req) => {
 // A device that stops sending heartbeats should stop looking connected in the operator UI.
 setInterval(() => bus.broadcastPresence(), 4000).unref();
 
-function lanAddresses() {
-  const out = [];
+function lanAddresses(): { name: string; address: string }[] {
+  const out: { name: string; address: string }[] = [];
   for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
     for (const addr of addrs ?? []) {
       if (addr.family === 'IPv4' && !addr.internal) out.push({ name, address: addr.address });
@@ -389,7 +425,7 @@ server.listen(PORT, HOST, () => {
   const addrs = lanAddresses();
   // The bound port, not the requested one: PORT=0 asks the OS to pick, which is how the tests
   // avoid colliding with a dev server that is already running.
-  const port = server.address().port;
+  const port = (server.address() as AddressInfo).port;
   console.log(`\n  Shoaling Upstream — authoring service`);
   console.log(`  schema ${SCHEMA_VERSION} · session ${bus.sessionId}\n`);
   console.log(`  editor      http://localhost:${port}/`);
@@ -398,7 +434,7 @@ server.listen(PORT, HOST, () => {
     console.log(`  on ${name.padEnd(10)} http://${address}:${port}/`);
   }
   if (addrs.length > 0) {
-    console.log(`\n  phone connects to  ws://${addrs[0].address}:${port}/ws?role=device`);
+    console.log(`\n  phone connects to  ws://${addrs[0]!.address}:${port}/ws?role=device`);
   }
   console.log('');
 });

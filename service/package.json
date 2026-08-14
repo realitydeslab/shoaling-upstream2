@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/server.mjs",
+    "start": "node src/server.ts",
     "test": "node --test test/",
-    "check": "node --check src/server.mjs && node --check src/journey-schema.mjs && node --check src/journey-store.mjs && node --check src/control-bus.mjs"
+    "check": "node --check src/server.ts && node --check src/journey-schema.ts && node --check src/journey-store.ts && node --check src/control-bus.ts"
   },
   "dependencies": {
     "@sparkjsdev/spark": "^2.1.0",

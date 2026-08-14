@@ -1,0 +1,16 @@
+{
+  "name": "ShoalingUpstream.Tests.PlayMode",
+  "rootNamespace": "ShoalingUpstream.Tests.Integration",
+  "references": [
+    "ShoalingUpstream.Runtime",
+    "ShoalingUpstream.Simulation",
+    "UnityEngine.TestRunner"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [ "nunit.framework.dll" ],
+  "autoReferenced": false,
+  "defineConstraints": [ "UNITY_INCLUDE_TESTS" ]
+}

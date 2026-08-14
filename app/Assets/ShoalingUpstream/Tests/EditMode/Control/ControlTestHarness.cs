@@ -104,6 +104,29 @@ namespace ShoalingUpstream.Tests.Control
             Command(ControlActions.SimulatePose, issuedAtMs, leadMs,
                     valueJson: $"{{\"s\":{N(s)},\"headingRad\":{N(headingRad)}}}", id: id);
 
+        /// <summary>
+        /// What the bus actually broadcasts to a device while somebody scrubs the editor.
+        ///
+        /// Copied from ControlBus.streamPose and from the frames test/control-bus.e2e.test.mjs
+        /// asserts, not from prose. Note the nesting: the point rides under `position`, where the
+        /// simulatePose command's is flat. Every field is nullable, and the bus really does send
+        /// nulls rather than omitting keys.
+        /// </summary>
+        public static string StreamedPose(double? s = null, double sentAtMs = 1_000,
+                                          (double x, double y, double z)? position = null,
+                                          double? headingRad = 0, string slug = "test-creek")
+        {
+            string point = position is null
+                ? "null"
+                : $"{{\"x\":{N(position.Value.x)},\"y\":{N(position.Value.y)},\"z\":{N(position.Value.z)}}}";
+            return "{\"type\":\"pose\""
+                 + $",\"s\":{(s is null ? "null" : N(s.Value))}"
+                 + $",\"position\":{point}"
+                 + $",\"headingRad\":{(headingRad is null ? "null" : N(headingRad.Value))}"
+                 + $",\"slug\":{(slug is null ? "null" : $"\"{slug}\"")}"
+                 + $",\"sentAtMs\":{N(sentAtMs)}}}";
+        }
+
         private static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
     }
 }

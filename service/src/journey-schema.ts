@@ -19,12 +19,21 @@
  * 3. Ordered beats and unordered ambient sources are separate lists. The story is a sequence;
  *    the texture is a set. Keeping them apart in the document is what stops the runtime from
  *    having to guess which is which.
+ *
+ * The shapes this file checks FOR are declared once, in editor/src/types.ts, and imported here
+ * as types only — the import is erased, so the service still runs from source with no build and
+ * no dependency on the editor. What arrives at `validateJourney` is `unknown`, deliberately:
+ * typing the input as the thing being checked for would be a lie, and would hide exactly the
+ * class of bug this validator exists to catch.
  */
+
+import type { Interaction, InteractionInfo, Layer, ValidationResult, Vec3 }
+  from '../../editor/src/types.ts';
 
 export const SCHEMA_VERSION = '2.0';
 
 /** Interaction kinds. Only `catch` and `lift` need bespoke gesture detection. */
-export const INTERACTIONS = Object.freeze({
+export const INTERACTIONS: Readonly<Record<Interaction, InteractionInfo>> = Object.freeze({
   proximity: {
     label: 'Draw near',
     hint: 'Arriving is the whole action. Used for the tree, and for thresholds.',
@@ -55,20 +64,44 @@ export const INTERACTIONS = Object.freeze({
 /** Audio proximity layers. Distance is carried by content, not by gain: at 5-20 m the whole
  *  inverse-square budget is only ~12 dB, which against a 47-67 dB(A) park floor reads as
  *  "slightly louder" rather than as arrival. So each source is three different recordings. */
-export const LAYERS = Object.freeze(['far', 'mid', 'intimate']);
+export const LAYERS: readonly Layer[] = Object.freeze(['far', 'mid', 'intimate'] as const);
 
-const isFiniteNumber = (v) => typeof v === 'number' && Number.isFinite(v);
-const isString = (v) => typeof v === 'string';
-const isNonEmptyString = (v) => isString(v) && v.trim().length > 0;
-const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+/** What an untrusted object looks like once we know it is an object at all. */
+type UnknownRecord = Record<string, unknown>;
+
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isString = (v: unknown): v is string => typeof v === 'string';
+const isNonEmptyString = (v: unknown): v is string => isString(v) && v.trim().length > 0;
+const isPlainObject = (v: unknown): v is UnknownRecord =>
+  v !== null && typeof v === 'object' && !Array.isArray(v);
+/** `Array.isArray` narrows to `any[]`, which would quietly re-open everything below it. */
+const isArray = (v: unknown): v is unknown[] => Array.isArray(v);
+
+/** `value?.key` on something that may be any shape at all. Missing, wrong type — undefined. */
+const prop = (value: unknown, key: string): unknown =>
+  isPlainObject(value) ? value[key] : undefined;
+
+/**
+ * `x ?? 0`, kept verbatim from the JavaScript rather than tightened.
+ *
+ * It only replaces nullish values, so a non-numeric exitRadiusM — which validateTrigger has
+ * already recorded as an error, but which does not stop the warning pass that uses this —
+ * survives into the arithmetic and makes `reach` a string, whose `.toFixed` then throws. Same
+ * family as the `beats` hole noted further down. Left alone because fixing it changes behaviour.
+ */
+const orZero = (v: unknown): number => (v ?? 0) as number;
+
+interface NumberBounds {
+  min?: number;
+  max?: number;
+  label: string;
+}
 
 class Validator {
-  constructor() {
-    this.errors = [];
-    this.path = [];
-  }
+  errors: string[] = [];
+  path: string[] = [];
 
-  at(key, fn) {
+  at(key: string, fn: () => void): void {
     this.path.push(key);
     try {
       fn();
@@ -77,17 +110,17 @@ class Validator {
     }
   }
 
-  fail(message) {
+  fail(message: string): void {
     const where = this.path.length ? this.path.join('.') : '(root)';
     this.errors.push(`${where}: ${message}`);
   }
 
-  require(condition, message) {
+  require(condition: boolean, message: string): boolean {
     if (!condition) this.fail(message);
     return condition;
   }
 
-  number(value, { min = -Infinity, max = Infinity, label }) {
+  number(value: unknown, { min = -Infinity, max = Infinity, label }: NumberBounds): boolean {
     if (!isFiniteNumber(value)) {
       this.fail(`${label} must be a finite number, got ${JSON.stringify(value)}`);
       return false;
@@ -100,7 +133,7 @@ class Validator {
   }
 }
 
-function validateVector3(v, name, val) {
+function validateVector3(v: Validator, name: string, val: unknown): void {
   if (!isPlainObject(val)) {
     v.fail(`${name} must be an object with x, y, z in metres`);
     return;
@@ -110,7 +143,7 @@ function validateVector3(v, name, val) {
   }
 }
 
-function validateAudioLayer(v, layer, val) {
+function validateAudioLayer(v: Validator, layer: string, val: unknown): void {
   if (val === undefined || val === null) return;
   if (!isPlainObject(val)) {
     v.fail(`audio.${layer} must be an object`);
@@ -127,7 +160,7 @@ function validateAudioLayer(v, layer, val) {
   });
 }
 
-function validateTrigger(v, trigger, index) {
+function validateTrigger(v: Validator, trigger: unknown, index: number): void {
   if (!isPlainObject(trigger)) {
     v.fail('trigger is required');
     return;
@@ -161,20 +194,23 @@ function validateTrigger(v, trigger, index) {
   });
 }
 
-function validateBeat(v, beat, index, seenIds) {
+function validateBeat(v: Validator, beat: unknown, index: number, seenIds: Set<string>): void {
   if (!isPlainObject(beat)) {
     v.fail(`beats[${index}] must be an object`);
     return;
   }
 
   v.at(`beats[${index}]`, () => {
-    if (v.require(isNonEmptyString(beat.id), 'id is required')) {
-      if (seenIds.has(beat.id)) v.fail(`duplicate id "${beat.id}"`);
-      seenIds.add(beat.id);
+    const id = beat.id;
+    if (isNonEmptyString(id)) {
+      if (seenIds.has(id)) v.fail(`duplicate id "${id}"`);
+      seenIds.add(id);
+    } else {
+      v.fail('id is required');
     }
     v.require(isNonEmptyString(beat.title), 'title is required');
 
-    if (!Object.hasOwn(INTERACTIONS, beat.interaction)) {
+    if (!Object.hasOwn(INTERACTIONS, beat.interaction as PropertyKey)) {
       v.fail(
         `interaction must be one of ${Object.keys(INTERACTIONS).join(', ')}, ` +
           `got ${JSON.stringify(beat.interaction)}`
@@ -188,13 +224,14 @@ function validateBeat(v, beat, index, seenIds) {
 
     validateTrigger(v, beat.trigger, index);
 
-    if (beat.audio !== undefined) {
-      if (!isPlainObject(beat.audio)) {
+    const audio = beat.audio;
+    if (audio !== undefined) {
+      if (!isPlainObject(audio)) {
         v.fail('audio must be an object');
       } else {
-        for (const layer of LAYERS) validateAudioLayer(v, layer, beat.audio[layer]);
-        validateAudioLayer(v, 'completion', beat.audio.completion);
-        const hasAny = LAYERS.some((l) => isPlainObject(beat.audio[l]));
+        for (const layer of LAYERS) validateAudioLayer(v, layer, audio[layer]);
+        validateAudioLayer(v, 'completion', audio.completion);
+        const hasAny = LAYERS.some((l) => isPlainObject(audio[l]));
         if (!hasAny) {
           v.fail('at least one of far/mid/intimate must be present — distance is carried by content, not gain');
         }
@@ -211,32 +248,38 @@ function validateBeat(v, beat, index, seenIds) {
   });
 }
 
-function validateAmbient(v, source, index, seenIds) {
+function validateAmbient(v: Validator, source: unknown, index: number, seenIds: Set<string>): void {
   if (!isPlainObject(source)) {
     v.fail(`ambient[${index}] must be an object`);
     return;
   }
   v.at(`ambient[${index}]`, () => {
-    if (v.require(isNonEmptyString(source.id), 'id is required')) {
-      if (seenIds.has(source.id)) v.fail(`duplicate id "${source.id}"`);
-      seenIds.add(source.id);
+    const id = source.id;
+    if (isNonEmptyString(id)) {
+      if (seenIds.has(id)) v.fail(`duplicate id "${id}"`);
+      seenIds.add(id);
+    } else {
+      v.fail('id is required');
     }
     validateVector3(v, 'position', source.position);
     v.number(source.audibleRadiusM, { min: 1, max: 200, label: 'audibleRadiusM' });
-    if (source.audio !== undefined) {
-      if (!isPlainObject(source.audio)) v.fail('audio must be an object');
-      else for (const layer of LAYERS) validateAudioLayer(v, layer, source.audio[layer]);
+    const audio = source.audio;
+    if (audio !== undefined) {
+      if (!isPlainObject(audio)) v.fail('audio must be an object');
+      else for (const layer of LAYERS) validateAudioLayer(v, layer, audio[layer]);
     }
   });
 }
 
 /**
  * Validate a journey manifest.
- * @returns {{ok: boolean, errors: string[], warnings: string[]}}
+ *
+ * The parameter is `unknown` because the caller is a PUT body, a file on disk or a tool's
+ * output — never something already known to be a JourneyDocument.
  */
-export function validateJourney(doc) {
+export function validateJourney(doc: unknown): ValidationResult {
   const v = new Validator();
-  const warnings = [];
+  const warnings: string[] = [];
 
   if (!isPlainObject(doc)) {
     return { ok: false, errors: ['(root): manifest must be a JSON object'], warnings };
@@ -250,11 +293,12 @@ export function validateJourney(doc) {
   v.number(doc.revision, { min: 0, max: 1e9, label: 'revision' });
 
   // --- site -------------------------------------------------------------
-  if (!isPlainObject(doc.site)) {
+  const site = doc.site;
+  if (!isPlainObject(site)) {
     v.fail('site is required');
   } else {
     v.at('site', () => {
-      const s = doc.site;
+      const s = site;
       v.require(isNonEmptyString(s.slug), 'slug is required');
       v.require(isNonEmptyString(s.nianticSiteId), 'nianticSiteId is required');
       v.require(isNonEmptyString(s.nianticOrgId), 'nianticOrgId is required');
@@ -267,20 +311,22 @@ export function validateJourney(doc) {
              + 'without it we cannot detect that the site has been re-promoted');
       }
 
-      if (!Array.isArray(s.centreline) || s.centreline.length < 2) {
+      const centreline = s.centreline;
+      if (!isArray(centreline) || centreline.length < 2) {
         v.fail('centreline must be an array of at least 2 points defining the creek axis');
       } else {
-        s.centreline.forEach((p, i) => validateVector3(v, `centreline[${i}]`, p));
+        centreline.forEach((p, i) => validateVector3(v, `centreline[${i}]`, p));
       }
     });
   }
 
   // --- editor frame -----------------------------------------------------
-  if (!isPlainObject(doc.editorFrame)) {
+  const editorFrame = doc.editorFrame;
+  if (!isPlainObject(editorFrame)) {
     v.fail('editorFrame is required');
   } else {
     v.at('editorFrame', () => {
-      const f = doc.editorFrame;
+      const f = editorFrame;
       if (typeof f.calibrated !== 'boolean') {
         v.fail('calibrated must be a boolean');
       }
@@ -288,7 +334,7 @@ export function validateJourney(doc) {
         v.fail('splatFile must be a string');
       }
       validateVector3(v, 'translation', f.translation);
-      if (!Array.isArray(f.rotation) || f.rotation.length !== 4
+      if (!isArray(f.rotation) || f.rotation.length !== 4
           || !f.rotation.every(isFiniteNumber)) {
         v.fail('rotation must be a quaternion [x, y, z, w]');
       }
@@ -296,60 +342,65 @@ export function validateJourney(doc) {
 
       // Runtime display trim. Deliberately not baked into the scan asset: which floaters
       // count as noise is an authoring judgement, and it has to be adjustable in a second.
-      if (f.trim !== undefined) {
-        if (!isPlainObject(f.trim)) {
+      const trim = f.trim;
+      if (trim !== undefined) {
+        if (!isPlainObject(trim)) {
           v.fail('trim must be an object');
-        } else if (f.trim.min && f.trim.max) {
+        } else if (trim.min && trim.max) {
           // Legacy axis-aligned box. Still accepted; the editor converts it on load.
-          validateVector3(v, 'trim.min', f.trim.min);
-          validateVector3(v, 'trim.max', f.trim.max);
-          if (typeof f.trim.enabled !== 'boolean') v.fail('trim.enabled must be a boolean');
+          validateVector3(v, 'trim.min', trim.min);
+          validateVector3(v, 'trim.max', trim.max);
+          if (typeof trim.enabled !== 'boolean') v.fail('trim.enabled must be a boolean');
         } else {
           // Oriented box: the creek runs diagonally, so an axis-aligned trim cannot follow it.
-          validateVector3(v, 'trim.position', f.trim.position);
-          validateVector3(v, 'trim.halfExtent', f.trim.halfExtent);
-          if (!Array.isArray(f.trim.rotation) || f.trim.rotation.length !== 4
-              || !f.trim.rotation.every(isFiniteNumber)) {
+          validateVector3(v, 'trim.position', trim.position);
+          validateVector3(v, 'trim.halfExtent', trim.halfExtent);
+          if (!isArray(trim.rotation) || trim.rotation.length !== 4
+              || !trim.rotation.every(isFiniteNumber)) {
             v.fail('trim.rotation must be a quaternion [x, y, z, w]');
           }
-          if (typeof f.trim.enabled !== 'boolean') v.fail('trim.enabled must be a boolean');
+          if (typeof trim.enabled !== 'boolean') v.fail('trim.enabled must be a boolean');
         }
       }
     });
   }
 
   // --- beats ------------------------------------------------------------
-  if (!Array.isArray(doc.beats)) {
+  const beats = doc.beats;
+  if (!isArray(beats)) {
     v.fail('beats must be an array');
   } else {
-    const ids = new Set();
-    doc.beats.forEach((b, i) => validateBeat(v, b, i, ids));
+    const ids = new Set<string>();
+    beats.forEach((b, i) => validateBeat(v, b, i, ids));
 
     // Order is meaningful, so s should increase along it. A beat that sits upstream of the
     // next one means the visitor is asked to walk backwards, which is almost always a
     // placement mistake rather than an intention.
-    for (let i = 1; i < doc.beats.length; i += 1) {
-      const prev = doc.beats[i - 1];
-      const cur = doc.beats[i];
-      if (isFiniteNumber(prev?.s) && isFiniteNumber(cur?.s) && cur.s < prev.s) {
+    for (let i = 1; i < beats.length; i += 1) {
+      const prev = prop(beats[i - 1], 's');
+      const cur = prop(beats[i], 's');
+      if (isFiniteNumber(prev) && isFiniteNumber(cur) && cur < prev) {
         warnings.push(
-          `beats[${i}] "${cur.id}" sits downstream of the beat before it `
-          + `(s=${cur.s.toFixed(1)} m vs ${prev.s.toFixed(1)} m) — the journey doubles back here`
+          `beats[${i}] "${String(prop(beats[i], 'id'))}" sits downstream of the beat before it `
+          + `(s=${cur.toFixed(1)} m vs ${prev.toFixed(1)} m) — the journey doubles back here`
         );
       }
     }
 
     // Overlapping exit bands mean two beats can be armed at once. The runtime resolves this
     // winner-take-all, but it is worth telling the author.
-    for (let i = 1; i < doc.beats.length; i += 1) {
-      const a = doc.beats[i - 1];
-      const b = doc.beats[i];
-      if (!isFiniteNumber(a?.s) || !isFiniteNumber(b?.s)) continue;
-      const gap = Math.abs(b.s - a.s);
-      const reach = (a.trigger?.exitRadiusM ?? 0) + (b.trigger?.exitRadiusM ?? 0);
+    for (let i = 1; i < beats.length; i += 1) {
+      const a = beats[i - 1];
+      const b = beats[i];
+      const aS = prop(a, 's');
+      const bS = prop(b, 's');
+      if (!isFiniteNumber(aS) || !isFiniteNumber(bS)) continue;
+      const gap = Math.abs(bS - aS);
+      const reach = orZero(prop(prop(a, 'trigger'), 'exitRadiusM'))
+                  + orZero(prop(prop(b, 'trigger'), 'exitRadiusM'));
       if (gap < reach) {
         warnings.push(
-          `beats "${a.id}" and "${b.id}" have overlapping exit bands `
+          `beats "${String(prop(a, 'id'))}" and "${String(prop(b, 'id'))}" have overlapping exit bands `
           + `(${gap.toFixed(1)} m apart, ${reach.toFixed(1)} m of combined reach)`
         );
       }
@@ -357,31 +408,33 @@ export function validateJourney(doc) {
   }
 
   // --- ambient ----------------------------------------------------------
-  if (doc.ambient !== undefined) {
-    if (!Array.isArray(doc.ambient)) {
+  const ambient = doc.ambient;
+  if (ambient !== undefined) {
+    if (!isArray(ambient)) {
       v.fail('ambient must be an array');
     } else {
-      const ids = new Set();
-      doc.ambient.forEach((a, i) => validateAmbient(v, a, i, ids));
+      const ids = new Set<string>();
+      ambient.forEach((a, i) => validateAmbient(v, a, i, ids));
     }
   }
 
   // --- shoal ------------------------------------------------------------
-  if (!isPlainObject(doc.shoal)) {
+  const shoal = doc.shoal;
+  if (!isPlainObject(shoal)) {
     v.fail('shoal is required');
   } else {
     v.at('shoal', () => {
-      v.number(doc.shoal.startingCount, { min: 1, max: 10000, label: 'startingCount' });
-      v.number(doc.shoal.minimumCount, { min: 0, max: 10000, label: 'minimumCount' });
-      if (isFiniteNumber(doc.shoal.startingCount) && isFiniteNumber(doc.shoal.minimumCount)
-          && doc.shoal.minimumCount > doc.shoal.startingCount) {
+      v.number(shoal.startingCount, { min: 1, max: 10000, label: 'startingCount' });
+      v.number(shoal.minimumCount, { min: 0, max: 10000, label: 'minimumCount' });
+      if (isFiniteNumber(shoal.startingCount) && isFiniteNumber(shoal.minimumCount)
+          && shoal.minimumCount > shoal.startingCount) {
         v.fail('minimumCount cannot exceed startingCount');
       }
     });
   }
 
   // --- cross-cutting warnings -------------------------------------------
-  if (doc.editorFrame && doc.editorFrame.calibrated === false) {
+  if (doc.editorFrame && prop(doc.editorFrame, 'calibrated') === false) {
     warnings.push(
       'editorFrame.calibrated is false — coordinates are provisional. '
       + 'The app will run this in simulation but must refuse it on device.'
@@ -392,9 +445,9 @@ export function validateJourney(doc) {
   // exactly what a malformed PUT carries — reached .filter and threw. validateJourney is called
   // on whatever the editor sends, so that turned a bad request into a 500 instead of the 422
   // with reasons the client is built to display.
-  const giveTotal = (Array.isArray(doc.beats) ? doc.beats : [])
-    .filter((b) => b?.interaction === 'give' && isFiniteNumber(b.givesFish))
-    .reduce((sum, b) => sum + b.givesFish, 0);
+  const giveTotal = (isArray(doc.beats) ? doc.beats : [])
+    .filter((b) => prop(b, 'interaction') === 'give' && isFiniteNumber(prop(b, 'givesFish')))
+    .reduce((sum: number, b) => sum + (prop(b, 'givesFish') as number), 0);
   if (isPlainObject(doc.shoal) && isFiniteNumber(doc.shoal.startingCount)) {
     const remaining = doc.shoal.startingCount - giveTotal;
     if (isFiniteNumber(doc.shoal.minimumCount) && remaining < doc.shoal.minimumCount) {
@@ -408,14 +461,27 @@ export function validateJourney(doc) {
   return { ok: v.errors.length === 0, errors: v.errors, warnings };
 }
 
+/** Where a point falls on the centreline: distance along it, and how far off it. */
+export interface CentrelineProjection {
+  /** Distance along the polyline from its start, in metres. */
+  s: number;
+  /** Perpendicular distance from the line. */
+  lateral: number;
+  /** Index of the segment the point projected onto. */
+  segment: number;
+}
+
 /** Distance along the centreline polyline, and lateral offset, for an anchor-local point. */
-export function projectToCentreline(point, centreline) {
-  let best = { s: 0, lateral: Infinity, segment: 0 };
+export function projectToCentreline(
+  point: Vec3,
+  centreline: readonly Vec3[],
+): CentrelineProjection {
+  let best: CentrelineProjection = { s: 0, lateral: Infinity, segment: 0 };
   let travelled = 0;
 
   for (let i = 0; i < centreline.length - 1; i += 1) {
-    const a = centreline[i];
-    const b = centreline[i + 1];
+    const a = centreline[i]!;
+    const b = centreline[i + 1]!;
     const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
     const segLen = Math.hypot(abx, aby, abz);
     if (segLen < 1e-6) continue;
@@ -437,10 +503,10 @@ export function projectToCentreline(point, centreline) {
 }
 
 /** Total length of a centreline polyline, in metres. */
-export function centrelineLength(centreline) {
+export function centrelineLength(centreline: readonly Vec3[]): number {
   let total = 0;
   for (let i = 0; i < centreline.length - 1; i += 1) {
-    const a = centreline[i], b = centreline[i + 1];
+    const a = centreline[i]!, b = centreline[i + 1]!;
     total += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   }
   return total;

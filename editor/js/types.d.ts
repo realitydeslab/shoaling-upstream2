@@ -118,10 +118,33 @@ export interface TrimBox {
     rotation: Quat;
     halfExtent: Vec3;
 }
-/** Percentile extents, precomputed offline: every scan carries floaters 400-1200 m out. */
+/**
+ * The axis-aligned box older drafts carried, before the trim became an oriented one.
+ *
+ * Nothing writes this any more. Both the editor's `ensureTrim()` and the stage's `setTrim()`
+ * convert it on sight, so a journey authored before the change keeps working — which matters
+ * because a trim box is hand-positioned work that no seed can reproduce.
+ */
+export interface LegacyTrimBox {
+    enabled?: boolean;
+    min?: Vec3;
+    max?: Vec3;
+}
+/**
+ * Percentile extents, precomputed offline: every scan carries floaters 400-1200 m out.
+ *
+ * `lo`/`hi` are the 1st and 99th percentile corners and `centre` is the median, which is what
+ * `tools/stamp-bounds.py` writes and what the editor reads. Raw min/max is meaningless here —
+ * it frames the camera on a floater a kilometre away.
+ */
 export interface ScanBounds {
     centre?: Vec3;
     span?: Vec3;
+    lo?: Vec3;
+    hi?: Vec3;
+    /** How many splats the full capture holds, so the editor need not walk them to say. */
+    splats?: number;
+    note?: string;
     min?: Vec3;
     max?: Vec3;
 }
@@ -173,11 +196,22 @@ export interface ScanOption {
     kind: 'rad' | 'full' | 'proxy' | string;
     label: string;
     url: string;
+    /** Stream the LOD tree in chunks rather than decoding the whole capture first. `.rad` only. */
+    paged?: boolean;
 }
 export interface AudioClipInfo {
     clipId: string;
     file?: string;
     durationSeconds?: number;
+    /** Which distance layers were packaged for this clip. */
+    layers?: Layer[];
+    /**
+     * How `tools/package-audio.sh` records a source recording it could not find. The entry stays
+     * in the catalogue so the gap is visible; nothing resolves it to a URL.
+     */
+    missing?: boolean;
+    /** The source recording the clip was packaged from. Present on a missing entry. */
+    source?: string;
 }
 export interface AudioCatalogue {
     clips: AudioClipInfo[];

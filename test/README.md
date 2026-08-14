@@ -17,7 +17,7 @@ node --test test/journey-store.test.mjs
 Suites are a mix of `.ts` and `.mjs`; Node runs both directly, stripping types without checking
 them, which is why `npm run typecheck` is a separate guarantee rather than part of the run.
 
-The end-to-end suites start `service/src/server.mjs` themselves with `PORT=0` (the OS picks a
+The end-to-end suites start `service/src/server.ts` themselves with `PORT=0` (the OS picks a
 free port, so a dev server you already have open is never in the way) and `JOURNEY_DIR` pointed
 at a throwaway directory. No suite writes to `data/journeys/`. If a run is interrupted, the only
 thing left behind is a `shoaling-test-*` directory in the system temp dir.

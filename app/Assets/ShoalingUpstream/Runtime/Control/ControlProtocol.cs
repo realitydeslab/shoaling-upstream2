@@ -29,7 +29,7 @@ namespace ShoalingUpstream.Control
         public const string SimulatePose = "simulatePose";
     }
 
-    public enum ControlMessageKind { Unknown, Welcome, State, Presence, Command, Pong, CommandAck, CommandIssued, Error }
+    public enum ControlMessageKind { Unknown, Welcome, State, Presence, Command, Pong, CommandAck, CommandIssued, Error, Pose }
 
     /// <summary>A command as it arrived, with its schedule still in SERVER time.</summary>
     public sealed class ControlCommand
@@ -51,11 +51,16 @@ namespace ShoalingUpstream.Control
     }
 
     /// <summary>
-    /// A pose broadcast by the editor's walk simulation.
+    /// A pose from the editor's walk simulation.
     ///
     /// Either half may be absent: the editor knows <c>s</c> for certain and may or may not send
     /// a 3D point. Whichever is missing is reconstructed against the centreline, so downstream
     /// always receives a complete sample and cannot tell which half arrived over the wire.
+    ///
+    /// It reaches the device two ways, and both are live. The <c>pose</c> message is what the
+    /// editor and the bus actually use; the <c>simulatePose</c> command is the older form, kept
+    /// because a phone in the field may still be sent one and removing it would be a second
+    /// break. They differ in more than a name — see <see cref="ControlProtocol"/>.
     /// </summary>
     public readonly struct SimulatedPose
     {
@@ -86,6 +91,16 @@ namespace ShoalingUpstream.Control
 
         // command
         public ControlCommand Command;
+
+        // pose
+        /// <summary>False when the frame carried neither <c>s</c> nor a position. The previous
+        /// pose is then left standing rather than replaced by a half-read one.</summary>
+        public bool HasPose;
+        public SimulatedPose Pose;
+
+        /// <summary>The site the operator is scrubbing. Carried but not acted on — see the note
+        /// on the pose case in <see cref="ControlProtocol.Parse"/>.</summary>
+        public string Slug;
 
         // error
         public string Message;
@@ -137,6 +152,24 @@ namespace ShoalingUpstream.Control
                     msg.Message = root["message"].AsString();
                     break;
 
+                // The editor's walk simulation. Its own message type rather than a command,
+                // because a pose is state and not an instruction: best-effort, latest wins, no
+                // history and no receipt. Riding the command envelope would put a 400 ms lead on
+                // a continuous signal that wants none, ask for an ack twenty times a second, and
+                // churn a command log bounded at 200 every ten seconds.
+                //
+                // `sentAtMs` is read but deliberately NOT fed to the ServerClock, whatever
+                // control-bus.mjs's comment suggests: an offset estimate needs a round trip to
+                // halve, and a one-way timestamp gives offset plus latency with no way to
+                // separate them. Mixing that into the window would import exactly the error the
+                // minimum-round-trip filter exists to keep out. The heartbeat already answers it.
+                case "pose":
+                    msg.Kind = ControlMessageKind.Pose;
+                    msg.Slug = root["slug"].AsString();
+                    msg.ServerNowMs = root["sentAtMs"].AsDouble();
+                    msg.HasPose = TryReadStreamedPose(root, out msg.Pose);
+                    break;
+
                 case "command":
                     msg.Kind = ControlMessageKind.Command;
                     msg.Command = new ControlCommand
@@ -162,8 +195,45 @@ namespace ShoalingUpstream.Control
             return msg;
         }
 
-        /// <summary>Read a simulatePose payload. Returns false for anything malformed, which
-        /// then simply leaves the previous pose standing rather than teleporting the visitor.</summary>
+        /// <summary>
+        /// Read a streamed `pose` frame, whose point is nested under `position`.
+        ///
+        /// The two pose carriers do not share a payload layout, and this is not tidied into one
+        /// permissive reader on purpose. `pose` sends `{s, position:{x,y,z}, headingRad}`;
+        /// `simulatePose` sends a flat `{s, x, y, z, headingRad}`. A reader that accepted either
+        /// shape from either message would go on working the day one end changed, and the whole
+        /// reason this code exists is that a silent mismatch between the two ends cost a day.
+        /// </summary>
+        private static bool TryReadStreamedPose(JsonValue root, out SimulatedPose pose)
+        {
+            pose = default;
+            if (root is null || root.Kind != JsonKind.Object) return false;
+
+            bool hasS = root["s"].Kind == JsonKind.Number;
+
+            var point = root["position"];
+            bool hasPosition = point.Kind == JsonKind.Object
+                               && point["x"].Kind == JsonKind.Number
+                               && point["y"].Kind == JsonKind.Number
+                               && point["z"].Kind == JsonKind.Number;
+
+            // The bus nulls both halves rather than omitting them when the editor has nothing to
+            // say, so this is a shape that genuinely arrives. Refused rather than read as zero:
+            // a missing s taken as 0 would teleport the visitor to the downstream end of the
+            // creek and fire the first beat.
+            if (!hasS && !hasPosition) return false;
+
+            pose = new SimulatedPose(
+                hasS, root["s"].AsFloat(),
+                hasPosition,
+                new Vector3(point["x"].AsFloat(), point["y"].AsFloat(), point["z"].AsFloat()),
+                root["headingRad"].AsFloat());
+            return true;
+        }
+
+        /// <summary>Read a simulatePose payload, whose point is flat beside its s. Returns false
+        /// for anything malformed, which then simply leaves the previous pose standing rather
+        /// than teleporting the visitor.</summary>
         public static bool TryReadPose(ControlCommand command, out SimulatedPose pose)
         {
             pose = default;

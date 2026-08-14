@@ -212,6 +212,110 @@ namespace ShoalingUpstream.Tests.Control
             Assert.IsNull(v["nope"].AsString());
         }
 
+        // ------------------------------------------------------------------ the streamed pose
+
+        [Test]
+        public void AStreamedPoseIsItsOwnMessageAndCarriesBothHalves()
+        {
+            var msg = ControlProtocol.Parse(Frames.StreamedPose(
+                s: 9.4, position: (1.5, 0.2, 2.5), headingRad: 1.2, sentAtMs: 1_700_000));
+
+            Assert.AreEqual(ControlMessageKind.Pose, msg.Kind);
+            Assert.IsTrue(msg.HasPose);
+            Assert.IsTrue(msg.Pose.HasS);
+            Assert.AreEqual(9.4f, msg.Pose.S, 0.0001f);
+            Assert.IsTrue(msg.Pose.HasPosition);
+            Assert.AreEqual(2.5f, msg.Pose.Position.z, 0.0001f,
+                "the point rides nested under `position`, not flat beside s");
+            Assert.AreEqual(1.2f, msg.Pose.HeadingRad, 0.0001f);
+            Assert.AreEqual("test-creek", msg.Slug);
+            Assert.AreEqual(1_700_000, msg.ServerNowMs, 0.001);
+            Assert.IsNull(msg.Command, "a pose is not a command and carries no schedule");
+        }
+
+        [Test]
+        public void EitherHalfOfAStreamedPoseIsEnough()
+        {
+            // The editor's scrubber works in distance along the path and may send nothing else.
+            var sOnly = ControlProtocol.Parse(Frames.StreamedPose(s: 9.4, position: null));
+            Assert.IsTrue(sOnly.HasPose);
+            Assert.IsTrue(sOnly.Pose.HasS);
+            Assert.IsFalse(sOnly.Pose.HasPosition);
+
+            var pointOnly = ControlProtocol.Parse(Frames.StreamedPose(s: null, position: (1, 0, 2)));
+            Assert.IsTrue(pointOnly.HasPose);
+            Assert.IsFalse(pointOnly.Pose.HasS);
+            Assert.IsTrue(pointOnly.Pose.HasPosition);
+        }
+
+        [Test]
+        public void AStreamedPoseWithNeitherHalfIsRefusedRatherThanReadAsZero()
+        {
+            // The bus nulls every field rather than omitting keys, so this frame really arrives.
+            // Reading a missing s as 0 would teleport the visitor to the downstream end of the
+            // creek and fire the first beat.
+            var msg = ControlProtocol.Parse(Frames.StreamedPose(s: null, position: null));
+
+            Assert.AreEqual(ControlMessageKind.Pose, msg.Kind, "it is still a pose message");
+            Assert.IsFalse(msg.HasPose, "but it carries no pose, so the previous one stands");
+        }
+
+        [Test]
+        public void APartialPointIsNotAPoint()
+        {
+            var msg = ControlProtocol.Parse(
+                "{\"type\":\"pose\",\"s\":null,\"position\":{\"x\":1,\"z\":2},\"headingRad\":0}");
+
+            Assert.AreEqual(ControlMessageKind.Pose, msg.Kind);
+            Assert.IsFalse(msg.HasPose, "two thirds of a point is not a position");
+        }
+
+        [Test]
+        public void AMissingHeadingReadsAsZeroRatherThanRefusingTheWholePose()
+        {
+            // Heading only turns the head. Losing it must not lose the walker.
+            var msg = ControlProtocol.Parse(Frames.StreamedPose(s: 4.2, headingRad: null));
+
+            Assert.IsTrue(msg.HasPose);
+            Assert.AreEqual(4.2f, msg.Pose.S, 0.0001f);
+            Assert.AreEqual(0f, msg.Pose.HeadingRad, 0.0001f);
+        }
+
+        [Test]
+        public void TheSimulatePoseCommandStillParsesAlongsideTheStreamedPose()
+        {
+            // A phone in the field may still be sent one, and removing the older form would be a
+            // second break. Its point is FLAT beside its s — the layouts differ, deliberately.
+            var msg = ControlProtocol.Parse(Frames.Command(
+                ControlActions.SimulatePose, 1_000_000,
+                valueJson: "{\"s\":27.5,\"x\":0,\"y\":0,\"z\":27.5,\"headingRad\":1.2}"));
+
+            Assert.AreEqual(ControlMessageKind.Command, msg.Kind);
+            Assert.IsTrue(ControlProtocol.TryReadPose(msg.Command, out var pose));
+            Assert.AreEqual(27.5f, pose.S, 0.0001f);
+            Assert.IsTrue(pose.HasPosition);
+            Assert.AreEqual(27.5f, pose.Position.z, 0.0001f);
+        }
+
+        [Test]
+        public void TheTwoPoseLayoutsAreNotInterchangeable()
+        {
+            // Pinning the difference rather than papering over it. A reader permissive enough to
+            // take either shape from either message would go on working the day one end changed,
+            // which is exactly how the original mismatch survived 201 passing tests.
+            var streamedShape = ControlProtocol.Parse(Frames.StreamedPose(s: null, position: (1, 2, 3)));
+            Assert.IsTrue(streamedShape.HasPose, "nested `position` is the pose message's shape");
+
+            var flatAsPose = ControlProtocol.Parse(
+                "{\"type\":\"pose\",\"s\":null,\"x\":1,\"y\":2,\"z\":3}");
+            Assert.IsFalse(flatAsPose.HasPose, "a flat point is not this message's shape");
+
+            var command = ControlProtocol.Parse(Frames.Command(
+                ControlActions.SimulatePose, 1_000, valueJson: "{\"position\":{\"x\":1,\"y\":2,\"z\":3}}"));
+            Assert.IsFalse(ControlProtocol.TryReadPose(command.Command, out _),
+                "and a nested point is not the command's");
+        }
+
         [Test]
         public void HelloAndHeartbeatAreWhatTheServerSwitchesOn()
         {

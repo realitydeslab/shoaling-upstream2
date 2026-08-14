@@ -147,7 +147,7 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     const data = await makeDataRoot(makeScannedJourney());
     cleanup = data.cleanup;
 
-    server = spawn(process.execPath, [path.join(ROOT, 'service', 'src', 'server.mjs')], {
+    server = spawn(process.execPath, [path.join(ROOT, 'service', 'src', 'server.ts')], {
       env: { ...process.env, PORT: '0', DATA_DIR: data.base, JOURNEY_DIR: data.journeysRoot },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

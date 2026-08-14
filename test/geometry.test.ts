@@ -1,7 +1,7 @@
 /**
  * Centreline geometry, in both copies.
  *
- * The projection maths exists twice — once in the service (journey-schema.mjs, which recomputes
+ * The projection maths exists twice — once in the service (journey-schema.ts, which recomputes
  * every beat's `s` when the path moves) and once in the editor (editor/js/geom.js, which drives
  * the scrubber and the walker). They must agree: if they drift, the scrubber shows a beat arming
  * at a position the device will never trigger it at, and the discrepancy is invisible until
@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import {
   projectToCentreline as projectService,
   centrelineLength as lengthService,
-} from '../service/src/journey-schema.mjs';
+} from '../service/src/journey-schema.ts';
 import {
   projectToCentreline as projectEditor,
   centrelineLength as lengthEditor,

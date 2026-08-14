@@ -3,7 +3,7 @@
   "journeyId": "ucb-strawberry-creek-south",
   "title": "Shoaling Upstream — Strawberry Creek South",
   "revision": 0,
-  "note": "Upstream is east and rises ~2.3 m across the mapped reach. Which local axis is east has not been confirmed; +Z is a guess to be fixed at calibration.",
+  "note": "Upstream is north, toward +Z: the bed rises +2.21 m over 65.2 m of traced channel (3.4 % mean gradient), which agrees with the 2.27 m of rise across the VPS mesh. There is no waterfall on this reach — the steepest 2 m of channel rises 0.44 m. The ending is the dark still reach at z 27–36 and the gravel above it.",
   "site": {
     "slug": "ucb-strawberry-creek-south",
     "nianticOrgId": "f35a6672-fc09-4c74-ad33-488c721850fb",
@@ -12,24 +12,99 @@
     "anchorPayload": "",
     "centreline": [
       {
-        "x": -9,
-        "y": -0.5,
-        "z": -12.2
+        "x": 4.727,
+        "y": -0.78,
+        "z": -3.681
       },
       {
-        "x": -9,
-        "y": -0.5,
-        "z": 18.500000000000004
+        "x": 2.432,
+        "y": -0.55,
+        "z": -0.854
       },
       {
-        "x": -9,
-        "y": -0.5,
-        "z": 49.2
+        "x": -1.354,
+        "y": -0.45,
+        "z": -0.894
+      },
+      {
+        "x": -3.723,
+        "y": -0.05,
+        "z": 1.868
+      },
+      {
+        "x": -6.856,
+        "y": 0.2,
+        "z": 3.306
+      },
+      {
+        "x": -8.842,
+        "y": 0.22,
+        "z": 6.084
+      },
+      {
+        "x": -11.115,
+        "y": 0.25,
+        "z": 8.677
+      },
+      {
+        "x": -10.979,
+        "y": 0.68,
+        "z": 12.173
+      },
+      {
+        "x": -12.807,
+        "y": 0.81,
+        "z": 15.411
+      },
+      {
+        "x": -11.815,
+        "y": 0.68,
+        "z": 18.99
+      },
+      {
+        "x": -13.499,
+        "y": 0.98,
+        "z": 22.138
+      },
+      {
+        "x": -12.779,
+        "y": 0.96,
+        "z": 25.515
+      },
+      {
+        "x": -12.767,
+        "y": 0.68,
+        "z": 28.94
+      },
+      {
+        "x": -11.457,
+        "y": 0.85,
+        "z": 32.211
+      },
+      {
+        "x": -12.694,
+        "y": 0.92,
+        "z": 35.669
+      },
+      {
+        "x": -10.974,
+        "y": 1.03,
+        "z": 38.872
+      },
+      {
+        "x": -11.191,
+        "y": 1.12,
+        "z": 42.423
+      },
+      {
+        "x": -10.535,
+        "y": 1.2,
+        "z": 45.244
       }
     ],
     "upstreamAxis": {
       "kind": "altitude",
-      "risesToward": "unconfirmed"
+      "risesToward": "north, the −along end of the trim box, world about (−10, +45). Measured from a thalweg traced as the lowest bed per 1 m slice: +2.21 m over 65.2 m. Not from brightness — bright desaturated splats mark broken water, and here they are lowest exactly where the water is deepest and stillest."
     }
   },
   "editorFrame": {
@@ -50,20 +125,20 @@
     "trim": {
       "enabled": true,
       "position": {
-        "x": -6.439,
-        "y": 2.179,
-        "z": 18.517
+        "x": -8.049,
+        "y": 2,
+        "z": 18.961
       },
       "rotation": [
         0,
+        0.590254,
         0,
-        0,
-        1
+        0.807218
       ],
       "halfExtent": {
-        "x": 15.486,
-        "y": 7.158,
-        "z": 31.212
+        "x": 27,
+        "y": 7,
+        "z": 9.2
       }
     },
     "bounds": {
@@ -95,17 +170,17 @@
     {
       "id": "tree",
       "title": "The tree",
-      "prompt": "Come in under the branches where the water runs slow.",
+      "prompt": "Come in under the branches where the water runs slow and wide.",
       "interaction": "proximity",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": -7.2879999999999985
+        "x": 3.396,
+        "y": -2.06,
+        "z": -2.1
       },
-      "s": 4.91,
+      "s": 1.98,
       "trigger": {
-        "enterRadiusM": 3,
-        "exitRadiusM": 4.8,
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -134,14 +209,14 @@
       "prompt": "Get low enough to see into the gravel.",
       "interaction": "crouch",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": 3.764000000000003
+        "x": -6.216,
+        "y": -1.42,
+        "z": 2.051
       },
-      "s": 15.96,
+      "s": 13.33,
       "trigger": {
-        "enterRadiusM": 3,
-        "exitRadiusM": 4.8,
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -172,17 +247,17 @@
     {
       "id": "strider",
       "title": "Water striders",
-      "prompt": "Something is moving on the surface.",
+      "prompt": "The banks have opened and the sky is on the water. Something is moving on it.",
       "interaction": "catch",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": 14.816000000000003
+        "x": -11.099,
+        "y": -0.78,
+        "z": 11.726
       },
-      "s": 27.02,
+      "s": 24.32,
       "trigger": {
-        "enterRadiusM": 3,
-        "exitRadiusM": 4.8,
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -213,17 +288,17 @@
     {
       "id": "heron",
       "title": "The heron",
-      "prompt": "It has been waiting. Let some of the shoal go.",
+      "prompt": "Shallow flat water, and it has been standing in it a long time. Let some of the shoal go.",
       "interaction": "give",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": 25.868000000000006
+        "x": -13.828,
+        "y": -0.44,
+        "z": 21.687
       },
-      "s": 38.07,
+      "s": 35.6,
       "trigger": {
-        "enterRadiusM": 3,
-        "exitRadiusM": 4.8,
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -248,19 +323,19 @@
       "givesFish": 12
     },
     {
-      "id": "barrier",
-      "title": "The barrier",
-      "prompt": "Lift yourself over. Water is above you again on the other side.",
+      "id": "darkwater",
+      "title": "The dark water",
+      "prompt": "The water goes still and the light goes out of it. The shoal will not go up there. Get yourself up out of it, onto the gravel on your right.",
       "interaction": "lift",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": 36.92
+        "x": -10.951,
+        "y": -0.37,
+        "z": 32.666
       },
-      "s": 49.12,
+      "s": 46.61,
       "trigger": {
-        "enterRadiusM": 3,
-        "exitRadiusM": 4.8,
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -289,19 +364,19 @@
       }
     },
     {
-      "id": "headwater",
-      "title": "The headwater",
-      "prompt": "This is as far upstream as the creek goes.",
+      "id": "spawn",
+      "title": "The gravel above",
+      "prompt": "Out of the dark and back into moving water. Gravel under you — as far up as the scan reaches.",
       "interaction": "crouch",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": 46.13000000000001
+        "x": -10.199,
+        "y": -0.26,
+        "z": 42.801
       },
-      "s": 58.33,
+      "s": 57.8,
       "trigger": {
-        "enterRadiusM": 3,
-        "exitRadiusM": 4.8,
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -335,11 +410,11 @@
       "id": "creek-bed",
       "title": "The creek itself",
       "position": {
-        "x": -9,
-        "y": -0.5,
-        "z": 18.500000000000004
+        "x": -11.815,
+        "y": 0.68,
+        "z": 18.99
       },
-      "audibleRadiusM": 61.400000000000006,
+      "audibleRadiusM": 66.2,
       "audio": {
         "far": {
           "clipId": "tree-creek-waterplants-2--far",

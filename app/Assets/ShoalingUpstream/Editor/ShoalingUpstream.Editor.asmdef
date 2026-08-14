@@ -2,12 +2,22 @@
   "name": "ShoalingUpstream.Editor",
   "rootNamespace": "ShoalingUpstream.Editor",
   "references": [
-    "ShoalingUpstream.Runtime"
+    "ShoalingUpstream.Runtime",
+    "ShoalingUpstream.Simulation",
+    "ShoalingUpstream.Localization",
+    "ShoalingUpstream.Localization.Nsdk"
   ],
   "includePlatforms": [ "Editor" ],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,
   "autoReferenced": true,
-  "noEngineReferences": false
+  "noEngineReferences": false,
+  "versionDefines": [
+    {
+      "name": "com.nianticspatial.nsdk",
+      "expression": "",
+      "define": "NSDK_PRESENT"
+    }
+  ]
 }

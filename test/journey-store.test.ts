@@ -13,18 +13,36 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { JourneyStore } from '../service/src/journey-store.mjs';
+// The store is plain ES modules with no build step, so it is imported as JavaScript and its
+// signatures are inferred. What comes back off disk is a journey, and it is read as one here.
+import { JourneyStore } from '../service/src/journey-store.ts';
 import { makeDataRoot, makeJourney, makeBeat, SLUG } from './helpers.ts';
+import type { Beat, Interaction, JourneyDocument, TrimBox } from '../editor/src/types.ts';
+
+/**
+ * What the store throws when a write fails validation.
+ *
+ * Not in types.ts: it is a service-side error rather than part of the manifest, and the reasons
+ * it carries are the whole point — a refusal the editor cannot explain is a refusal the author
+ * cannot act on.
+ */
+interface InvalidJourneyError extends Error {
+  code: string;
+  errors: string[];
+}
 
 /** The trim box the artist positioned at UBC, as a realistic shape to patch with. */
-const FULL_TRIM = {
+const FULL_TRIM: TrimBox = {
   enabled: true,
   position: { x: -1.262, y: -0.784, z: -1.62 },
   rotation: [0, 0.39564, 0, 0.91841],
   halfExtent: { x: 7.466, y: 2.005, z: 3.476 },
 };
 
-async function withStore(run, journey) {
+async function withStore(
+  run: (store: JourneyStore, dir: string) => Promise<void>,
+  journey?: JourneyDocument,
+): Promise<void> {
   const { journeysRoot, dir, cleanup } = await makeDataRoot(journey);
   try {
     await run(new JourneyStore(journeysRoot), dir);
@@ -35,7 +53,7 @@ async function withStore(run, journey) {
 
 test('a draft round-trips', async () => {
   await withStore(async (store) => {
-    const draft = await store.readDraft(SLUG);
+    const draft: JourneyDocument = await store.readDraft(SLUG);
     assert.equal(draft.site.slug, SLUG);
     assert.equal(draft.beats.length, 2);
   });
@@ -45,23 +63,25 @@ test('writeDraft rejects a journey that fails validation, and leaves the old one
   async () => {
     await withStore(async (store, dir) => {
       const broken = makeJourney();
-      broken.beats[0].interaction = 'teleport';       // not a known interaction
+      // Deliberately not an Interaction. The cast is how a document the type system forbids
+      // reaches a validator whose entire job is documents nobody type-checked.
+      broken.beats[0]!.interaction = 'teleport' as Interaction;       // not a known interaction
 
-      await assert.rejects(() => store.writeDraft(SLUG, broken), (err) => {
+      await assert.rejects(() => store.writeDraft(SLUG, broken), (err: InvalidJourneyError) => {
         assert.equal(err.code, 'INVALID_JOURNEY');
         assert.ok(err.errors.length > 0);
         return true;
       });
 
       // The point of refusing is that the good version survives.
-      const onDisk = JSON.parse(await readFile(path.join(dir, 'draft.json'), 'utf8'));
-      assert.equal(onDisk.beats[0].interaction, 'proximity');
+      const onDisk: JourneyDocument = JSON.parse(await readFile(path.join(dir, 'draft.json'), 'utf8'));
+      assert.equal(onDisk.beats[0]!.interaction, 'proximity');
     });
   });
 
 test('patchEditorFrame stores the trim box without disturbing the journey', async () => {
   await withStore(async (store) => {
-    const trim = {
+    const trim: TrimBox = {
       enabled: true,
       position: { x: -1.262, y: -0.784, z: -1.62 },
       rotation: [0, 0.39564, 0, 0.91841],
@@ -69,7 +89,7 @@ test('patchEditorFrame stores the trim box without disturbing the journey', asyn
     };
     await store.patchEditorFrame(SLUG, { trim });
 
-    const draft = await store.readDraft(SLUG);
+    const draft: JourneyDocument = await store.readDraft(SLUG);
     assert.deepEqual(draft.editorFrame.trim, trim);
     // The rest of the document is untouched — this is the whole reason the endpoint is separate.
     assert.equal(draft.beats.length, 2);
@@ -82,12 +102,12 @@ test('patchEditorFrame preserves keys it was not given', async () => {
     await store.patchEditorFrame(SLUG, { bounds: { span: { x: 34, y: 12, z: 28 } } });
     await store.patchEditorFrame(SLUG, { trim: { ...FULL_TRIM, enabled: false } });
 
-    const draft = await store.readDraft(SLUG);
+    const draft: JourneyDocument = await store.readDraft(SLUG);
     assert.ok(draft.editorFrame.bounds, 'measured bounds survived a later trim write');
-    assert.equal(draft.editorFrame.trim.enabled, false);
+    assert.equal(draft.editorFrame.trim!.enabled, false);
     // Disabling must keep the authored extent. Growing the box to 1e5 to "let everything
     // through" once overwrote a hand-positioned trim, unrecoverably — see docs/devlog.md.
-    assert.equal(draft.editorFrame.trim.halfExtent.x, FULL_TRIM.halfExtent.x);
+    assert.equal(draft.editorFrame.trim!.halfExtent.x, FULL_TRIM.halfExtent.x);
   });
 });
 
@@ -95,12 +115,12 @@ test('a trim patch missing its geometry is refused rather than half-applied', as
   await withStore(async (store) => {
     await store.patchEditorFrame(SLUG, { trim: FULL_TRIM });
     await assert.rejects(() => store.patchEditorFrame(SLUG, { trim: { enabled: false } }),
-      (err) => err.code === 'INVALID_JOURNEY');
+      (err: InvalidJourneyError) => err.code === 'INVALID_JOURNEY');
 
     // The authored box is still intact, which is the point of failing closed.
-    const draft = await store.readDraft(SLUG);
-    assert.equal(draft.editorFrame.trim.enabled, true);
-    assert.deepEqual(draft.editorFrame.trim.halfExtent, FULL_TRIM.halfExtent);
+    const draft: JourneyDocument = await store.readDraft(SLUG);
+    assert.equal(draft.editorFrame.trim!.enabled, true);
+    assert.deepEqual(draft.editorFrame.trim!.halfExtent, FULL_TRIM.halfExtent);
   });
 });
 
@@ -114,23 +134,23 @@ test('patchSite recomputes every beat s when the path moves', async () => {
       ],
     });
 
-    const draft = await store.readDraft(SLUG);
-    assert.equal(draft.beats[0].s, 2, 'beat at x=2 is 2 m along the new path');
+    const draft: JourneyDocument = await store.readDraft(SLUG);
+    assert.equal(draft.beats[0]!.s, 2, 'beat at x=2 is 2 m along the new path');
     // The beat at x=7 is beyond the new 5 m end, so it clamps there rather than extrapolating.
-    assert.equal(draft.beats[1].s, 5);
+    assert.equal(draft.beats[1]!.s, 5);
   });
 });
 
 test('patchSite never moves a beat — path and place are separate', async () => {
   await withStore(async (store) => {
-    const before = (await store.readDraft(SLUG)).beats.map((b) => ({ ...b.position }));
+    const before = (await store.readDraft(SLUG)).beats.map((b: Beat) => ({ ...b.position }));
     await store.patchSite(SLUG, {
       centreline: [
         { x: 0, y: 1.4, z: 9 },     // shifted 9 m across
         { x: 10, y: 1.4, z: 9 },
       ],
     });
-    const after = (await store.readDraft(SLUG)).beats.map((b) => b.position);
+    const after = (await store.readDraft(SLUG)).beats.map((b: Beat) => b.position);
     assert.deepEqual(after, before, 'beats stayed where they were put');
   });
 });
@@ -141,11 +161,11 @@ test('publish writes an immutable numbered revision and leaves the draft editabl
     assert.equal(first.revision, 1);
 
     // Keep editing after publishing; the revision must not follow.
-    const draft = await store.readDraft(SLUG);
+    const draft: JourneyDocument = await store.readDraft(SLUG);
     draft.title = 'Renamed after publishing';
     await store.writeDraft(SLUG, draft);
 
-    const published = await store.readPublished(SLUG);
+    const published: JourneyDocument = await store.readPublished(SLUG);
     assert.equal(published.title, 'Test Creek', 'the published revision is frozen');
 
     const second = await store.publish(SLUG);
@@ -178,7 +198,7 @@ test('listSites finds the sites that exist', async () => {
   await withStore(async (store) => {
     const sites = await store.listSites();
     assert.equal(sites.length, 1);
-    assert.equal(sites[0].slug, SLUG);
+    assert.equal(sites[0]!.slug, SLUG);
   });
 });
 
@@ -188,8 +208,8 @@ test('a beat added off the path still gets a sensible s', async () => {
   journey.beats.push(makeBeat('bank', 4, { position: { x: 4, y: 0, z: 3 }, s: 0 }));
   await withStore(async (store) => {
     await store.patchSite(SLUG, { centreline: journey.site.centreline });
-    const draft = await store.readDraft(SLUG);
+    const draft: JourneyDocument = await store.readDraft(SLUG);
     const bank = draft.beats.find((b) => b.id === 'bank');
-    assert.equal(bank.s, 4, 'cross-track distance does not contribute to s');
+    assert.equal(bank!.s, 4, 'cross-track distance does not contribute to s');
   }, journey);
 });

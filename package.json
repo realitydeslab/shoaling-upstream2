@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Site-specific spatial-audio artwork on a creek reach: authoring editor, control service, and iOS app.",
   "scripts": {
-    "start": "node service/src/server.mjs",
+    "start": "node service/src/server.ts",
     "build": "tsc",
     "watch": "tsc --watch",
     "typecheck": "tsc -p tsconfig.test.json",
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/three": "^0.185.4",
+    "@types/ws": "^8.18.1",
     "playwright": "^1.62.1",
     "typescript": "^7.0.2"
   }

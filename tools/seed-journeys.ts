@@ -6,7 +6,7 @@
  * placement happens in the editor against the splat, and every coordinate here is
  * provisional until the editor frame is calibrated.
  *
- * Run:  node tools/seed-journeys.mjs [--force] [--reset-all]
+ * Run:  node tools/seed-journeys.ts [--force] [--reset-all]
  *
  *   --force      regenerate beats and audio, but CARRY OVER authored configuration:
  *                the trim box, a hand-drawn walking path, measured bounds, calibration.
@@ -16,7 +16,10 @@
 import { mkdir, writeFile, access, readFile, copyFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { validateJourney, SCHEMA_VERSION } from '../service/src/journey-schema.mjs';
+import { validateJourney, SCHEMA_VERSION } from '../service/src/journey-schema.ts';
+import type {
+  AmbientSource, Beat, BeatAudio, Interaction, JourneyDocument, SiteRef, Vec3,
+} from '../editor/src/types.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'data', 'journeys');
@@ -28,11 +31,40 @@ const force = process.argv.includes('--force');
 // throw those away too, and know that you are doing it.
 const resetAll = process.argv.includes('--reset-all');
 
+interface SeedSite {
+  slug: string;
+  title: string;
+  nianticOrgId: string;
+  nianticSiteId: string;
+  vpsAssetId: string;
+  splatFile: string;
+  /** Which local axis the reach runs along. */
+  axis: 'x' | 'y' | 'z';
+  from: number;
+  to: number;
+  /** The other two coordinates, held constant across the reach. */
+  lateral: Partial<Vec3>;
+  note: string;
+}
+
+/**
+ * What this script actually writes.
+ *
+ * Two departures from `JourneyDocument`, both pre-existing and both left alone: the seed adds a
+ * top-level `note`, which the validator neither requires nor forbids; and it omits `site.title`,
+ * which types.ts declares as required but which no stored draft has ever carried and nothing
+ * reads. Adding one here would change the bytes on disk, so it is described rather than fixed.
+ */
+type SeededJourney = Omit<JourneyDocument, 'site'> & {
+  note: string;
+  site: Omit<SiteRef, 'title'>;
+};
+
 /**
  * Measured with tools/spz_bounds.py at the 1st/99th percentile — raw min/max is meaningless
  * because every scan carries floaters 400-1200 m out.
  */
-const SITES = [
+const SITES: SeedSite[] = [
   {
     slug: 'ubc-nitobe-garden-creek',
     title: 'Shoaling Upstream — UBC garden creek',
@@ -65,12 +97,24 @@ const SITES = [
   },
 ];
 
+interface SeedBeat {
+  id: string;
+  title: string;
+  interaction: Interaction;
+  /** Fraction along the reach, so one structure lands on both a 34 m and a 61 m site. */
+  at: number;
+  clip: string;
+  completion: string | null;
+  givesFish?: number;
+  prompt: string;
+}
+
 /**
  * The six beats. Positions are fractions along the reach so the same structure lands on
  * both a 34 m and a 61 m site. Radii are absolute metres and get re-scaled below, because
  * a gate has to relate to real position error, not to the length of the creek.
  */
-const BEATS = [
+const BEATS: SeedBeat[] = [
   {
     id: 'tree',
     title: 'The tree',
@@ -128,8 +172,14 @@ const BEATS = [
   },
 ];
 
+interface LayerGains {
+  far?: number;
+  mid?: number;
+  intimate?: number;
+}
+
 /** Three layers per source. Distance is carried by content, not by gain. */
-function layers(clipId, { far = -14, mid = -8, intimate = -4 } = {}) {
+function layers(clipId: string, { far = -14, mid = -8, intimate = -4 }: LayerGains = {}): BeatAudio {
   return {
     far: { clipId: `${clipId}--far`, gainDb: far, loop: true },
     mid: { clipId: `${clipId}--mid`, gainDb: mid, loop: true },
@@ -137,13 +187,13 @@ function layers(clipId, { far = -14, mid = -8, intimate = -4 } = {}) {
   };
 }
 
-function buildJourney(site) {
+function buildJourney(site: SeedSite): SeededJourney {
   const length = Math.abs(site.to - site.from);
   const sign = site.to >= site.from ? 1 : -1;
 
-  const pointAt = (fraction) => {
+  const pointAt = (fraction: number): Vec3 => {
     const along = site.from + sign * length * fraction;
-    const p = { x: 0, y: 0, z: 0, ...site.lateral };
+    const p: Vec3 = { x: 0, y: 0, z: 0, ...site.lateral };
     p[site.axis] = along;
     return p;
   };
@@ -157,10 +207,11 @@ function buildJourney(site) {
   const enter = Math.max(2.0, Math.min(3.0, spacing * 0.32));
   const exit = enter * 1.6;
 
-  const beats = BEATS.map((beat) => {
+  const beats: Beat[] = BEATS.map((beat) => {
     const position = pointAt(beat.at);
     const s = length * beat.at;
-    const node = {
+    const audio = layers(beat.clip);
+    const node: Beat = {
       id: beat.id,
       title: beat.title,
       prompt: beat.prompt,
@@ -176,10 +227,10 @@ function buildJourney(site) {
         minimumHoldSeconds: 25,
         requiresPreviousComplete: true,
       },
-      audio: layers(beat.clip),
+      audio,
     };
     if (beat.completion) {
-      node.audio.completion = { clipId: beat.completion, gainDb: -3, loop: false };
+      audio.completion = { clipId: beat.completion, gainDb: -3, loop: false };
     }
     if (beat.givesFish) node.givesFish = beat.givesFish;
     return node;
@@ -188,7 +239,7 @@ function buildJourney(site) {
   // The continuous bed. Unordered, never completes, and always playing — because a long
   // silence reads as the technology having broken, which is the single most reported
   // failure in this kind of work.
-  const ambient = [
+  const ambient: AmbientSource[] = [
     {
       id: 'creek-bed',
       title: 'The creek itself',
@@ -266,8 +317,8 @@ for (const site of SITES) {
     await copyFile(file, path.join(dir, `draft.${stamp}.bak.json`));
 
     if (!resetAll) {
-      const previous = JSON.parse(await readFile(file, 'utf8'));
-      const carried = [];
+      const previous = JSON.parse(await readFile(file, 'utf8')) as JourneyDocument;
+      const carried: string[] = [];
 
       if (previous.editorFrame?.trim) {
         journey.editorFrame.trim = previous.editorFrame.trim;
@@ -282,7 +333,7 @@ for (const site of SITES) {
         carried.push('calibration');
       }
       // A hand-drawn path has more than the three points the seed generates.
-      if (previous.site?.centreline?.length > 3) {
+      if ((previous.site?.centreline?.length ?? 0) > 3) {
         journey.site.centreline = previous.site.centreline;
         carried.push(`walking path (${previous.site.centreline.length} pts)`);
       }
@@ -297,8 +348,8 @@ for (const site of SITES) {
 
   const reach = Math.abs(site.to - site.from);
   console.log(`  ${site.slug.padEnd(30)} ${reach.toFixed(1)} m reach · `
-            + `${journey.beats.length} beats · gates ${journey.beats[0].trigger.enterRadiusM}/`
-            + `${journey.beats[0].trigger.exitRadiusM} m`);
+            + `${journey.beats.length} beats · gates ${journey.beats[0]!.trigger.enterRadiusM}/`
+            + `${journey.beats[0]!.trigger.exitRadiusM} m`);
   for (const w of result.warnings) console.log(`      warning: ${w}`);
 }
 

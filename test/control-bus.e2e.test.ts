@@ -15,33 +15,123 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { makeDataRoot, makeJourney, until } from './helpers.ts';
+import type { CommandMessage, PoseMessage, PresenceMessage } from '../editor/src/types.ts';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-let server;
-let port;
-let cleanup;
-const sockets = [];
+/** A frame as it comes off the socket. It claims a `type`; nothing else has been checked yet. */
+interface Frame {
+  type?: string;
+}
+
+/**
+ * The greeting every client gets.
+ *
+ * Not in types.ts — the editor's Link reads the session id and nothing else of it — but this
+ * suite needs the whole thing, because the session is what makes an acknowledgement from a
+ * previous run of the service meaningless rather than a phantom success.
+ */
+interface WelcomeMessage extends Frame {
+  type: 'welcome';
+  clientId: number;
+  role: string;
+  sessionId: string;
+}
+
+/**
+ * Authoritative device state, as the bus fans it out to operators.
+ *
+ * `state` is deliberately left as a bag of keys: what these tests check is WHICH keys survive
+ * the merge — the allow-list in control-bus.ts — rather than what any one of them means.
+ */
+interface StateMessage extends Frame {
+  type: 'state';
+  state: Record<string, unknown>;
+  serverNowMs: number;
+}
+
+/** The operator's own copy of a command it issued, so its UI need not wait for the phone. */
+interface CommandIssuedMessage extends Frame {
+  type: 'commandIssued';
+  command: CommandMessage;
+}
+
+interface CommandAckMessage extends Frame {
+  type: 'commandAck';
+  commandId: string;
+  applied: boolean;
+  note: string | null;
+}
+
+interface ErrorMessage extends Frame {
+  type: 'error';
+  message: string;
+}
+
+/**
+ * A pose as a device receives it, plus the three fields this suite asserts are ABSENT.
+ *
+ * A pose is state, not a command: no id, no fire time, no expiry. Declaring them here as
+ * never-present is how that question can be asked without pretending a pose has them.
+ */
+type ReceivedPose = PoseMessage & {
+  id?: undefined;
+  fireAtMs?: undefined;
+  expiresAtMs?: undefined;
+};
+
+/**
+ * Everything this suite reads off the bus, keyed by the `type` it arrives under.
+ *
+ * These are claims rather than facts — nothing has checked a frame beyond its type field, and
+ * the assertions below are the check. Reading each one as its declared shape is exactly what
+ * makes a disagreement between types.ts and the bus fail here instead of in a browser:
+ * `PresenceMessage.operators` was declared a list until this suite was pointed at the real bus.
+ */
+interface BusMessages {
+  welcome: WelcomeMessage;
+  presence: PresenceMessage;
+  command: CommandMessage;
+  commandIssued: CommandIssuedMessage;
+  commandAck: CommandAckMessage;
+  state: StateMessage;
+  pose: ReceivedPose;
+  error: ErrorMessage;
+}
+
+interface Client {
+  socket: WebSocket;
+  received: Frame[];
+  welcome: WelcomeMessage;
+  of: <K extends keyof BusMessages>(type: K) => BusMessages[K][];
+}
+
+let server: ChildProcess;
+let port: string | null;
+let cleanup: (() => Promise<void>) | undefined;
+const sockets: WebSocket[] = [];
 
 before(async () => {
   const data = await makeDataRoot(makeJourney());
   cleanup = data.cleanup;
 
-  server = spawn(process.execPath, [path.join(ROOT, 'service', 'src', 'server.mjs')], {
+  server = spawn(process.execPath, [path.join(ROOT, 'service', 'src', 'server.ts')], {
     env: { ...process.env, PORT: '0', JOURNEY_DIR: data.journeysRoot },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
   let output = '';
-  server.stdout.on('data', (c) => { output += c; });
-  server.stderr.on('data', (c) => { output += c; });
+  // Both streams are pipes by the stdio above; the general signature of spawn cannot say so.
+  server.stdout!.on('data', (c) => { output += c; });
+  server.stderr!.on('data', (c) => { output += c; });
 
-  port = await until(() => {
+  port = await until<string | null>(() => {
     const m = /https?:\/\/[^\s]*?:(\d+)/.exec(output);
-    return m ? m[1] : null;
+    return m?.[1] ?? null;
   }, { timeoutMs: 8000, label: 'the server to report a port' });
 
   await until(async () => {
@@ -62,9 +152,9 @@ after(async () => {
  * service, not of the repository root, so importing it here would resolve only by accident of
  * directory layout — and the platform now has a client that speaks the same protocol.
  */
-async function connect(role) {
+async function connect(role: string): Promise<Client> {
   const socket = new WebSocket(`ws://127.0.0.1:${port}/ws?role=${role}`);
-  const received = [];
+  const received: Frame[] = [];
   socket.addEventListener('message', (event) => {
     try { received.push(JSON.parse(String(event.data))); } catch { /* not our protocol */ }
   });
@@ -75,9 +165,19 @@ async function connect(role) {
     socket.addEventListener('error', reject, { once: true });
   });
   // Every client is greeted, and the greeting carries the session id that scopes command ids.
-  const welcome = await until(() => received.find((m) => m.type === 'welcome'),
-    { label: `a welcome for the ${role}` });
-  return { socket, received, welcome, of: (type) => received.filter((m) => m.type === type) };
+  // `until` rejects rather than resolving falsy, so a welcome that never came is a timeout here
+  // rather than an undefined three lines further on.
+  const welcome = (await until(
+    () => received.find((m): m is WelcomeMessage => m.type === 'welcome'),
+    { label: `a welcome for the ${role}` },
+  ))!;
+  return {
+    socket,
+    received,
+    welcome,
+    of: <K extends keyof BusMessages>(type: K) =>
+      received.filter((m) => m.type === type) as BusMessages[K][],
+  };
 }
 
 test('a client is welcomed with its role and the server session', async () => {
@@ -91,9 +191,9 @@ test('the operator sees the phone appear', async () => {
   const operator = await connect('operator');
   const device = await connect('device');
 
-  const presence = await until(
+  const presence = (await until(
     () => operator.of('presence').find((m) => m.devices?.length > 0),
-    { label: 'presence showing a device' });
+    { label: 'presence showing a device' }))!;
   assert.ok(presence.devices.length >= 1);
   device.socket.close();
 });
@@ -105,15 +205,15 @@ test('presence reports devices as a list and operators as a count', async () => 
   const operator = await connect('operator');
   const device = await connect('device');
 
-  const presence = await until(
+  const presence = (await until(
     () => operator.of('presence').find((m) => m.devices?.length > 0),
-    { label: 'presence with a device' });
+    { label: 'presence with a device' }))!;
 
   assert.ok(Array.isArray(presence.devices), 'devices is a list');
   assert.equal(typeof presence.operators, 'number', 'operators is a count, not a list');
   assert.ok(presence.operators >= 1);
-  assert.equal(typeof presence.devices[0].id, 'number', 'a per-session counter, not a device identity');
-  assert.equal(typeof presence.devices[0].alive, 'boolean');
+  assert.equal(typeof presence.devices[0]!.id, 'number', 'a per-session counter, not a device identity');
+  assert.equal(typeof presence.devices[0]!.alive, 'boolean');
   device.socket.close();
 });
 
@@ -129,8 +229,8 @@ test('a command reaches the phone, scheduled rather than fired', async () => {
   });
   assert.equal(res.status, 200);
 
-  const command = await until(() => device.of('command').find((c) => c.beatId === 'one'),
-    { label: 'the phone to receive the command' });
+  const command = (await until(() => device.of('command').find((c) => c.beatId === 'one'),
+    { label: 'the phone to receive the command' }))!;
 
   assert.equal(command.action, 'fireBeat');
   assert.ok(command.fireAtMs > command.issuedAtMs,
@@ -155,8 +255,8 @@ test('the operator is told when the phone has acted on a command', async () => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action: 'fireBeat', beatId: 'two' }),
   });
-  const command = await until(() => device.of('command').find((c) => c.beatId === 'two'),
-    { label: 'the command' });
+  const command = (await until(() => device.of('command').find((c) => c.beatId === 'two'),
+    { label: 'the command' }))!;
 
   // The sessionId is required, and is not ceremony: after a service restart the old command
   // ids refer to nothing, and an ack carrying one would report a success that never happened.
@@ -168,8 +268,8 @@ test('the operator is told when the phone has acted on a command', async () => {
     sessionId: device.welcome.sessionId,
   }));
 
-  const ack = await until(() => operator.of('commandAck').find((a) => a.commandId === command.id),
-    { label: 'the acknowledgement to reach the operator' });
+  const ack = (await until(() => operator.of('commandAck').find((a) => a.commandId === command.id),
+    { label: 'the acknowledgement to reach the operator' }))!;
   assert.equal(ack.applied, true);
 });
 
@@ -216,9 +316,9 @@ test('device state reaches the operator, which is what the controller leads with
     currentBeat: 'strider',
   }));
 
-  const state = await until(
+  const state = (await until(
     () => operator.of('state').find((m) => m.state?.localization === 'Precise'),
-    { label: 'the operator to see localization state' });
+    { label: 'the operator to see localization state' }))!;
   assert.equal(state.state.s, 9.4);
   assert.equal(state.state.currentBeat, 'strider');
   assert.ok(state.serverNowMs, 'a server clock, so the operator can age what it is looking at');
@@ -232,8 +332,8 @@ test('a status report cannot set fields outside the allow-list', async () => {
     type: 'status', s: 3.3, sessionId: 'hijacked', clients: 'nonsense',
   }));
 
-  const state = await until(() => operator.of('state').find((m) => m.state?.s === 3.3),
-    { label: 'the status to be applied' });
+  const state = (await until(() => operator.of('state').find((m) => m.state?.s === 3.3),
+    { label: 'the status to be applied' }))!;
   // sessionId is a real field of the authoritative state — the point is that a device cannot
   // overwrite it, not that it is absent.
   assert.notEqual(state.state.sessionId, 'hijacked',
@@ -257,7 +357,8 @@ test('the editor streams a pose and the phone receives it', async () => {
     slug: 'test-creek',
   }));
 
-  const pose = await until(() => device.of('pose')[0], { label: 'the phone to receive a pose' });
+  const pose = (await until(() => device.of('pose')[0],
+    { label: 'the phone to receive a pose' }))!;
   assert.equal(pose.s, 11.0);
   assert.deepEqual(pose.position, { x: 1.2, y: -0.6, z: -3.4 });
   assert.equal(pose.headingRad, 0.87);
@@ -271,7 +372,8 @@ test('a pose is state, not a command — no scheduling, no acknowledgement', asy
   const editor = await connect('operator');
 
   editor.socket.send(JSON.stringify({ type: 'pose', s: 4.2 }));
-  const pose = await until(() => device.of('pose').find((p) => p.s === 4.2), { label: 'the pose' });
+  const pose = (await until(() => device.of('pose').find((p) => p.s === 4.2),
+    { label: 'the pose' }))!;
 
   assert.equal(pose.fireAtMs, undefined, 'a pose is acted on when it arrives, not scheduled');
   assert.equal(pose.expiresAtMs, undefined);
@@ -305,7 +407,7 @@ test('an unsupported method on a control route does not silently succeed', async
 test('an unknown socket message type is answered with an error, not silence', async () => {
   const device = await connect('device');
   device.socket.send(JSON.stringify({ type: 'not-a-real-type' }));
-  const err = await until(() => device.of('error')[0], { label: 'an error reply' });
+  const err = (await until(() => device.of('error')[0], { label: 'an error reply' }))!;
   assert.match(err.message, /unknown message type/);
 });
 

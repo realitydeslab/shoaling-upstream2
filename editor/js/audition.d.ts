@@ -27,6 +27,9 @@
  * source crossfades between three recordings (far / mid / intimate) as you approach, because
  * across 5-20 m the entire inverse-square budget is about 12 dB, which reads as "slightly
  * louder" rather than as arrival.
+ *
+ * The mix policy — why you hear one place at a time — is `mixAt` below, and the reasoning is
+ * written out in `docs/audio-mix.md`.
  */
 import type { AudioCatalogue, BeatAudio, JourneyDocument, Layer, Trigger, Vec3 } from './types.js';
 /**
@@ -97,6 +100,10 @@ interface LayerVoice {
     gain: GainNode;
     source: ResonanceSource;
     db: number;
+    /** Whether the element is running. A layer at zero gain is stopped, not merely silent. */
+    running: boolean;
+    /** The pending pause, so a layer that comes back inside the fade is not stopped underneath it. */
+    stopping: ReturnType<typeof setTimeout> | null;
 }
 type SourceLayers = {
     [K in Layer]?: LayerVoice;
@@ -106,6 +113,8 @@ interface AuditionSource {
     layers: SourceLayers;
     reach: number;
     playing: boolean;
+    /** Ambient beds are the floor of the mix: always on, never ducked, never the leader. */
+    ambient: boolean;
 }
 export interface AuditionOptions {
     onState?: () => void;
@@ -117,6 +126,101 @@ export interface AuditionStatus {
     missing: string[];
     engine: string;
 }
+/** Under this a voice is not something a listener could name, so it is not worth a decoder. */
+export declare const AUDIBLE_FLOOR: number;
+/**
+ * How far a source carries, from how far away the next point of interest is.
+ *
+ * `exitRadiusM * 3.5` — what this used to be, unconditionally — is a sensible tail for a beat
+ * standing on its own, and `docs/audio-findings.md` §3 sizes the whole legibility argument around
+ * "8-12 m spacing with ~25 m tails". The UBC garden reach is not that: it is 18.8 m long with six
+ * beats 0.7-4 m apart, so a 10.6 m tail on each of them put every beat inside every other beat's
+ * field for the entire walk. The multiple was never wrong; it was answering a question about one
+ * beat while the problem was a question about six.
+ *
+ * So the reach is now bounded by the composition's own geometry: far enough that a beat is fully
+ * audible everywhere it can fire (`exitRadiusM`), and no further than the point where its cull
+ * radius reaches its nearest neighbour. An explicit `audibleRadiusM` always wins — that is the
+ * author saying it outright, and the ambient beds do exactly that.
+ *
+ * With no neighbour given, this returns precisely the old value, so a lone source is unchanged.
+ */
+export declare function reachFor(node: AudibleNode, neighbourM?: number): number;
+/** Where a source stops being rendered at all. Also its Resonance `maxDistance`. */
+export declare function cullDistance(reach: number): number;
+/**
+ * Horizontal distance to the nearest other node, or Infinity when there is no other.
+ *
+ * Horizontal for the same reason the blend is (see `mixAt`): the vertical separation between
+ * these points is where the creek bed is, not how far apart they are along the walk.
+ */
+export declare function nearestNeighbourM(node: AudibleNode, among: readonly AudibleNode[]): number;
+/** A node with its reach already resolved, which is all the mix needs of it. */
+export interface MixNode {
+    node: AudibleNode;
+    reach: number;
+    /** Always-on bed. Exempt from the duck in both directions: never ducked, never ducks. */
+    ambient?: boolean;
+}
+/** One source's share of the mix at one listener position. */
+export interface MixVoice {
+    id: string;
+    /** Straight-line distance. What Resonance spatialises with, and what its rolloff uses. */
+    distance: number;
+    /** Horizontal distance. What chooses the recording. */
+    blendDistance: number;
+    /** The far / mid / intimate crossfade, before the duck. */
+    weights: Record<Layer, number>;
+    /** The duck: 1 for the nearest point of interest, less for everything behind it. */
+    focus: number;
+    /** Exactly what `update` writes to each layer's gain node. */
+    gains: Record<Layer, number>;
+    /** The above summed and rolled off — what actually reaches the ear. */
+    amplitude: number;
+    audible: boolean;
+    /** Recordings that have to be running for this voice. Zero when it is silent. */
+    loops: number;
+}
+export interface Mix {
+    voices: MixVoice[];
+    /** The point of interest the mix is currently about, or null between them. */
+    leader: MixVoice | null;
+    /** Summed amplitude of everything audible. */
+    total: number;
+    /** Total recordings running. This is the number the artist was hearing as "many reverb". */
+    loops: number;
+    /** Sources contributing anything at all. */
+    audible: number;
+}
+/**
+ * The whole mix at one listener position: the single model, played and measured.
+ *
+ * Two decisions live here.
+ *
+ * **The blend is horizontal; the spatialisation is not.** Beats are authored at bed height, in
+ * the water, while the listener is a phone on a neck mount at chest height on the bank — a 0.2 to
+ * 1.3 m vertical offset on this journey that is a fact about where the creek is, not about how
+ * far the visitor still has to walk. It matters far more than it sounds: the intimate recording
+ * only plays inside 0.35 of the reach, so under a straight 3D distance three of the six UBC beats
+ * — tree, strider and falls, whose closest approach is 1.2-1.3 m in 3D but 0.05-0.61 m in plan —
+ * could never reach their intimate layer at all, no matter where the visitor stood. So the
+ * recording is chosen by distance across the ground, while Resonance still gets the true 3D
+ * position and you still hear the redd from below you, which is the truth and is worth having.
+ *
+ * **The nearest point of interest is the subject.** `geom.ts` `evaluateAt` has always been
+ * winner-take-all — one state machine, one firing beat — while the audio summed every source it
+ * could reach. That asymmetry is the bug the artist heard: six ambiences at once, none of them
+ * about anywhere. Each source is now scaled by `(nearest / its own distance) ^ 2`, which is
+ * winner-take-all with the corners taken off: standing at a beat, it is the only thing playing;
+ * standing midway between two, both are equal and you are crossing from one place into the next;
+ * nothing ever snaps, because the ratio is continuous. It is the ducking of
+ * `docs/audio-findings.md` §3c applied across space rather than across time.
+ *
+ * This is *not* the level-carries-distance mistake. Which recording you hear, and therefore how
+ * near you are, is still decided entirely by the crossfade. The duck decides something else —
+ * which of several places you are being told about — and gain is the correct tool for that.
+ */
+export declare function mixAt(listener: Vec3, nodes: readonly MixNode[]): Mix;
 export declare class Audition {
     #private;
     ctx: AudioContext | null;
@@ -130,6 +234,8 @@ export declare class Audition {
     catalogue: AudioCatalogue | null;
     journey: JourneyDocument | null | undefined;
     clipUrlFor: ClipUrlResolver | undefined;
+    /** The mix as of the last update: what is audible, how loud, and what it is about. */
+    lastMix: Mix | null;
     constructor({ onState }?: AuditionOptions);
     /** Must be called from a user gesture — browsers refuse to start audio otherwise. */
     enable(): Promise<void>;
@@ -168,5 +274,5 @@ export interface AudibleField {
  * crossfade multiplied by Resonance's logarithmic rolloff — rather than by a rule of thumb, so
  * it stays true if the law changes. Both are approximations of PHASE, which is the real target.
  */
-export declare function audibleField(node: AudibleNode): AudibleField | null;
+export declare function audibleField(node: AudibleNode, reach?: number): AudibleField | null;
 export {};
