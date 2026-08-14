@@ -1,0 +1,19 @@
+# Binary capture and recording assets go through Git LFS. These are the source assets the
+# pipeline starts from — the full .spz captures and the audio the exporter packages — so they
+# belong in the repo, but they are 85–96 MB and 40 MB respectively and would make a plain
+# clone unusable.
+#
+# Derived splat sets stay out of the repo entirely; see .gitignore. The .radc and .ply patterns
+# below only take effect if that decision is ever reversed.
+
+*.spz  filter=lfs diff=lfs merge=lfs -text
+*.radc filter=lfs diff=lfs merge=lfs -text
+*.ply  filter=lfs diff=lfs merge=lfs -text
+
+*.wav  filter=lfs diff=lfs merge=lfs -text
+*.mp3  filter=lfs diff=lfs merge=lfs -text
+*.ogg  filter=lfs diff=lfs merge=lfs -text
+*.flac filter=lfs diff=lfs merge=lfs -text
+*.aif  filter=lfs diff=lfs merge=lfs -text
+*.aiff filter=lfs diff=lfs merge=lfs -text
+*.m4a  filter=lfs diff=lfs merge=lfs -text
