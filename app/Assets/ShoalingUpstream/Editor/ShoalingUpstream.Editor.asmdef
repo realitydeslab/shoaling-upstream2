@@ -1,0 +1,13 @@
+{
+  "name": "ShoalingUpstream.Editor",
+  "rootNamespace": "ShoalingUpstream.Editor",
+  "references": [
+    "ShoalingUpstream.Runtime"
+  ],
+  "includePlatforms": [ "Editor" ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

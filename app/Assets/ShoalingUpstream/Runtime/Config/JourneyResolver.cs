@@ -202,6 +202,13 @@ namespace ShoalingUpstream.Config
                 resolution.Source = candidate.Source;
             }
 
+            if (!resolution.HasJourney)
+            {
+                resolution.Notes.Add(resolution.Outcomes.Count == 0
+                    ? "no journey was available from any source — this build was never packaged"
+                    : "every journey available was refused");
+            }
+
             // An earlier acceptance that a newer revision has since overtaken is reported as
             // superseded, not as the answer — otherwise the log claims two winners.
             for (int i = 0; i < resolution.Outcomes.Count; i++)

@@ -9,8 +9,10 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "node --test \"test/**/*.test.@(ts|mjs)\"",
+    "test": "node --test \"test/!(browser)*.test.@(ts|mjs)\"",
+    "test:browser": "node --test test/browser.e2e.test.mjs",
     "verify": "npm run build && npm run typecheck && npm test",
+    "verify:all": "npm run verify && npm run test:browser",
     "check": "npm --prefix service run check"
   },
   "engines": {
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/three": "^0.185.4",
+    "playwright": "^1.62.1",
     "typescript": "^7.0.2"
   }
 }

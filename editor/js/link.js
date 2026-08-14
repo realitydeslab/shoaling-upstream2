@@ -16,101 +16,115 @@
  * On the creek this channel is silent. VPS2 supplies the pose there, and the app ignores this
  * entirely — the simulation exists so the piece can be built at a desk, not to drive the work.
  */
-
 /** Twenty a second. Fast enough to feel continuous, slow enough not to saturate park wifi. */
 const POSE_INTERVAL_MS = 50;
-
-export class Link {
-  /** @param onPresence called with {devices, operators} whenever the roster changes */
-  constructor({ onPresence } = {}) {
-    this.onPresence = onPresence;
-    this.socket = null;
-    this.connected = false;
-    this.devices = 0;
-    this.lastSentAt = 0;
-    this.pending = null;
-    this.retryMs = 1000;
-    this.#connect();
-  }
-
-  #connect() {
+function operatorSocket() {
     const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-    let socket;
-    try {
-      socket = new WebSocket(`${scheme}://${location.host}/ws?role=operator`);
-    } catch {
-      return this.#retry();
-    }
-    this.socket = socket;
-
-    socket.addEventListener('open', () => {
-      this.connected = true;
-      this.retryMs = 1000;      // a good connection resets the backoff
-    });
-
-    socket.addEventListener('message', (event) => {
-      let msg;
-      try { msg = JSON.parse(event.data); } catch { return; }
-      if (msg.type === 'presence') {
-        this.devices = msg.devices?.length ?? 0;
-        this.onPresence?.({ devices: this.devices, operators: msg.operators?.length ?? 0 });
-      }
-    });
-
-    // Both paths land here; close fires after error, so guard against retrying twice.
-    const drop = () => {
-      if (!this.socket) return;
-      this.socket = null;
-      this.connected = false;
-      this.devices = 0;
-      this.onPresence?.({ devices: 0, operators: 0 });
-      this.#retry();
-    };
-    socket.addEventListener('close', drop);
-    socket.addEventListener('error', drop);
-  }
-
-  #retry() {
-    // The service is usually restarting rather than gone, so back off gently and cap it low
-    // enough that reconnecting never feels like something you have to do by hand.
-    setTimeout(() => this.#connect(), this.retryMs);
-    this.retryMs = Math.min(this.retryMs * 1.8, 10_000);
-  }
-
-  /**
-   * Publish where the simulated walker is.
-   *
-   * Rate-limited, and the most recent pose during a quiet interval is kept and sent when the
-   * interval expires. Dropping it instead would leave the follower parked a step behind
-   * wherever the scrub happened to stop, which reads as a bug rather than as a throttle.
-   */
-  sendPose({ s, position, headingRad, slug }) {
-    this.pending = { type: 'pose', s, position, headingRad, slug };
-    if (!this.connected || this.socket?.readyState !== WebSocket.OPEN) return;
-
-    const now = performance.now();
-    if (now - this.lastSentAt < POSE_INTERVAL_MS) {
-      if (!this.flushTimer) {
-        this.flushTimer = setTimeout(() => {
-          this.flushTimer = null;
-          this.#flush();
-        }, POSE_INTERVAL_MS - (now - this.lastSentAt));
-      }
-      return;
-    }
-    this.#flush();
-  }
-
-  #flush() {
-    if (!this.pending || this.socket?.readyState !== WebSocket.OPEN) return;
-    this.lastSentAt = performance.now();
-    try { this.socket.send(JSON.stringify(this.pending)); } catch { /* the close handler retries */ }
-  }
-
-  /** Fire a beat on the phone by hand — the operator's safety net, from the editor. */
-  fireBeat(beatId) {
-    if (this.socket?.readyState !== WebSocket.OPEN) return false;
-    this.socket.send(JSON.stringify({ type: 'command', action: 'fireBeat', beatId }));
-    return true;
-  }
+    return new WebSocket(`${scheme}://${location.host}/ws?role=operator`);
 }
+export class Link {
+    onPresence;
+    socket = null;
+    connected = false;
+    devices = 0;
+    lastSentAt = 0;
+    pending = null;
+    retryMs = 1000;
+    flushTimer = null;
+    #openSocket;
+    constructor({ onPresence, openSocket } = {}) {
+        this.onPresence = onPresence;
+        this.#openSocket = openSocket ?? operatorSocket;
+        this.#connect();
+    }
+    #connect() {
+        let socket;
+        try {
+            socket = this.#openSocket();
+        }
+        catch {
+            return this.#retry();
+        }
+        this.socket = socket;
+        socket.addEventListener('open', () => {
+            this.connected = true;
+            this.retryMs = 1000; // a good connection resets the backoff
+        });
+        socket.addEventListener('message', (event) => {
+            // Off the wire, so its shape is a claim rather than a fact.
+            let msg;
+            try {
+                msg = JSON.parse(event.data);
+            }
+            catch {
+                return;
+            }
+            if (msg.type === 'presence') {
+                this.devices = msg.devices?.length ?? 0;
+                // The bus broadcasts `operators` as a COUNT and `devices` as a list; the asymmetry is
+                // deliberate and is documented on PresenceMessage. The JavaScript read
+                // `msg.operators?.length`, which is undefined on a number, so this reported zero
+                // operators forever and never threw. Typing the message correctly is what surfaced it.
+                this.onPresence?.({ devices: this.devices, operators: msg.operators ?? 0 });
+            }
+        });
+        // Both paths land here; close fires after error, so guard against retrying twice.
+        const drop = () => {
+            if (!this.socket)
+                return;
+            this.socket = null;
+            this.connected = false;
+            this.devices = 0;
+            this.onPresence?.({ devices: 0, operators: 0 });
+            this.#retry();
+        };
+        socket.addEventListener('close', drop);
+        socket.addEventListener('error', drop);
+    }
+    #retry() {
+        // The service is usually restarting rather than gone, so back off gently and cap it low
+        // enough that reconnecting never feels like something you have to do by hand.
+        setTimeout(() => this.#connect(), this.retryMs);
+        this.retryMs = Math.min(this.retryMs * 1.8, 10_000);
+    }
+    /**
+     * Publish where the simulated walker is.
+     *
+     * Rate-limited, and the most recent pose during a quiet interval is kept and sent when the
+     * interval expires. Dropping it instead would leave the follower parked a step behind
+     * wherever the scrub happened to stop, which reads as a bug rather than as a throttle.
+     */
+    sendPose({ s, position, headingRad, slug }) {
+        this.pending = { type: 'pose', s, position, headingRad, slug };
+        if (!this.connected || this.socket?.readyState !== WebSocket.OPEN)
+            return;
+        const now = performance.now();
+        if (now - this.lastSentAt < POSE_INTERVAL_MS) {
+            if (!this.flushTimer) {
+                this.flushTimer = setTimeout(() => {
+                    this.flushTimer = null;
+                    this.#flush();
+                }, POSE_INTERVAL_MS - (now - this.lastSentAt));
+            }
+            return;
+        }
+        this.#flush();
+    }
+    #flush() {
+        if (!this.pending || this.socket?.readyState !== WebSocket.OPEN)
+            return;
+        this.lastSentAt = performance.now();
+        try {
+            this.socket.send(JSON.stringify(this.pending));
+        }
+        catch { /* the close handler retries */ }
+    }
+    /** Fire a beat on the phone by hand — the operator's safety net, from the editor. */
+    fireBeat(beatId) {
+        if (this.socket?.readyState !== WebSocket.OPEN)
+            return false;
+        this.socket.send(JSON.stringify({ type: 'command', action: 'fireBeat', beatId }));
+        return true;
+    }
+}
+//# sourceMappingURL=link.js.map

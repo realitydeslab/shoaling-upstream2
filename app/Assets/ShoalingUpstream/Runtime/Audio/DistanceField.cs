@@ -84,7 +84,7 @@ namespace ShoalingUpstream.Audio
 
     /// <summary>
     /// The audible field of a source and its half-life radius — the C# side of
-    /// <c>audibleField()</c> in <c>editor/js/audition.js</c>.
+    /// <c>audibleField()</c> in <c>editor/src/audition.ts</c>.
     ///
     /// The half-life is the distance at which amplitude has fallen to half its peak (−6 dB): the
     /// point where a source stops being the thing you are listening to and becomes background.
@@ -112,7 +112,7 @@ namespace ShoalingUpstream.Audio
     /// beat crossfades between three *different recordings* — far, mid, intimate — and the fader
     /// barely moves.
     ///
-    /// Every number here is a port of the law in <c>editor/js/audition.js</c>, so that what is
+    /// Every number here is a port of the law in <c>editor/src/audition.ts</c>, so that what is
     /// heard at a desk through Resonance is what is heard on the bank through PHASE. That is why
     /// the crossfade lives in plain C# and not in the native bridge: it has to be one law, shared
     /// by both backends and testable without a device.

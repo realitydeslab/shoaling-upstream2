@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NianticSpatial.NSDK.AR.Sites;
 using NianticSpatial.NSDK.AR.VPS2;
+using NianticSpatial.NSDK.AR.XRSubsystems;
 
 namespace ShoalingUpstream.Localization.Nsdk
 {

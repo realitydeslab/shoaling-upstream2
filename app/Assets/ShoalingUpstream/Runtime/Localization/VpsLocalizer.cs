@@ -36,9 +36,7 @@ namespace ShoalingUpstream.Localization
     /// </summary>
     public class VpsLocalizer
     {
-        private readonly JourneyDocument _journey;
         private readonly LocalizationPolicy _policy;
-        private readonly RuntimeSurface _surface;
         private readonly JourneyFrame _frame;
         private readonly IReadOnlyList<Vec3> _centreline;
         private readonly float _reachLength;
@@ -77,9 +75,8 @@ namespace ShoalingUpstream.Localization
         public VpsLocalizer(JourneyDocument journey, LocalizationPolicy policy = null,
                             RuntimeSurface surface = RuntimeSurface.Device)
         {
-            _journey = journey ?? throw new ArgumentNullException(nameof(journey));
+            if (journey == null) throw new ArgumentNullException(nameof(journey));
             _policy = policy ?? LocalizationPolicy.Default;
-            _surface = surface;
             _frame = JourneyFrame.From(journey.editorFrame);
             _centreline = journey.site?.centreline ?? new List<Vec3>();
             _reachLength = Centreline.Length(_centreline);
@@ -244,8 +241,17 @@ namespace ShoalingUpstream.Localization
                     return;
                 }
 
+                // Capped at Coarse even when the SDK says Precise, because reaching here with a
+                // Precise state means the fix was rejected — no anchor pose, or confidence under
+                // the floor — and there is no position to go with it. Passing Precise on would
+                // hand JourneyProgression a quality it trusts alongside a position of zero, and
+                // fire the first beat at the downstream end of the reach.
                 Mode = LocalizationMode.Searching;
-                Publish(FixSource.None, DeadReckonBasis.None, Map(sample.State), searching, 0f);
+                Publish(FixSource.None, DeadReckonBasis.None,
+                        sample.State == VpsTrackingState.Unavailable
+                            ? LocalizationQuality.Unavailable
+                            : LocalizationQuality.Coarse,
+                        searching, 0f);
                 return;
             }
 
@@ -371,13 +377,6 @@ namespace ShoalingUpstream.Localization
             _lastSessionPosition = sample.SessionPose.position;
             _hasLastSessionPosition = true;
         }
-
-        private static LocalizationQuality Map(VpsTrackingState state) => state switch
-        {
-            VpsTrackingState.Precise => LocalizationQuality.Precise,
-            VpsTrackingState.Coarse => LocalizationQuality.Coarse,
-            _ => LocalizationQuality.Unavailable,
-        };
 
         private void Publish(FixSource source, DeadReckonBasis basis, LocalizationQuality quality,
                              float age, float confidence)

@@ -76,9 +76,18 @@ namespace ShoalingUpstream.Config
         public static JourneyProvider ForLaunch(JourneyProviderSettings settings)
         {
             if (settings == null) throw new ArgumentNullException(nameof(settings));
+
+            // The build already states which site it walks. Making the caller repeat it is one
+            // more place for the two to disagree, so an unset slug takes the manifest's.
             if (string.IsNullOrWhiteSpace(settings.Slug))
             {
-                throw new ArgumentException("a slug is required", nameof(settings));
+                settings.Slug = BundleManifest.Load(BundleLayout.StreamingAssetsRoot)?.defaultSlug;
+            }
+            if (string.IsNullOrWhiteSpace(settings.Slug))
+            {
+                throw new ArgumentException(
+                    "no slug, and no packaged manifest to take one from — run "
+                    + "tools/export-to-unity.mjs", nameof(settings));
             }
 
             IJourneyReader service = string.IsNullOrWhiteSpace(settings.ServiceHost)
@@ -117,15 +126,15 @@ namespace ShoalingUpstream.Config
                 candidates, _settings.Environment, _settings.Slug);
             resolution.Notes.InsertRange(0, failures);
 
-            if (fetched != null)
+            bool replaced = fetched != null
+                && await UpdateCacheAsync(fetched, resolution, cancellationToken);
+
+            // A cache that cannot be parsed will not become parseable by being read again, and
+            // the launch it ruins is the one with nothing else to fall back on. Unless this
+            // launch has already written a good document over it.
+            if (!replaced
+                && resolution.VerdictFor(JourneySourceKind.Cache) == CandidateVerdict.Unreadable)
             {
-                await UpdateCacheAsync(fetched, resolution, cancellationToken);
-            }
-            else if (resolution.VerdictFor(JourneySourceKind.Cache) == CandidateVerdict.Unreadable)
-            {
-                // A cache that cannot be parsed will not become parseable by being read again,
-                // and the launch it ruins is the one with no other source available. Only when
-                // no fetch replaced it this launch, or the write below has already dealt with it.
                 _cache?.Discard();
                 resolution.Notes.Add("Cache: discarded, it could not be read");
             }
@@ -183,10 +192,11 @@ namespace ShoalingUpstream.Config
             }
         }
 
-        private async Task UpdateCacheAsync(
+        /// <summary>True if the fetch was written over the cache.</summary>
+        private async Task<bool> UpdateCacheAsync(
             string fetched, JourneyResolution resolution, CancellationToken cancellationToken)
         {
-            if (_cache == null) return;
+            if (_cache == null) return false;
 
             // Keep a fetch that parsed, even one this device then refuses to run. An
             // uncalibrated journey is still the right thing to have on hand for the next
@@ -202,16 +212,18 @@ namespace ShoalingUpstream.Config
                 || verdict == CandidateVerdict.Unreadable
                 || verdict == CandidateVerdict.WrongSite)
             {
-                return;
+                return false;
             }
 
             try
             {
                 await _cache.WriteAsync(fetched, cancellationToken);
+                return true;
             }
             catch (Exception e)
             {
                 resolution.Notes.Add($"Cache: could not be written — {e.Message}");
+                return false;
             }
         }
 

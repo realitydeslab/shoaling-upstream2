@@ -14,22 +14,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { audibleField } from '../editor/js/audition.js';
+import { audibleField, type AudibleField, type AudibleNode } from '../editor/src/audition.ts';
 import { makeBeat } from './helpers.ts';
+
+/**
+ * A beat with no audible layers has no field at all, so the field is nullable at the type
+ * level. Every case below is about a beat that does have one, so they assert that once, here.
+ */
+function fieldOf(node: AudibleNode): AudibleField {
+  const field = audibleField(node);
+  assert.ok(field, `expected ${node.id} to be audible`);
+  return field;
+}
 
 test('a beat with no audio has no field at all', () => {
   assert.equal(audibleField(makeBeat('silent', 0, { audio: {} })), null);
 });
 
 test('the half-life is a real distance inside the audible reach', () => {
-  const field = audibleField(makeBeat('one', 0));
+  const field = fieldOf(makeBeat('one', 0));
   assert.ok(field.half > 0, 'half-life is positive');
   assert.ok(field.half < field.reach, 'half-life falls inside the reach');
   assert.ok(Number.isFinite(field.maxD));
 });
 
 test('amplitude at the half-life really is half the peak', () => {
-  const field = audibleField(makeBeat('one', 0));
+  const field = fieldOf(makeBeat('one', 0));
   const atHalf = field.amplitudeAt(field.half);
   // Sampled at 5 cm, so the crossing lands within one step of exactly half.
   assert.ok(Math.abs(atHalf - field.peak / 2) < field.peak * 0.06,
@@ -39,7 +49,7 @@ test('amplitude at the half-life really is half the peak', () => {
 test('amplitude falls monotonically from the peak to the half-life', () => {
   // Not asserted beyond the half-life: the layer crossfade genuinely has a second lobe as the
   // mid recording fades in, and the half-life is defined as the FIRST crossing.
-  const field = audibleField(makeBeat('one', 0));
+  const field = fieldOf(makeBeat('one', 0));
   let previous = Infinity;
   for (let d = field.peakAt; d <= field.half; d += 0.05) {
     const a = field.amplitudeAt(d);
@@ -49,13 +59,13 @@ test('amplitude falls monotonically from the peak to the half-life', () => {
 });
 
 test('nothing is audible past the cull distance', () => {
-  const field = audibleField(makeBeat('one', 0));
+  const field = fieldOf(makeBeat('one', 0));
   assert.equal(field.amplitudeAt(field.maxD + 1), 0);
 });
 
 test('a louder beat carries further', () => {
-  const quiet = audibleField(makeBeat('q', 0));
-  const loud = audibleField(makeBeat('l', 0, {
+  const quiet = fieldOf(makeBeat('q', 0));
+  const loud = fieldOf(makeBeat('l', 0, {
     audio: {
       far: { clipId: 'c--far', gainDb: -2, loop: true },
       mid: { clipId: 'c--mid', gainDb: 0, loop: true },
@@ -69,8 +79,8 @@ test('a louder beat carries further', () => {
 
 test('a wider trigger radius widens the audible field', () => {
   // reach defaults to exitRadius * 3.5, so the gate geometry drives how far the sound carries.
-  const narrow = audibleField(makeBeat('n', 0));
-  const wide = audibleField(makeBeat('w', 0, {
+  const narrow = fieldOf(makeBeat('n', 0));
+  const wide = fieldOf(makeBeat('w', 0, {
     trigger: { enterRadiusM: 6, exitRadiusM: 10, dwellSeconds: 1, minimumHoldSeconds: 10,
       requiresPreviousComplete: false },
   }));
@@ -79,7 +89,7 @@ test('a wider trigger radius widens the audible field', () => {
 });
 
 test('an explicit audibleRadiusM overrides the radius derived from the trigger', () => {
-  const field = audibleField(makeBeat('x', 0, { audibleRadiusM: 25 }));
+  const field = fieldOf(makeBeat('x', 0, { audibleRadiusM: 25 }));
   assert.equal(field.reach, 25);
 });
 
@@ -88,7 +98,7 @@ test('the half-life on the garden settings is tighter than the trigger radius', 
   // halved well inside the radius at which the interaction arms, so the trigger rings say
   // nothing useful about what the visitor can hear.
   const beat = makeBeat('garden', 0);
-  const field = audibleField(beat);
+  const field = fieldOf(beat);
   assert.ok(field.half < beat.trigger.enterRadiusM,
     `half-life ${field.half} m should be inside the ${beat.trigger.enterRadiusM} m gate`);
 });

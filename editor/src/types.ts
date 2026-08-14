@@ -221,10 +221,29 @@ export interface PoseMessage {
   sentAtMs: number;
 }
 
+/**
+ * Who is on the bus.
+ *
+ * `devices` is an array of phones with liveness, because the operator needs to know WHICH phone
+ * and whether its heartbeat is current. `operators` is a bare COUNT — the controller page has
+ * nothing useful to say about its peers, and the editor only ever asks "is anyone else driving".
+ * The asymmetry is deliberate; typing them alike invites `.length` on a number, which reads as
+ * zero operators forever and never throws.
+ */
+export interface PresenceDevice {
+  /** A per-session counter from the bus, not a stable device identity. */
+  id: number;
+  alive: boolean;
+  lastSeenMsAgo: number;
+  device?: string;
+  os?: string;
+  build?: string;
+}
+
 export interface PresenceMessage {
   type: 'presence';
-  devices: unknown[];
-  operators: unknown[];
+  devices: PresenceDevice[];
+  operators: number;
 }
 
 /** Scheduled, never fired: every device acts on `fireAtMs` so two phones stay together. */

@@ -84,7 +84,22 @@ namespace ShoalingUpstream.Config
 
             string temporary = _path + ".writing";
             File.WriteAllText(temporary, json);
-            File.Move(temporary, _path, overwrite: true);
+
+            // Replace, not an overwriting Move — that overload is not in Unity's .NET Standard
+            // profile — and above all not delete-then-move, which would open exactly the window
+            // this method exists to close.
+            //
+            // The guarantee this provides, precisely: both calls are a rename, so a reader at any
+            // instant sees either the whole previous document or the whole new one. It never sees
+            // half of one, and there is never a moment with no cache at all.
+            //
+            // The guarantee it does NOT provide: durability. Nothing is fsynced, so a power loss
+            // can still cost the newest write or leave its bytes unflushed. That is why the
+            // reader validates what it finds and the provider discards what will not parse — the
+            // rename protects the common case, the parser protects the rest.
+            if (File.Exists(_path)) File.Replace(temporary, _path, null);
+            else File.Move(temporary, _path);
+
             return Task.CompletedTask;
         }
 

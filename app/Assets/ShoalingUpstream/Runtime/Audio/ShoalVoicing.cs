@@ -11,11 +11,36 @@ namespace ShoalingUpstream.Audio
         /// <summary>How many decorrelated copies of the bed are sounding. This is the headcount cue.</summary>
         public readonly int Voices;
 
-        /// <summary>Total angular spread of those voices around the visitor, in degrees.</summary>
+        /// <summary>
+        /// Weight of the outermost voice, 0 to 1.
+        ///
+        /// The count is an integer because the ear counts integers, but the *edge* of the group
+        /// cannot be, or a fish leaving would be a click. The outermost voice fades across one
+        /// whole voice's worth of headcount, so the integer changes while nothing jumps.
+        /// </summary>
+        public readonly float VoiceFade;
+
+        /// <summary>
+        /// Total angular spread of those voices around the visitor, in degrees.
+        ///
+        /// Derived from the voices rather than set alongside them. Two independent knobs for
+        /// "how many" and "how wide" can disagree — a width narrow enough to silence a voice the
+        /// count says is sounding — and this is the shape of group the ear is being asked to hear,
+        /// so the two must be one mechanism.
+        /// </summary>
         public readonly float UnisonWidthDeg;
 
-        /// <summary>Per-voice decorrelation delay. Longer delays individuate.</summary>
-        public readonly float VoiceDelayMs;
+        /// <summary>
+        /// 0 for one fused cloud, 1 for single fish poking out of it.
+        ///
+        /// On device this is carried by the bed renders themselves — a low-density bed is longer,
+        /// sparser grains from the same seed — and not by anything the runtime does, because
+        /// PHASE cannot sweep a start offset on a running ambient event. It is published as a
+        /// number so the renders have a curve to hit, and so the desk stand-in can approximate it
+        /// with the one thing Unity can do cheaply. A parameter that quietly did nothing on the
+        /// real backend would be worse than no parameter at all.
+        /// </summary>
+        public readonly float Individuation;
 
         public readonly int BedLow, BedHigh;
 
@@ -27,10 +52,11 @@ namespace ShoalingUpstream.Audio
         /// <summary>0 at the floor, 1 at the starting count, logarithmic in between.</summary>
         public readonly float Density;
 
-        public ShoalVoicingState(int voices, float unisonWidthDeg, float voiceDelayMs,
+        public ShoalVoicingState(int voices, float voiceFade, float unisonWidthDeg, float individuation,
                                  int bedLow, int bedHigh, float bedBlend, float gainDb, float density)
         {
-            Voices = voices; UnisonWidthDeg = unisonWidthDeg; VoiceDelayMs = voiceDelayMs;
+            Voices = voices; VoiceFade = voiceFade;
+            UnisonWidthDeg = unisonWidthDeg; Individuation = individuation;
             BedLow = bedLow; BedHigh = bedHigh; BedBlend = bedBlend;
             GainDb = gainDb; Density = density;
         }
@@ -61,8 +87,10 @@ namespace ShoalingUpstream.Audio
     ///
     /// **Why three cues move together.** Density drops, extent narrows, individuation rises. The
     /// third is counter-intuitive and is the one that works: a smaller group is *more* legible as
-    /// individuals, so lengthening the decorrelation delay until single fish poke out of the
-    /// texture is what makes people say "there are fewer of them" rather than "it got quieter".
+    /// individuals, so grains that lengthen and overlap less until single fish poke out of the
+    /// texture are what make people say "there are fewer of them" rather than "it got quieter".
+    /// That last one lives in the renders rather than in this code — see
+    /// <see cref="ShoalVoicingState.Individuation"/> — and is published here so they have a curve.
     ///
     /// The beds themselves must be the same grain cloud rendered at different densities from the
     /// same seed. If they are separate recordings the transition sounds like a crossfade between
@@ -73,12 +101,19 @@ namespace ShoalingUpstream.Audio
         public const int MinVoices = 2;
         public const int MaxVoices = 8;
 
-        public const float NarrowWidthDeg = 25f;
-        public const float WideWidthDeg = 140f;
-
-        /// <summary>Decorrelation delay at the floor. Kept under the ~50 ms echo threshold: past
-        /// it the copies stop fusing into one cloud and start sounding like a slapback.</summary>
+        /// <summary>Decorrelation delay at full individuation, for the desk stand-in. Kept under
+        /// the ~50 ms echo threshold: past it the copies stop fusing into one cloud and start
+        /// sounding like a slapback.</summary>
         public const float MaxVoiceDelayMs = 45f;
+
+        /// <summary>
+        /// How the desk approximates individuation.
+        ///
+        /// Unity can offset a voice's start time and nothing else, so this is applied once when a
+        /// voice begins rather than swept. It is a stand-in for the grain length and overlap that
+        /// the bed renders will carry on device.
+        /// </summary>
+        public static float DeskVoiceDelayMs(float individuation) => individuation * MaxVoiceDelayMs;
 
         /// <summary>
         /// The entire level range across the whole shoal, from forty fish to six.
@@ -137,6 +172,56 @@ namespace ShoalingUpstream.Audio
         /// cannot find them leaves the shoal silent rather than substituting the wrong size.</summary>
         public static string BedClipId(int bedCount) => $"shoal--{bedCount}";
 
+        /// <summary>
+        /// Where the voices sit, fixed at build time.
+        ///
+        /// PHASE's ambient mixer bakes its orientation into the mixer definition, so azimuths
+        /// cannot be swept at runtime — the width has to be expressed by *which* baked directions
+        /// are sounding and how loudly. Eight of them across ±110° is as much angular resolution
+        /// as is worth having for a texture the ear reads as a cloud rather than as points.
+        /// </summary>
+        public static readonly float[] VoiceAzimuthsDeg =
+            { -110f, -78.57f, -47.14f, -15.71f, 15.71f, 47.14f, 78.57f, 110f };
+
+        // Innermost outwards. A shoal that thins keeps the voices closest to straight ahead,
+        // which is what makes the loss read as the group closing in rather than as its edges
+        // being deleted at random.
+        private static readonly int[] VoiceOrder = { 3, 4, 2, 5, 1, 6, 0, 7 };
+
+        /// <summary>The angular extent of a group of this many voices, half-width in degrees.</summary>
+        public static float ExtentDeg(int voices) =>
+            Mathf.Abs(VoiceAzimuthsDeg[VoiceOrder[Mathf.Clamp(voices, 1, MaxVoices) - 1]]);
+
+        public static float MinWidthDeg => 2f * ExtentDeg(MinVoices);
+        public static float MaxWidthDeg => 2f * ExtentDeg(MaxVoices);
+
+        /// <summary>
+        /// Per-voice linear gain for one voicing state. Shared by both backends so the desk and
+        /// the device agree about the shape of the group and not merely about its level.
+        ///
+        /// Normalised to constant total power, deliberately. Losing fish must never be audible as
+        /// the mix getting quieter; the 3 dB in <see cref="ShoalVoicingState.GainDb"/> is the
+        /// entire level story and everything else is direction and density.
+        /// </summary>
+        public static void VoiceGains(in ShoalVoicingState state, float[] into)
+        {
+            int n = Mathf.Min(into.Length, VoiceAzimuthsDeg.Length);
+
+            float power = 0f;
+            for (int k = 0; k < n; k++)
+            {
+                float w = k < state.Voices - 1 ? 1f
+                        : k == state.Voices - 1 ? state.VoiceFade
+                        : 0f;
+                into[VoiceOrder[k]] = w;
+                power += w * w;
+            }
+
+            float gain = DistanceField.DbToLinear(state.GainDb);
+            float scale = power > 0f ? gain / Mathf.Sqrt(power) : 0f;
+            for (int k = 0; k < n; k++) into[VoiceOrder[k]] *= scale;
+        }
+
         /// <summary>Jump straight to a count with no transition. Used at the start of a walk,
         /// where there is nothing to have caused a change.</summary>
         public void Reset(int count)
@@ -175,12 +260,20 @@ namespace ShoalingUpstream.Audio
             int low = Mathf.Clamp(Mathf.FloorToInt(rung), 0, _beds.Length - 1);
             int high = Mathf.Min(low + 1, _beds.Length - 1);
 
-            int voices = Mathf.RoundToInt(Mathf.Lerp(MinVoices, MaxVoices, settled));
+            float headcount = Mathf.Lerp(MinVoices, MaxVoices, settled);
+            int whole = Mathf.FloorToInt(headcount);
+            float part = headcount - whole;
+            int voices = part > 1e-4f ? whole + 1 : whole;
+            float fade = part > 1e-4f ? part : 1f;
+
+            // The group's extent grows as the outermost voice fades in, so the width is always a
+            // true statement about where the voices actually are.
+            float width = 2f * Mathf.Lerp(ExtentDeg(Mathf.Max(MinVoices, voices - 1)),
+                                          ExtentDeg(voices), fade);
 
             return new ShoalVoicingState(
-                voices,
-                Mathf.Lerp(NarrowWidthDeg, WideWidthDeg, settled),
-                Mathf.Lerp(MaxVoiceDelayMs, 0f, settled),
+                voices, fade, width,
+                1f - settled,
                 _beds[low], _beds[high],
                 low == high ? 0f : rung - low,
                 Mathf.Lerp(QuietGainDb, FullGainDb, density),

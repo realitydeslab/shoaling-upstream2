@@ -3,9 +3,9 @@
 Node's built-in runner, no framework. Everything runs from the repository root:
 
 ```sh
-npm test          # every suite in test/
-npm run test:unit # the fast ones — no server, no browser
-npm run test:e2e  # the ones that spawn a real service on a real port
+npm test           # every suite in test/
+npm run typecheck  # the TypeScript suites, checked rather than stripped
+npm run verify     # build, typecheck, then the whole suite
 ```
 
 A single suite:
@@ -13,6 +13,9 @@ A single suite:
 ```sh
 node --test test/journey-store.test.mjs
 ```
+
+Suites are a mix of `.ts` and `.mjs`; Node runs both directly, stripping types without checking
+them, which is why `npm run typecheck` is a separate guarantee rather than part of the run.
 
 The end-to-end suites start `service/src/server.mjs` themselves with `PORT=0` (the OS picks a
 free port, so a dev server you already have open is never in the way) and `JOURNEY_DIR` pointed
@@ -23,7 +26,7 @@ thing left behind is a `shoaling-test-*` directory in the system temp dir.
 
 | file | what it defends |
 | --- | --- |
-| `geometry.test.mjs` | Projection onto the walking path, run against **both** implementations — the service's and the editor's. If they drift, the scrubber arms a beat at a position the phone will never trigger it at. |
+| `geometry.test.ts` | Projection onto the walking path, run against **both** implementations — the service's and the editor's. If they drift, the scrubber arms a beat at a position the phone will never trigger it at. |
 | `journey-schema.test.mjs` | The manifest contract the editor, the service and the app all agree on, and in particular which problems are errors (the runtime cannot act on them) versus warnings (authoring judgements the validator is not entitled to overrule). |
 | `journey-store.test.mjs` | Where authored work can actually be lost: drafts, append-only published revisions, and the separate patch paths that keep a background write of the trim box from clobbering an in-progress beat edit. |
 | `audible-field.test.mjs` | The audible half-life the editor draws as a ring around every beat — a claim about how far a beat carries, not a rendering detail. |
@@ -31,7 +34,7 @@ thing left behind is a `shoaling-test-*` directory in the system temp dir.
 | `api.e2e.test.mjs` | The HTTP contract the iOS app depends on, over fetch against a real server: draft, validate, publish, and the published revision the device reads. |
 | `control-bus.e2e.test.mjs` | The operator's control bus over real WebSockets, including the property that matters in the field — commands are *scheduled*, not fired. |
 | `browser.e2e.test.mjs` | The editor and the controller in a real browser. Skipped unless Playwright is installed — see below. |
-| `helpers.mjs` | Shared fixtures, not a suite. Every test builds its own journey rather than reading the artist's draft. |
+| `helpers.ts` | Shared fixtures, not a suite. Every test builds its own journey rather than reading the artist's draft. |
 
 ## The browser suite
 

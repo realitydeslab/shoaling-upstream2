@@ -98,6 +98,25 @@ test('the operator sees the phone appear', async () => {
   device.socket.close();
 });
 
+test('presence reports devices as a list and operators as a count', async () => {
+  // These two are shaped differently on purpose and the difference is easy to get wrong in a
+  // client: `.length` on a number is undefined, which reads as "no operators" forever and never
+  // throws. types.ts declared both as arrays until this was checked against the bus.
+  const operator = await connect('operator');
+  const device = await connect('device');
+
+  const presence = await until(
+    () => operator.of('presence').find((m) => m.devices?.length > 0),
+    { label: 'presence with a device' });
+
+  assert.ok(Array.isArray(presence.devices), 'devices is a list');
+  assert.equal(typeof presence.operators, 'number', 'operators is a count, not a list');
+  assert.ok(presence.operators >= 1);
+  assert.equal(typeof presence.devices[0].id, 'number', 'a per-session counter, not a device identity');
+  assert.equal(typeof presence.devices[0].alive, 'boolean');
+  device.socket.close();
+});
+
 test('a command reaches the phone, scheduled rather than fired', async () => {
   const device = await connect('device');
   const operator = await connect('operator');

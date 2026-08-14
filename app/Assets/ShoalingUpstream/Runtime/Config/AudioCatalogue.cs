@@ -222,7 +222,8 @@ namespace ShoalingUpstream.Config
 
             // Keep the MP3 compressed in memory. Decoded, the ambient beds are around 11 MB a
             // minute each and several are resident at once; compressed they are under a megabyte
-            // and iOS decodes them in hardware.
+            // and iOS decodes them in hardware. Not streamed: a streamed clip stays tied to the
+            // live request, and the request is disposed as soon as the clip exists.
             ((DownloadHandlerAudioClip)webRequest.downloadHandler).compressed = true;
 
             webRequest.SendWebRequest().completed += _ =>

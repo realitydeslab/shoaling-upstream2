@@ -40,6 +40,9 @@ import { validateJourney, SCHEMA_VERSION, LAYERS } from '../service/src/journey-
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/** Paths inside the repo read better relative; anything else has to stay absolute. */
+const show = (p) => (p.startsWith(ROOT + path.sep) ? path.relative(ROOT, p) : p);
+
 const DEFAULTS = {
   site: 'ubc-nitobe-garden-creek',
   service: process.env.SERVICE ?? 'http://localhost:8710',
@@ -123,7 +126,7 @@ async function latestRevisionOnDisk(journeyDir, slug) {
   if (numbers.length === 0) return null;
 
   const file = path.join(dir, `r${String(numbers.at(-1)).padStart(6, '0')}.json`);
-  return { document: JSON.parse(await readFile(file, 'utf8')), from: path.relative(ROOT, file) };
+  return { document: JSON.parse(await readFile(file, 'utf8')), from: show(file) };
 }
 
 async function publishedFromService(base, slug) {
@@ -185,7 +188,7 @@ const source = opts.fromService
   : await latestRevisionOnDisk(opts.journeyDir, opts.site);
 
 if (!source) {
-  die(`no published revision for "${opts.site}" in ${path.relative(ROOT, opts.journeyDir)} — `
+  die(`no published revision for "${opts.site}" in ${show(opts.journeyDir)} — `
     + 'press Publish in the editor, or pass --from-service');
 }
 
@@ -235,7 +238,7 @@ for (const clipId of clipIds) {
 if (missing.length) {
   console.error(`\n  ${missing.length} clip(s) the journey plays are not packaged:\n`);
   for (const clipId of missing) {
-    console.error(`    ${clipId}  (expected ${path.relative(ROOT, path.join(opts.audioDir, `${clipId}.mp3`))})`);
+    console.error(`    ${clipId}  (expected ${show(path.join(opts.audioDir, `${clipId}.mp3`))})`);
   }
   console.error('\n  Nothing was written. A journey shipped without its audio fires its beats');
   console.error('  correctly and plays silence, which on site looks like a broken trigger.');
@@ -301,8 +304,10 @@ for (const other of manifest.sites) {
   }
 }
 
+// Unity's .meta files belong to Unity. Deleting one orphans the importer settings and the
+// asset's guid, which is a worse mess than a stale clip.
 const orphans = existsSync(audioDir)
-  ? (await readdir(audioDir)).filter((f) => !keep.has(f))
+  ? (await readdir(audioDir)).filter((f) => !keep.has(f) && !f.endsWith('.meta'))
   : [];
 
 if (orphans.length && opts.prune && !opts.check) {
@@ -319,7 +324,7 @@ console.log('');
 console.log(`  ${opts.check ? 'checking' : 'packaging'} ${opts.site} r${doc.revision}`
   + `${calibrated ? '' : '  UNCALIBRATED — simulation only'}`);
 console.log(`  from  ${source.from}`);
-console.log(`  into  ${path.relative(ROOT, opts.out)}`);
+console.log(`  into  ${show(opts.out)}`);
 console.log('');
 
 for (const [kind, name, what] of results) {

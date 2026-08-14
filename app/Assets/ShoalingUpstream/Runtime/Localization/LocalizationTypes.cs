@@ -125,13 +125,6 @@ namespace ShoalingUpstream.Localization
         /// <summary>Nothing at all this frame — no VPS, no ARKit.</summary>
         public static VpsSample Nothing =>
             new(VpsTrackingState.Unavailable, Pose.identity, false, Pose.identity, false, 0f);
-
-        /// <summary>ARKit is tracking but VPS is not. The most common degraded frame.</summary>
-        public static VpsSample SessionOnly(VpsTrackingState state, Pose sessionPose) =>
-            new(state, Pose.identity, false, sessionPose, true, 0f);
-
-        public static VpsSample Localized(Pose anchorPose, Pose sessionPose, float confidence = 1f) =>
-            new(VpsTrackingState.Precise, anchorPose, true, sessionPose, true, confidence);
     }
 
     /// <summary>

@@ -39,6 +39,7 @@ namespace ShoalingUpstream.Audio
 
         private readonly List<Source> _sources = new();
         private readonly List<Voice> _voices = new();
+        private readonly float[] _voiceGains = new float[ShoalVoicing.MaxVoices];
         private readonly Transform _explicitListener;
 
         private GameObject _root;
@@ -183,21 +184,23 @@ namespace ShoalingUpstream.Audio
 
         public void SetShoal(in ShoalVoicingState state)
         {
-            float gain = DistanceField.DbToLinear(state.GainDb);
-            int active = Mathf.Clamp(state.Voices, 0, _voices.Count);
+            ShoalVoicing.VoiceGains(state, _voiceGains);
 
             for (int i = 0; i < _voices.Count; i++)
             {
                 var voice = _voices[i];
-                bool wanted = i < active && (_bedLow != null || _bedHigh != null);
+                bool wanted = _voiceGains[i] > 0f && (_bedLow != null || _bedHigh != null);
 
                 if (wanted && !voice.Playing)
                 {
-                    // Decorrelation delay is applied here, at the start, because sweeping it live
-                    // would mean restarting the player and a restart is audible. PHASE gets the
-                    // live sweep; at a desk the width and the voice count carry the change.
-                    double at = AudioSettings.dspTime + i * state.VoiceDelayMs / 1000f;
-                    StartVoice(voice, at);
+                    // The desk's stand-in for individuation: a per-voice start offset, applied once
+                    // here because sweeping it would mean restarting the player and a restart is
+                    // audible. On device the bed renders carry it instead.
+                    double at = AudioSettings.dspTime
+                              + i * ShoalVoicing.DeskVoiceDelayMs(state.Individuation) / 1000f;
+                    voice.Low.PlayScheduled(at);
+                    voice.High.PlayScheduled(at);
+                    voice.Playing = true;
                 }
                 else if (!wanted && voice.Playing)
                 {
@@ -208,19 +211,19 @@ namespace ShoalingUpstream.Audio
 
                 if (!voice.Playing) continue;
 
-                // Voices fan out symmetrically across the unison width. One voice sits centred;
-                // beyond that they alternate left and right so the group has no bias.
-                float spread = active <= 1 ? 0f : (i / (float)(active - 1) - 0.5f) * 2f;
-                float pan = spread * Mathf.Clamp01(state.UnisonWidthDeg / 180f);
+                // Amplitude panning, which is the honest limit of this stand-in: PHASE puts the
+                // voice at a real azimuth through an HRTF, Unity can only place it between two
+                // speakers. The angles are the same, so what changes between desk and bank is
+                // externalisation, not the shape of the group.
+                float pan = Mathf.Clamp(ShoalVoicing.VoiceAzimuthsDeg[i] / 90f, -1f, 1f);
                 voice.Low.panStereo = pan;
                 voice.High.panStereo = pan;
 
-                float perVoice = gain / Mathf.Sqrt(Mathf.Max(1, active));
                 // Linear, not equal-power. The two beds are the same grain cloud rendered at two
                 // densities from the same seed, so they are correlated; an equal-power crossfade
                 // between correlated signals bulges by 3 dB in the middle.
-                voice.Low.volume = perVoice * (1f - state.BedBlend);
-                voice.High.volume = perVoice * state.BedBlend;
+                voice.Low.volume = _voiceGains[i] * (1f - state.BedBlend);
+                voice.High.volume = _voiceGains[i] * state.BedBlend;
             }
         }
 
@@ -248,13 +251,6 @@ namespace ShoalingUpstream.Audio
             // so running it through a distance model would be modelling a gap that does not exist.
             player.spatialBlend = 0f;
             return player;
-        }
-
-        private static void StartVoice(Voice voice, double at)
-        {
-            voice.Low.PlayScheduled(at);
-            voice.High.PlayScheduled(at);
-            voice.Playing = true;
         }
     }
 }

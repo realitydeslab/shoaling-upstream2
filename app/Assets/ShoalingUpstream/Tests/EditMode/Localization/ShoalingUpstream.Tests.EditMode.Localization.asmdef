@@ -1,0 +1,17 @@
+{
+  "name": "ShoalingUpstream.Tests.EditMode.Localization",
+  "rootNamespace": "ShoalingUpstream.Localization.Tests",
+  "references": [
+    "ShoalingUpstream.Runtime",
+    "ShoalingUpstream.Localization",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [ "Editor" ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [ "nunit.framework.dll" ],
+  "autoReferenced": false,
+  "defineConstraints": [ "UNITY_INCLUDE_TESTS" ]
+}

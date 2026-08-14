@@ -53,6 +53,9 @@ namespace ShoalingUpstream.Control
 
         public bool Has(string key) => Kind == JsonKind.Object && _object.ContainsKey(key);
 
+        public IEnumerable<string> Keys =>
+            Kind == JsonKind.Object ? _object.Keys : Array.Empty<string>();
+
         public bool AsBool(bool fallback = false) => Kind == JsonKind.Bool ? _bool : fallback;
 
         public double AsDouble(double fallback = 0) => Kind switch

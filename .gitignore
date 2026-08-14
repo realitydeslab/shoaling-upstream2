@@ -9,6 +9,11 @@ data/splats/rad/
 # are unverified, so they should not be redistributed through this repo.
 data/audio/source/
 data/audio/packaged/
+# The exporter copies the same clips into the Unity project, so the same rule has to follow
+# them there. 4.9 MB of recordings whose rights are not verified, in a directory nobody thinks
+# of as "the audio folder" — exactly how this ends up committed by accident.
+app/Assets/StreamingAssets/ShoalingUpstream/audio/
+app/Assets/StreamingAssets/ShoalingUpstream/audio.meta
 
 # Draft backups written by seed-journeys before it overwrites anything.
 data/journeys/*/draft.*.bak.json
