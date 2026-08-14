@@ -525,3 +525,22 @@ button.ghost:hover:not(:disabled) { color: var(--ink); background: var(--panel-2
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* Frame rate. Sits under the HUD rather than inside it: the HUD is rebuilt with innerHTML on
+   every walker update, which would wipe a child node four times a second. */
+.fps {
+  position: absolute;
+  left: 16px;
+  top: 132px;
+  padding: 4px 9px;
+  font: 500 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim, #8b978f);
+  background: rgba(11, 15, 14, 0.72);
+  border: 1px solid rgba(140, 160, 148, 0.16);
+  border-radius: 7px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.fps.warn  { color: #d19a45; }
+.fps.bad   { color: #d4707f; }

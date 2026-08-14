@@ -3,6 +3,7 @@
  */
 
 import { Stage } from './scene.js';
+import { PhoneView } from './phoneview.js';
 import { Scrubber } from './scrubber.js';
 import { Audition } from './audition.js';
 import { centrelineLength, projectToCentreline, pointAtS } from './geom.js';
@@ -29,9 +30,9 @@ const state = {
 };
 
 let stage, scrubber, audition;
-// The phone-screen view is parked: it manipulated the renderer viewport and captured pointer
-// events, which broke orbiting and picking in the main view. editor/js/phoneview.js is still
-// on disk and needs its own render target rather than a scissored viewport before it returns.
+// The phone screen. It renders to its own offscreen target and blits into a DOM bezel, which
+// is what keeps it from disturbing the main view's viewport the way the earlier scissored
+// version did. Constructed in boot(), after the stage.
 let phone = null;
 
 // ------------------------------------------------------------------ api
@@ -129,6 +130,19 @@ async function boot() {
   });
 
   scrubber = new Scrubber($('#scrub-canvas'), { onScrub: (s) => setWalker(s, false) });
+
+  // The phone panel draws into the stage's canvas from inside the stage's own animation loop,
+  // so it has to be handed over rather than run on a loop of its own.
+  phone = new PhoneView(stage);
+  stage.attachPhone(phone);
+
+  const fpsEl = $('#fps');
+  stage.onFps = (fps) => {
+    fpsEl.textContent = `${fps.toFixed(0)} fps · ${(1000 / fps).toFixed(1)} ms`;
+    // Thresholds are about dragging, not about smoothness: below 30 a gizmo drag starts to
+    // lag the pointer, and below 20 placing a beat by hand stops being possible.
+    fpsEl.className = `fps${fps < 20 ? ' bad' : fps < 30 ? ' warn' : ''}`;
+  };
   audition = new Audition({ onState: renderAudioNote });
   audition.setCatalogue(state.audio);
 
@@ -251,6 +265,9 @@ function renderAudioNote() {
 
 function setPlaying(playing) {
   state.playing = playing;
+  // The frustum answers "what is on her screen right now", which is only a live question while
+  // she is moving; parked, it is one more wireframe over the scan.
+  stage.setCameraGizmoVisible(playing);
   $('#t-play').textContent = playing ? '❚❚' : '▶';
   $('#t-play').setAttribute('aria-pressed', String(playing));
   if (playing) {
@@ -930,7 +947,7 @@ function applyLayers() {
   stage.trimLayerVisible = L.trim;
   stage.setLayerVisible('trim', L.trim);
   stage.setSplatVisible(L.scan);
-  if (phone) phone.enabled = L.phone;
+  phone?.setEnabled(L.phone);
 
   for (const [key, id] of [['beats', 'btn-beats'], ['path', 'btn-path'], ['trim', 'btn-trim'],
                            ['scan', 'btn-splat'], ['phone', 'btn-phone']]) {
@@ -1032,11 +1049,6 @@ function bindToolbar() {
   $('#btn-path').addEventListener('click', () => toggleLayer('path'));
   $('#btn-trim').addEventListener('click', () => toggleLayer('trim'));
   $('#btn-phone').addEventListener('click', () => toggleLayer('phone'));
-  // The phone view is parked; the button stays but says so rather than doing nothing silently.
-  if (!phone) {
-    $('#btn-phone').disabled = true;
-    $('#btn-phone').title = 'Phone screen is temporarily disabled';
-  }
   $('#path-close').addEventListener('click', () => {
     state.layers.path = false;
     setPathPanel(false);

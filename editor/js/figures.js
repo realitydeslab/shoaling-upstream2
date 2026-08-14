@@ -180,6 +180,12 @@ export function makeLabel(text, colour) {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.minFilter = THREE.LinearFilter;
+  // flipY stays at its default of true. Setting it false renders every label upside down —
+  // checked directly on the running stage rather than reasoned about, because the two
+  // conventions are easy to talk yourself into either way round. The re-upload below is the
+  // part that matters: colorSpace and minFilter are changed after construction, and without
+  // marking the texture dirty again the first upload can land before they are applied.
+  tex.needsUpdate = true;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: tex, transparent: true, depthTest: false }));
   sprite.renderOrder = 14;
@@ -211,10 +217,16 @@ export function buildCameraGizmo(colour, { fov = 58, aspect = 9 / 19.5, depth = 
 
   const h = Math.tan((fov * Math.PI / 180) / 2) * depth;
   const w = h * aspect;
-  // -Z is forward, as three.js cameras look.
+  /**
+   * Forward is +Z here, not the -Z a three.js camera looks down.
+   *
+   * The gizmo hangs off the walker group, and the walker is turned with
+   * atan2(dx, dz) — the rotation that maps +Z onto the direction of travel. Building the
+   * cone down -Z to match camera convention pointed it back the way she came.
+   */
   const corners = [
-    new THREE.Vector3(-w, -h, -depth), new THREE.Vector3(w, -h, -depth),
-    new THREE.Vector3(w, h, -depth), new THREE.Vector3(-w, h, -depth),
+    new THREE.Vector3(-w, -h, depth), new THREE.Vector3(w, -h, depth),
+    new THREE.Vector3(w, h, depth), new THREE.Vector3(-w, h, depth),
   ];
   const apex = new THREE.Vector3(0, 0, 0);
 
@@ -236,14 +248,14 @@ export function buildCameraGizmo(colour, { fov = 58, aspect = 9 / 19.5, depth = 
     new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.10,
       side: THREE.DoubleSide, depthTest: false })
   );
-  plane.position.z = -depth;
+  plane.position.z = depth;
   plane.renderOrder = 12;
   g.add(plane);
 
   // Up tick, so roll is visible.
   const up = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, h, -depth), new THREE.Vector3(0, h * 1.28, -depth)]),
+      new THREE.Vector3(0, h, depth), new THREE.Vector3(0, h * 1.28, depth)]),
     new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: 0.75, depthTest: false })
   );
   up.renderOrder = 13;

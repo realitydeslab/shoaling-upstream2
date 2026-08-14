@@ -17,6 +17,8 @@ import {
   SplatEdit, SplatEditSdf, SplatEditSdfType, SplatEditRgbaBlendMode,
 } from '@sparkjsdev/spark';
 import { pointAtS, centrelineLength, projectToCentreline } from './geom.js';
+import { audibleField } from './audition.js';
+import { buildAvatar, buildCameraGizmo, makeLabel, STATURE } from './figures.js';
 
 /**
  * The walking path is stored at chest height, because the phone hangs on a neck mount: the
@@ -32,7 +34,25 @@ const COLOUR = {
   moss: 0x93a76b,
   muted: 0x55625a,
   amber: 0xd19a45,
+  lift: 0x9d8ec9,
 };
+
+/**
+ * Beats are coloured by what the visitor does, not by their order.
+ *
+ * With six beats inside twenty metres the map is crowded, and the question an author asks of it
+ * is "where do the crouches fall" or "is the lift the only one of its kind" — a question about
+ * kind, which a rainbow gradient along the path cannot answer. Order is already carried by the
+ * path itself and by the list.
+ */
+const INTERACTION_COLOUR = {
+  proximity: COLOUR.water,
+  crouch: COLOUR.moss,
+  catch: COLOUR.amber,
+  give: COLOUR.accent,
+  lift: COLOUR.lift,
+};
+const colourFor = (beat) => INTERACTION_COLOUR[beat?.interaction] ?? COLOUR.moss;
 
 export class Stage {
   constructor(container, { onTrimChanged, onPathChanged, onPathSelect, onBeatMoved, onSelectBeat } = {}) {
@@ -598,11 +618,33 @@ export class Stage {
   }
 
   setWalker(s) {
+    const previous = this.walkerS;
     this.walkerS = s;
     if (this.centreline.length < 2) return;
     const p = pointAtS(s, this.centreline);
     this.walker.position.set(p.x, p.y, p.z);
+
+    // Face along the route. The avatar and the frustum are children of the walker, so orienting
+    // it here is what makes the phone panel and the gizmo agree about which way is forward.
+    const total = centrelineLength(this.centreline);
+    const ahead = pointAtS(Math.min(total, s + 1.2), this.centreline);
+    const behind = pointAtS(Math.max(0, s - 1.2), this.centreline);
+    const dx = ahead.x - behind.x, dz = ahead.z - behind.z;
+    if (Math.hypot(dx, dz) > 1e-4) this.walker.rotation.y = Math.atan2(dx, dz);
+
+    // Metres per second, smoothed, so the gait matches how fast the scrubber is being moved
+    // rather than marching on the spot whenever the walker is parked.
+    const dt = Math.max(1e-3, this.clock.getElapsedTime() - (this.walkerStampedAt ?? 0));
+    this.walkerStampedAt = this.clock.getElapsedTime();
+    const instant = Math.abs(s - previous) / dt;
+    this.walkerSpeed = (this.walkerSpeed ?? 0) * 0.7 + Math.min(instant, 3) * 0.3;
+
     if (this.mode === 'user') this.#placeUserCamera();
+  }
+
+  /** Shown while the path is playing: the frustum is noise when nobody is walking. */
+  setCameraGizmoVisible(visible) {
+    if (this.cameraGizmo) this.cameraGizmo.visible = !!visible;
   }
 
   // ---------------------------------------------------------------- cameras
@@ -658,30 +700,27 @@ export class Stage {
 
   // ---------------------------------------------------------------- gizmos
 
+  /**
+   * The visitor: a 1.70 m figure whose sternum sits on the path, carrying the phone.
+   *
+   * She replaces an abstract post-and-sphere marker. The post encoded the same 1.40 m but
+   * conveyed no scale, so nothing on the stage answered whether a beat two metres off the path
+   * is somewhere a person can actually stand, or whether the falls are a step or a wall. A
+   * recognisable body answers both on sight.
+   *
+   * The camera frustum is attached to her chest, so what the phone panel shows and where she is
+   * looking are visibly the same thing rather than two readings you have to reconcile.
+   */
   #buildWalker() {
     const g = new THREE.Group();
-    const post = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, CHEST_HEIGHT, 8),
-      new THREE.MeshBasicMaterial({ color: COLOUR.accent, depthTest: false })
-    );
-    post.renderOrder = 12;
-    post.position.y = -CHEST_HEIGHT / 2;
-    g.add(post);
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 16, 12),
-      new THREE.MeshBasicMaterial({ color: COLOUR.accent, depthTest: false })
-    );
-    head.renderOrder = 12;
-    head.position.y = 0;
-    g.add(head);
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.45, 0.55, 32),
-      new THREE.MeshBasicMaterial({ color: COLOUR.accent, transparent: true, opacity: 0.7,
-        side: THREE.DoubleSide, depthTest: false })
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = -CHEST_HEIGHT;
-    g.add(ring);
+
+    this.avatar = buildAvatar(COLOUR.accent, COLOUR.amber);
+    g.add(this.avatar);
+
+    this.cameraGizmo = buildCameraGizmo(COLOUR.amber);
+    this.cameraGizmo.visible = false;
+    g.add(this.cameraGizmo);
+
     return g;
   }
 
@@ -721,44 +760,120 @@ export class Stage {
   }
 
   #rebuildGizmos() {
+    // Dispose before clearing. Each rebuild builds fresh geometries, materials and a canvas
+    // texture per label, and clear() only detaches them — dragging a beat rebuilds on every
+    // pointer move, so anything not released here accumulates for the length of the session.
+    this.gizmos.traverse((n) => {
+      if (n.isMesh || n.isLine || n.isSprite) {
+        n.geometry?.dispose?.();
+        for (const m of [n.material].flat()) { m?.map?.dispose?.(); m?.dispose?.(); }
+      }
+    });
     this.gizmos.clear();
+    this.pulses = [];
 
     for (const beat of this.beats) {
       const selected = beat.id === this.selectedId;
-      const colour = selected ? COLOUR.accent : COLOUR.moss;
+      const colour = colourFor(beat);
       const p = beat.position;
 
       const group = new THREE.Group();
       group.position.set(p.x, p.y, p.z);
       group.userData.beatId = beat.id;
 
-      const marker = new THREE.Mesh(
-        new THREE.SphereGeometry(selected ? 0.34 : 0.26, 16, 12),
+      // Beat positions are authored at bed height, so the ground is here, not at the path — the
+      // path now runs 1.40 m overhead at the visitor's sternum.
+      const y = 0.03;
+
+      /**
+       * A beam of light standing in the water.
+       *
+       * A sphere alone loses against a dense scan: it is a small object among a million small
+       * objects, and at any distance it reads as one more splat. A vertical element does not
+       * occur naturally in this scene, so it is found immediately and from any angle, and it
+       * ties the marker to a specific point of ground rather than floating over the canopy.
+       */
+      const beamH = selected ? 3.0 : 2.2;
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(selected ? 0.055 : 0.035, selected ? 0.012 : 0.008, beamH, 10, 1, true),
+        new THREE.MeshBasicMaterial({ color: colour, transparent: true,
+          opacity: selected ? 0.42 : 0.24, depthTest: false, side: THREE.DoubleSide })
+      );
+      beam.position.y = y + beamH / 2;
+      beam.renderOrder = 10;
+      group.add(beam);
+
+      // The core, and a wire shell around it. Two shapes rather than one, because the solid
+      // reads at distance and the shell gives it an edge against bright foliage.
+      const core = new THREE.Mesh(
+        new THREE.OctahedronGeometry(selected ? 0.34 : 0.24, 0),
         new THREE.MeshBasicMaterial({ color: colour, depthTest: false })
       );
-      marker.renderOrder = 10;
-      marker.userData.beatId = beat.id;
-      group.add(marker);
+      core.position.y = y + 0.55;
+      core.renderOrder = 12;
+      core.userData.beatId = beat.id;
+      group.add(core);
 
-      // Enter and exit bands drawn as rings on the ground. Two rings, not one, because
-      // hysteresis is the thing an author most needs to see: the gap between them is what
-      // stops a beat flickering when someone stands near its edge.
+      const shell = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(selected ? 0.62 : 0.44, 0),
+        new THREE.MeshBasicMaterial({ color: colour, wireframe: true, transparent: true,
+          opacity: selected ? 0.5 : 0.28, depthTest: false })
+      );
+      shell.position.y = core.position.y;
+      shell.renderOrder = 11;
+      group.add(shell);
+
+      // A foot marker, so the beam has somewhere to land.
+      const foot = new THREE.Mesh(
+        new THREE.CircleGeometry(selected ? 0.20 : 0.14, 24),
+        new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.8,
+          side: THREE.DoubleSide, depthTest: false })
+      );
+      foot.rotation.x = -Math.PI / 2;
+      foot.position.y = y;
+      foot.renderOrder = 10;
+      group.add(foot);
+
+      const label = makeLabel(beat.title ?? beat.id, colour);
+      const h = selected ? 0.46 : 0.34;
+      label.scale.set(h * (label.userData.aspect ?? 3), h, 1);
+      label.position.y = y + beamH + 0.32;
+      group.add(label);
+
+      // Trigger geometry: enter solid, exit dashed. The gap between them is the hysteresis.
       const enter = beat.trigger?.enterRadiusM ?? 0;
       const exit = beat.trigger?.exitRadiusM ?? enter;
-      const y = -(p.y) + (this.centreline[0]?.y ?? p.y) + 0.03;
+      group.add(this.#ring(enter, colour, selected ? 0.75 : 0.4, y));
+      group.add(this.#ring(exit, colour, selected ? 0.4 : 0.2, y, true));
 
-      group.add(this.#ring(enter, colour, selected ? 0.55 : 0.3, y));
-      group.add(this.#ring(exit, colour, selected ? 0.25 : 0.12, y, true));
+      /**
+       * The audible half-life, as an expanding pulse.
+       *
+       * The trigger rings say where the interaction arms and say nothing about where the sound
+       * carries, and those are different distances by a factor of several. Two beats whose
+       * trigger rings never touch can still be audible over each other for the whole walk
+       * between them, which is the composition problem on a reach this short and the one thing
+       * a static map cannot show. It is animated because it is a wave, and because a moving
+       * ring separates "this is sound" from "this is a threshold" without a legend.
+       */
+      const field = audibleField(beat);
+      if (field) {
+        const halo = new THREE.Mesh(
+          new THREE.RingGeometry(0.985, 1.0, 64),
+          new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.5,
+            side: THREE.DoubleSide, depthTest: false })
+        );
+        halo.rotation.x = -Math.PI / 2;
+        halo.position.y = y + 0.015;
+        halo.renderOrder = 10;
+        group.add(halo);
+        this.pulses.push({ mesh: halo, radius: field.half, phase: this.pulses.length * 0.37 });
 
-      // A stem to the ground so height is legible from a low camera.
-      const stem = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, y, 0),
-        ]),
-        new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity: 0.4, depthTest: false })
-      );
-      stem.renderOrder = 10;
-      group.add(stem);
+        // The half-life circle held steady, so there is something to measure against while the
+        // pulse is mid-flight, plus the outer edge where the source is culled entirely.
+        group.add(this.#ring(field.half, colour, selected ? 0.5 : 0.26, y + 0.01));
+        group.add(this.#ring(field.reach, colour, selected ? 0.16 : 0.08, y + 0.005, true));
+      }
 
       this.gizmos.add(group);
     }
@@ -771,6 +886,36 @@ export class Stage {
       );
       marker.position.set(p.x, p.y, p.z);
       this.gizmos.add(marker);
+    }
+  }
+
+  /**
+   * Frame rate, reported four times a second.
+   *
+   * Worth having on screen permanently rather than in a devtools panel: this stage renders a
+   * five-million-splat scan twice per frame once the phone panel is open, and the cost of a
+   * change is not something you can judge by eye — a drop from 60 to 24 looks like "fine" until
+   * you try to drag a beat with it.
+   */
+  #measureFps(elapsed) {
+    this.frameCount = (this.frameCount ?? 0) + 1;
+    const since = elapsed - (this.fpsStamp ?? 0);
+    if (since < 0.25) return;
+    this.fps = this.frameCount / since;
+    this.frameCount = 0;
+    this.fpsStamp = elapsed;
+    this.onFps?.(this.fps);
+  }
+
+  /** Advances the audible-half-life pulses. Called once per frame. */
+  #animatePulses(elapsed) {
+    for (const pulse of this.pulses ?? []) {
+      // 0..1 over 2.6 s, staggered per beat so six beats do not beat in unison like a metronome.
+      const t = ((elapsed / 2.6) + pulse.phase) % 1;
+      const r = Math.max(0.001, t * pulse.radius);
+      pulse.mesh.scale.set(r, r, 1);
+      // Fades out as it goes, and eases in at the very start so it does not pop at the centre.
+      pulse.mesh.material.opacity = 0.55 * Math.min(1, t * 6) * (1 - t) ** 1.4;
     }
   }
 
@@ -853,6 +998,9 @@ export class Stage {
 
   onWalk(fn) { this.walkHandler = fn; }
 
+  /** The phone panel draws itself into this stage's canvas, so the stage has to know about it. */
+  attachPhone(phone) { this.phone = phone; }
+
   #tick() {
     if (this.mode === 'god') {
       this.controls.update();
@@ -862,6 +1010,32 @@ export class Stage {
       const delta = (forward - back) * (this.keys.has('shift') ? 0.09 : 0.035);
       if (delta !== 0) this.walkHandler(delta);
     }
+    // getElapsedTime, not getDelta: the ViewHelper below consumes getDelta and resets it, so
+    // driving animation from the same clock would freeze everything whenever it is not
+    // animating.
+    const elapsed = this.clock.getElapsedTime();
+    this.#measureFps(elapsed);
+    this.#animatePulses(elapsed);
+    this.avatar?.userData.update?.(elapsed, this.walkerSpeed ?? 0);
+
+    /**
+     * The phone panel renders BEFORE the main view, not after.
+     *
+     * It draws the same scan from a second camera, and spark re-sorts its splats on every
+     * render call. Whichever pass runs last leaves the sort configured for its own camera, so
+     * running the panel first means the main view's own pass is the one that has the final say.
+     * With the panel drawing last instead, the main view spent every frame displaying an
+     * ordering computed for a camera pointing somewhere else, and the whole scan flashed.
+     *
+     * It renders into an offscreen target here and blits into its bezel at the end of the same
+     * call, so nothing it draws lands on the canvas before the main view clears it.
+     */
+    if (this.mode === 'god' && this.phone?.enabled && this.centreline.length >= 2) {
+      this.phone.render((s) => pointAtS(s, this.centreline), centrelineLength(this.centreline));
+    }
+
+    // She is the scale reference for placement, so she belongs in God view; in user view the
+    // camera is inside her head and all you would see is the inside of a torso.
     this.walker.visible = this.mode === 'god' && this.axisGroup.visible;
     this.renderer.autoClear = true;
     this.renderer.render(this.scene, this.camera);
@@ -874,6 +1048,10 @@ export class Stage {
       this.viewHelper.render(this.renderer);
       this.renderer.autoClear = true;
     }
+
+    // The panel's pixels, prepared before the main view and blitted now that the canvas has
+    // been cleared and drawn.
+    if (this.mode === 'god') this.phone?.present();
 
   }
 }

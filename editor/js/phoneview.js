@@ -31,16 +31,6 @@ import * as THREE from 'three';
 // way scene.js places the User camera and app.js places the audio listener. Keep these three
 // in step: at UBC the path sits around y = -0.6 with beats down at y = -1.8, so an offset of
 // zero puts the phone in the gravel and every beat overhead.
-/**
- * Nothing is added to the path height.
- *
- * The phone hangs on a neck mount, so the camera rides the visitor's sternum — and the
- * walking path is already stored at that height. Adding an eye offset here would put the
- * camera about 1.5 m above where the phone actually is, which on a creek bank with a 2 m
- * fall is the difference between seeing the water and seeing the far bank.
- */
-const CAMERA_OFFSET = 0;
-
 // Phone proportions, so the framing is honest about what fits on screen.
 const ASPECT = 19.5 / 9;
 
@@ -385,7 +375,10 @@ export class PhoneView {
       Math.cos(heading) * Math.cos(this.pitch)
     );
 
-    const eye = new THREE.Vector3(here.x, here.y + CAMERA_OFFSET, here.z);
+    // The path is already the camera track: it is stored at the 1.40 m sternum where the phone
+    // hangs. Nothing is added here. Adding an eye height on top is what put the camera a head
+    // above the phone and made the panel disagree with the frustum on the stage.
+    const eye = new THREE.Vector3(here.x, here.y, here.z);
     this.camera.position.copy(eye);
     this.camera.lookAt(eye.clone().add(look));
     this.camera.aspect = rect.w / rect.h;
@@ -394,18 +387,17 @@ export class PhoneView {
     this.#updateShoal(t, eye, new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)));
     this.#tickEffects(dt);
 
-    // --- viewport ---------------------------------------------------
-    //
-    // setViewport and setScissor take CSS pixels — three.js multiplies by the pixel ratio
-    // itself. Applying it here as well puts the viewport off the canvas at double size on
-    // every retina display, which is most of them.
-    const bottom = H - rect.y - rect.h;
-    renderer.setScissorTest(true);
-    renderer.setViewport(rect.x, bottom, rect.w, rect.h);
-    renderer.setScissor(rect.x, bottom, rect.w, rect.h);
-    // The clear colour belongs to the scene background, which is repainted per render; setting
-    // it here would leak into the main view's clear on the next frame for no gain.
-    renderer.clear();
+    /**
+     * Rendered to an offscreen target, then blitted into the bezel.
+     *
+     * The earlier version drew straight into a scissored corner of the main canvas. That works,
+     * but it leaves the phone's aspect ratio at the mercy of whatever rectangle the layout
+     * happens to give it, and it makes the scene render and the phone render share viewport and
+     * scissor state — which is precisely how the main view ended up with a viewport twice the
+     * size of its canvas. An offscreen target is a self-contained pass at a known size, and the
+     * blit afterwards is a flat quad that cannot disturb the camera it did not touch.
+     */
+    this.#ensureTarget(rect);
 
     // Authoring gizmos have no business on a visitor's screen.
     const hidden = [this.stage.gizmos, this.stage.axisGroup, this.stage.pathHandles,
@@ -415,14 +407,95 @@ export class PhoneView {
     for (const o of hidden) { if (o) o.visible = false; }
     this.shoal.visible = true;
 
+    /**
+     * Drawn through the stage's own SparkRenderer, and drawn FIRST — see Stage.#tick.
+     *
+     * Spark keeps a single depth sort and LOD selection per SparkRenderer and treats every
+     * render call as a new frame (`renderer.info.render.frame`), so this second pass re-sorts
+     * for the phone camera. Ordering is what makes that harmless: the main view renders after
+     * this one, so its own onBeforeRender runs last and leaves the sort configured for the
+     * camera being authored in.
+     *
+     * Two alternatives were tried and measured on a patch of the main view containing splats,
+     * against sd 0.00 for the panel closed. Suppressing the update for this pass
+     * (`autoUpdate = false`) left sd 34 — the panel and the main view then contend for one
+     * sort. Giving the panel a SparkRenderer of its own was worse, sd 36 with the main view
+     * alternating dark: a second SparkRenderer has no splats registered to it, so its
+     * activeSplats is zero and it blanks the instance count it shares with the stage's.
+     */
+    renderer.setRenderTarget(this.target);
+    renderer.clear();
     renderer.render(this.stage.scene, this.camera);
+    renderer.setRenderTarget(null);
 
     this.shoal.visible = false;
     hidden.forEach((o, i) => { if (o) o.visible = was[i]; });
 
+    // The blit is deliberately NOT done here. This pass runs before the main view, which clears
+    // the canvas — anything painted now would be wiped. The stage calls present() afterwards.
+    this.pending = { rect, W, H };
+  }
+
+  /** Blit the frame prepared by render() onto the canvas. Called after the main view has drawn. */
+  present() {
+    if (!this.enabled || !this.pending || !this.target) return;
+    const { rect, W, H } = this.pending;
+    this.#present(rect, W, H);
+  }
+
+  /** The offscreen buffer, at the bezel's size in device pixels. */
+  #ensureTarget(rect) {
+    const dpr = Math.min(devicePixelRatio, 2);
+    const w = Math.max(2, Math.round(rect.w * dpr));
+    const h = Math.max(2, Math.round(rect.h * dpr));
+    if (this.target && this.target.width === w && this.target.height === h) return;
+    this.target?.dispose();
+    // Left in the renderer's working colour space on purpose: three converts to sRGB when the
+    // quad below is drawn to the canvas, and tagging the target sRGB as well converts twice and
+    // washes the whole panel out.
+    this.target = new THREE.WebGLRenderTarget(w, h, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      depthBuffer: true,
+    });
+  }
+
+  /** Blit the target into the bezel's rectangle, over the frame already drawn. */
+  #present(rect, W, H) {
+    const renderer = this.stage.renderer;
+    if (!this.quad) {
+      this.quadScene = new THREE.Scene();
+      this.quadCamera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, 0, 1);
+      this.quad = new THREE.Mesh(
+        new THREE.PlaneGeometry(1, 1),
+        new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, toneMapped: false })
+      );
+      this.quad.frustumCulled = false;
+      this.quadScene.add(this.quad);
+    }
+    this.quad.material.map = this.target.texture;
+
+    // setViewport and setScissor take CSS pixels — three.js multiplies by the pixel ratio
+    // itself. Applying it here as well puts the viewport off the canvas at double size on
+    // every retina display, which is most of them.
+    const bottom = H - rect.y - rect.h;
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setViewport(rect.x, bottom, rect.w, rect.h);
+    renderer.setScissor(rect.x, bottom, rect.w, rect.h);
+    renderer.render(this.quadScene, this.quadCamera);
     renderer.setScissorTest(false);
-    renderer.setScissor(0, 0, W, H);
     renderer.setViewport(0, 0, W, H);
+    renderer.setScissor(0, 0, W, H);
+    renderer.autoClear = autoClear;
+  }
+
+  dispose() {
+    this.target?.dispose();
+    this.quad?.geometry.dispose();
+    this.quad?.material.dispose();
+    this.el?.remove();
   }
 
   /** Where the screen sits, in CSS pixels relative to the canvas. Null when there is no room. */

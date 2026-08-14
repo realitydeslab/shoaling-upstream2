@@ -250,3 +250,65 @@ export class Audition {
 
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 function dbToLinear(db) { return 10 ** (db / 20); }
+
+/**
+ * The audible field of a beat, and its half-life radius.
+ *
+ * The half-life is the distance at which the beat's amplitude has fallen to half its peak —
+ * −6 dB, the point where it stops being the thing you are listening to and becomes part of the
+ * background. It is the honest radius to draw on the stage, because the trigger rings say where
+ * the interaction arms and say nothing at all about where the sound reaches, and on this creek
+ * the sound reaches several times further than the trigger. Two beats whose trigger rings do
+ * not touch can still be audible over each other the whole way between them, and that is the
+ * mistake an author cannot see from a map.
+ *
+ * It is computed by sampling the same law the audition actually plays through — the three-layer
+ * crossfade multiplied by Resonance's logarithmic rolloff — rather than by a rule of thumb, so
+ * it stays true if the law changes. Both are approximations of PHASE, which is the real target.
+ */
+export function audibleField(node) {
+  const reach = node.audibleRadiusM ?? (node.trigger?.exitRadiusM ?? 6) * 3.5;
+  const maxD = Math.max(12, reach * 1.6);
+  const MIN = 1;   // matches source.setMinDistance(1)
+
+  const amplitudeAt = (d) => {
+    const n = Math.min(1, d / Math.max(reach, 1e-3));
+    const weight = {
+      intimate: clamp01(1 - n / 0.35),
+      mid: clamp01(1 - Math.abs(n - 0.5) / 0.35),
+      far: clamp01((n - 0.45) / 0.4),
+    };
+    let a = 0;
+    for (const name of LAYERS) {
+      const spec = node.audio?.[name];
+      if (!spec?.clipId) continue;
+      a += dbToLinear(spec.gainDb ?? -8) * (weight[name] ?? 0);
+    }
+    // Resonance's own 'logarithmic' law, copied from its attenuation.js rather than assumed:
+    // the curve is 1/(d+1) offset by minDistance and renormalised so it reaches 0 at max, NOT
+    // a logarithm despite the name. Guessing a log here gave a half-life that was wrong.
+    let rolloff = 1;
+    if (d > maxD) {
+      rolloff = 0;
+    } else if (d > MIN) {
+      const range = maxD - MIN;
+      const att = 1 / (d - MIN + 1);
+      const attMax = 1 / (range + 1);
+      rolloff = (att - attMax) / (1 - attMax);
+    }
+    return a * Math.max(0, rolloff);
+  };
+
+  let peak = 0, peakAt = 0;
+  for (let d = 0; d <= maxD; d += 0.05) {
+    const a = amplitudeAt(d);
+    if (a > peak) { peak = a; peakAt = d; }
+  }
+  if (peak <= 0) return null;
+
+  let half = maxD;
+  for (let d = peakAt; d <= maxD; d += 0.05) {
+    if (amplitudeAt(d) <= peak * 0.5) { half = d; break; }
+  }
+  return { reach, maxD, peak, peakAt, half: +half.toFixed(2), amplitudeAt };
+}
