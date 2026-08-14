@@ -92,7 +92,7 @@ app/Assets/StreamingAssets/ShoalingUpstream/
   audio/<clipId>.mp3          one file per clip id the journey names
 ```
 
-`BundleLayout` names this layout on the C# side and `tools/export-to-unity.mjs` writes it. They
+`BundleLayout` names this layout on the C# side and `tools/export-to-unity.ts` writes it. They
 have to agree exactly; a disagreement is invisible until a beat is silent.
 
 Nothing written carries a timestamp, so re-running the exporter with nothing changed upstream
@@ -103,9 +103,9 @@ leaves the build byte-identical and "the assets changed" always means something 
 ## 4. Packaging a build
 
 ```bash
-node tools/export-to-unity.mjs --site ubc-nitobe-garden-creek --allow-uncalibrated
-node tools/export-to-unity.mjs --site ubc-nitobe-garden-creek --check
-node tools/export-to-unity.mjs --site ucb-strawberry-creek-south --from-service --default
+node tools/export-to-unity.ts --site ubc-nitobe-garden-creek --allow-uncalibrated
+node tools/export-to-unity.ts --site ubc-nitobe-garden-creek --check
+node tools/export-to-unity.ts --site ucb-strawberry-creek-south --from-service --default
 ```
 
 It reads the newest revision under `data/journeys/<slug>/revisions/` — no service needed —

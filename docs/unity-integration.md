@@ -48,7 +48,7 @@ refuses the other's shape.
 
 ### One thing the service asks for that cannot be done
 
-`control-bus.mjs:139` says the receiver estimates its clock offset from the pose's `sentAtMs`
+`control-bus.ts:217` says the receiver estimates its clock offset from the pose's `sentAtMs`
 "the same way it does for `pong`". It cannot: an offset estimate needs a round trip to halve, and a
 one-way timestamp gives offset plus latency with no way to separate them. Feeding it into the
 window would import exactly the error the minimum-round-trip filter exists to keep out. `sentAtMs`
@@ -76,7 +76,7 @@ task's scope allows.
 Nothing here mocks a transport.
 
 **`app/Assets/ShoalingUpstream/Tests/PlayMode/`** — Unity play mode, the real
-`WebSocketControlTransport`, a real `node service/src/server.mjs`, and a second real socket joined
+`WebSocketControlTransport`, a real `node service/src/server.ts`, and a second real socket joined
 to the same bus as an operator standing in for the browser. The operator half shares no code with
 the client under test, so a passing test cannot be two halves agreeing on the same mistake.
 
@@ -123,7 +123,7 @@ without having been edited.
 
 ### The service these tests use is not yours
 
-Every fixture starts its own `node server.mjs` on its own port with its own copy of
+Every fixture starts its own `node server.ts` on its own port with its own copy of
 `data/journeys`. Borrowing the running service would put a test device in the operator's window and
 overwrite the bus's authoritative state — the numbers on somebody's screen would move.
 

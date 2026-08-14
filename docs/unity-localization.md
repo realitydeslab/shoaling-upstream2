@@ -80,7 +80,7 @@ completes nothing.
 Somebody has to have chosen it. A build that quietly decided it was a simulation build is
 exactly the failure this gate exists to prevent.
 
-The rule is also in `service/src/journey-schema.mjs` and in the editor's calibration pill. It is
+The rule is also in `service/src/journey-schema.ts` and in the editor's calibration pill. It is
 repeated here because this is the last place before a person is standing in a creek.
 
 ---

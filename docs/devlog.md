@@ -72,7 +72,7 @@ in one movement.
 
 ### Re-seeding wiped the authored trim box
 
-`tools/seed-journeys.mjs --force` used to overwrite the whole draft. Running it during
+`tools/seed-journeys.ts --force` used to overwrite the whole draft. Running it during
 testing destroyed a trim box that had been positioned by hand. It was not recoverable: there
 were no backups, and the published revision predated the trim feature.
 
@@ -238,7 +238,7 @@ test/browser.e2e.test.mjs     Playwright; skips cleanly when absent
 
 The service takes `PORT=0` and `JOURNEY_DIR` so a suite never touches the artist's journeys.
 
-**The projection maths exists twice** — `service/src/journey-schema.mjs` and
+**The projection maths exists twice** — `service/src/journey-schema.ts` and
 `editor/js/geom.js` — and every geometry case runs against both. If they drift, the scrubber
 shows a beat arming where the device will never fire it, and nothing reveals that until someone
 is standing in a creek.

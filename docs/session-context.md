@@ -24,7 +24,7 @@ the medium; visuals are secondary by design.
 | **Service** | Node. Journey drafts, append-only published revisions, WebSocket control bus. |
 | **iOS app** | Unity 6.3 LTS + NSDK 4.1.0 + Apple PHASE. Core logic and tests only so far. |
 
-Run it: `cd service && node src/server.mjs` → `http://localhost:8710/`
+Run it: `cd service && node src/server.ts` → `http://localhost:8710/`
 
 ---
 
@@ -58,7 +58,7 @@ along  +5.5 → +16.5  bed rising 2.7 m     the far bank out of the valley
 the fraction of bright desaturated splats, which peaks at *both* ends — the far end is thin
 sunlit canopy at the edge of the capture, not water. **Bed geometry is the reliable signal.**
 
-The journey (`tools/replan-garden.mjs`, 13 path points, 18.8 m):
+The journey (`tools/replan-garden.ts`, 13 path points, 18.8 m):
 
 | # | beat | s | interaction |
 |---|---|---|---|
@@ -192,7 +192,7 @@ Run them:
   field test. Only Botao can do it.
 - **The trim box ceiling is too low** for a chest-height path at the top of the falls — the
   last path point is pinned at y = 1.22. Raise the box ~1 m with the Scale gizmo and re-run
-  `node tools/replan-garden.mjs`.
+  `node tools/replan-garden.ts`.
 - **Two ambience WAVs missing** (see above).
 - **Bear vs heron:** settled as heron and water strider, because those are the recordings that
   exist and they are ecologically right for Strawberry Creek. The bear had one strong argument

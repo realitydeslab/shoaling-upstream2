@@ -70,19 +70,6 @@ declare global {
 }
 
 /**
- * Two things on the stage that scene.d.ts does not declare: the gizmo group and the loaded
- * splat mesh.
- *
- * Both are three.js objects the Stage owns, and the probes below are the only place outside the
- * scene that reads them. Declared here rather than added to the scene's own types, because
- * editor/src is not this suite's to change — worth folding in when scene.js is ported.
- */
-interface SceneInternals {
-  gizmos: { visible: boolean };
-  splat?: { visible: boolean };
-}
-
-/**
  * The scan the editor is pointed at.
  *
  * A fixture journey names a real capture in data/splats: those files are large, are never
@@ -262,7 +249,7 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
       // count, which comes from the stamped bounds — is what says the scan actually arrived.
       return {
         stats: s ? { count: s.count } : null,
-        inScene: !!(window.__editor!.stage as unknown as SceneInternals).splat,
+        inScene: !!window.__editor!.stage.splat,
       };
     });
     assert.ok(loaded.stats, 'the stage never finished loading a scan');
@@ -297,12 +284,10 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     // The scene-side property each button is ultimately responsible for. The phone renders
     // into its own bezel with nothing on the stage to read, so it is checked through state.
     const probes: [string, keyof Layers, (() => boolean | null) | null][] = [
-      ['btn-beats', 'beats',
-        () => (window.__editor!.stage as unknown as SceneInternals).gizmos.visible],
+      ['btn-beats', 'beats', () => window.__editor!.stage.gizmos.visible],
       // null when there is no scan to hide, which is a valid state on a machine without the
       // captures rather than a failure.
-      ['btn-splat', 'scan',
-        () => (window.__editor!.stage as unknown as SceneInternals).splat?.visible ?? null],
+      ['btn-splat', 'scan', () => window.__editor!.stage.splat?.visible ?? null],
       ['btn-phone', 'phone', null],
     ];
 

@@ -134,7 +134,7 @@ it gets moved afterwards.
 ## Quick reference
 
 ```bash
-node service/src/server.mjs          # editor at :8710/, controller at :8710/control
+node service/src/server.ts           # editor at :8710/, controller at :8710/control
 npm test                             # the whole suite
-JOURNEY_DIR=/tmp/x PORT=0 node service/src/server.mjs   # throwaway instance
+JOURNEY_DIR=/tmp/x PORT=0 node service/src/server.ts   # throwaway instance
 ```

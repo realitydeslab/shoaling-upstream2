@@ -50,7 +50,7 @@ tools/
   stamp-bounds.py             write measured extents into the journey drafts
   build-rad.sh                precompute streaming LOD assets (needs spark's build-lod)
                               — deliberately does NOT crop; trimming is a runtime editor tool
-  seed-journeys.mjs           generate starting drafts from measured splat geometry
+  seed-journeys.ts            generate starting drafts from measured splat geometry
 ```
 
 The full-resolution `.spz` files are large. They are working data, not source — keep them
@@ -133,7 +133,7 @@ Lead artist and researcher: Yangyang Yang. Earlier prototype and scans: Botao Hu
 
 ```bash
 cd service && npm install && npm start      # editor on http://localhost:8710/
-node tools/seed-journeys.mjs                # first run only, writes data/journeys/
+node tools/seed-journeys.ts                # first run only, writes data/journeys/
 ```
 
 Unity tests, headless:

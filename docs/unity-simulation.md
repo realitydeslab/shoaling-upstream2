@@ -8,7 +8,7 @@ Scrub the walk in the browser; watch and hear it happen in Unity. No phone, no c
 
 ## For the artist: what to do
 
-1. The service is running (`node service/src/server.mjs`) and the browser editor is open at
+1. The service is running (`node service/src/server.ts`) and the browser editor is open at
    `http://localhost:8710/`. If it is not, start it first — Unity asks it for the journey.
 2. Open the `app` folder in **Unity 6000.3.21f1**.
 3. Open **`Assets/ShoalingUpstream/Scenes/Simulation.unity`**. It is also first in File → Build
