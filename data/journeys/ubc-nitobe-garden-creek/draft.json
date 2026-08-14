@@ -12,89 +12,74 @@
     "anchorPayload": "",
     "centreline": [
       {
-        "x": -9.88,
-        "y": 1.301,
-        "z": 1.25
+        "x": 3.975,
+        "y": -0.61,
+        "z": -6.578
       },
       {
-        "x": -7.84,
-        "y": 1.625,
-        "z": -0.35
+        "x": 2.359,
+        "y": -0.61,
+        "z": -6.178
       },
       {
-        "x": -5.8,
-        "y": 0.097,
-        "z": -0.35
+        "x": 2.197,
+        "y": -0.6,
+        "z": -4.405
       },
       {
-        "x": -3.76,
-        "y": -0.901,
-        "z": -1.95
+        "x": 0.363,
+        "y": -0.56,
+        "z": -4.212
       },
       {
-        "x": -1.72,
-        "y": -1.536,
-        "z": -0.35
+        "x": 0.273,
+        "y": -0.5,
+        "z": -2.371
       },
       {
-        "x": 0.32,
-        "y": -1.846,
-        "z": -0.35
+        "x": -1.633,
+        "y": -0.32,
+        "z": -2.246
       },
       {
-        "x": 2.36,
-        "y": -2.884,
-        "z": 1.25
+        "x": -1.65,
+        "y": -0.22,
+        "z": -0.336
       },
       {
-        "x": 4.4,
-        "y": -2.242,
-        "z": -0.35
+        "x": -3.484,
+        "y": -0.15,
+        "z": -0.143
       },
       {
-        "x": 6.44,
-        "y": -2.14,
-        "z": -0.35
+        "x": -3.646,
+        "y": -0.08,
+        "z": 1.63
       },
       {
-        "x": 8.48,
-        "y": -1.335,
-        "z": -1.95
+        "x": -5.125,
+        "y": 0.08,
+        "z": 1.884
       },
       {
-        "x": 10.52,
-        "y": 4.765,
-        "z": -0.35
+        "x": -5.303,
+        "y": 0.31,
+        "z": 3.092
       },
       {
-        "x": 12.56,
-        "y": -1.825,
-        "z": -0.35
+        "x": -6.002,
+        "y": 1.06,
+        "z": 3.394
       },
       {
-        "x": 14.6,
-        "y": 2.195,
-        "z": 1.25
-      },
-      {
-        "x": 16.3,
-        "y": -1.525,
-        "z": -0.35
-      },
-      {
-        "x": 18,
-        "y": -1.825,
-        "z": -0.35
-      },
-      {
-        "x": 19.7,
-        "y": -1.825,
-        "z": -1.95
+        "x": -6.277,
+        "y": 1.121,
+        "z": 3.685
       }
     ],
     "upstreamAxis": {
       "kind": "altitude",
-      "risesToward": "unconfirmed"
+      "risesToward": "the falls, at the −along end of the trim box, world about (−7, +4). Measured from a 3 m bed step over 2 horizontal metres, not from brightness."
     }
   },
   "editorFrame": {
@@ -163,14 +148,14 @@
       "prompt": "Come in under the branches where the water runs slow.",
       "interaction": "proximity",
       "position": {
-        "x": -9.879999999999999,
-        "y": -0.6,
-        "z": -0.35
+        "x": 1.292,
+        "y": -1.48,
+        "z": -4.888
       },
-      "s": 2.72,
+      "s": 4.28,
       "trigger": {
-        "enterRadiusM": 2.18,
-        "exitRadiusM": 3.48,
+        "enterRadiusM": 1.9,
+        "exitRadiusM": 3.04,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -199,14 +184,14 @@
       "prompt": "Get low enough to see into the gravel.",
       "interaction": "crouch",
       "position": {
-        "x": -3.76,
-        "y": -0.6,
-        "z": -0.35
+        "x": 0.514,
+        "y": -0.978,
+        "z": -3.618
       },
-      "s": 8.84,
+      "s": 5.86,
       "trigger": {
-        "enterRadiusM": 2.18,
-        "exitRadiusM": 3.48,
+        "enterRadiusM": 1.9,
+        "exitRadiusM": 3.04,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -240,14 +225,14 @@
       "prompt": "Something is moving on the surface.",
       "interaction": "catch",
       "position": {
-        "x": 2.360000000000001,
-        "y": -0.6,
-        "z": -0.35
+        "x": -1.431,
+        "y": -1.78,
+        "z": -0.11
       },
-      "s": 14.96,
+      "s": 10.97,
       "trigger": {
-        "enterRadiusM": 2.18,
-        "exitRadiusM": 3.48,
+        "enterRadiusM": 1.9,
+        "exitRadiusM": 3.04,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -278,17 +263,17 @@
     {
       "id": "heron",
       "title": "The heron",
-      "prompt": "It has been waiting. Let some of the shoal go.",
+      "prompt": "It has been waiting below the falls. Let some of the shoal go.",
       "interaction": "give",
       "position": {
-        "x": 8.479999999999999,
-        "y": -0.6,
-        "z": -0.35
+        "x": -4.301,
+        "y": -1.241,
+        "z": 1.3
       },
-      "s": 21.08,
+      "s": 15.06,
       "trigger": {
-        "enterRadiusM": 2.18,
-        "exitRadiusM": 3.48,
+        "enterRadiusM": 1.9,
+        "exitRadiusM": 3.04,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -313,19 +298,19 @@
       "givesFish": 12
     },
     {
-      "id": "barrier",
-      "title": "The barrier",
-      "prompt": "Lift yourself over. Water is above you again on the other side.",
+      "id": "falls",
+      "title": "The falls",
+      "prompt": "The water comes down here. Lift yourself over it.",
       "interaction": "lift",
       "position": {
-        "x": 14.600000000000003,
-        "y": -0.6,
-        "z": -0.35
+        "x": -6.467,
+        "y": -1.05,
+        "z": 1.68
       },
-      "s": 27.2,
+      "s": 16.1,
       "trigger": {
-        "enterRadiusM": 2.18,
-        "exitRadiusM": 3.48,
+        "enterRadiusM": 1.9,
+        "exitRadiusM": 3.04,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true
@@ -354,19 +339,19 @@
       }
     },
     {
-      "id": "headwater",
-      "title": "The headwater",
-      "prompt": "This is as far upstream as the creek goes.",
+      "id": "spawn",
+      "title": "Above the falls",
+      "prompt": "Over the lip. Still water on gravel — as far up as the scan reaches.",
       "interaction": "crouch",
       "position": {
-        "x": 19.699999999999996,
-        "y": -0.6,
-        "z": -0.35
+        "x": -7.145,
+        "y": 0.5,
+        "z": 1.731
       },
-      "s": 32.3,
+      "s": 16.32,
       "trigger": {
-        "enterRadiusM": 2.18,
-        "exitRadiusM": 3.48,
+        "enterRadiusM": 1.9,
+        "exitRadiusM": 3.04,
         "dwellSeconds": 1.2,
         "minimumHoldSeconds": 25,
         "requiresPreviousComplete": true

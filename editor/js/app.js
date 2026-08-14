@@ -17,6 +17,10 @@ const state = {
   interactions: {},
   dirty: false,
   quality: localStorage.getItem('quality') ?? 'full',
+  // Which layers are on screen. Beats and the scan default on because they are the content;
+  // the path and the trim box are scaffolding you switch on to work on.
+  layers: JSON.parse(localStorage.getItem('layers')
+    ?? '{"beats":true,"path":false,"trim":false,"scan":true,"phone":true}'),
   scans: {},
   audio: null,          // clipId -> packaged file
   playing: false,
@@ -25,6 +29,10 @@ const state = {
 };
 
 let stage, scrubber, audition;
+// The phone-screen view is parked: it manipulated the renderer viewport and captured pointer
+// events, which broke orbiting and picking in the main view. editor/js/phoneview.js is still
+// on disk and needs its own render target rather than a scissored viewport before it returns.
+let phone = null;
 
 // ------------------------------------------------------------------ api
 
@@ -68,7 +76,8 @@ async function boot() {
   select.addEventListener('change', () => loadSite(select.value));
 
   stage = new Stage($('#stage'), {
-    onPick: handlePick,
+    // Clicking the scene only ever selects. Nothing in the scene moves except by gizmo.
+    onSelectBeat: (id) => select(id),
     onTrimChanged: (box, opts) => {
       const trim = ensureTrim();
       Object.assign(trim, box, { enabled: trim.enabled });
@@ -127,6 +136,7 @@ async function boot() {
   $('#q-full').setAttribute('aria-pressed', String(state.quality === 'full'));
   $('#q-fast').setAttribute('aria-pressed', String(state.quality === 'fast'));
   $('#t-speed-label').textContent = `${state.speed.toFixed(1)} m/s`;
+  applyLayers();
   renderAudioNote();
 
   if (state.sites.length) await loadSite(state.sites[0].slug);
@@ -266,6 +276,7 @@ function tick(now) {
     if (Math.abs(s - beat.s) <= (beat.trigger?.enterRadiusM ?? 2)) {
       state.fired.add(beat.id);
       audition.fireCompletion(beat);
+      fireBeatVisual(beat);
     }
   }
 
@@ -274,7 +285,26 @@ function tick(now) {
 
 function rewind() {
   state.fired.clear();
+  phone?.clearEffects();
+  phone?.setShoalCount(state.journey?.shoal?.startingCount ?? 40);
   setWalker(0);
+}
+
+/** The phone-screen sketch of what happens at a beat. Placement, not final visuals. */
+function fireBeatVisual(beat) {
+  if (!phone) return;
+  switch (beat.interaction) {
+    case 'crouch':
+      phone.spawnEggs(beat.position);
+      break;
+    case 'give':
+      phone.showHeron(beat.position);
+      // A moment of the bird standing there before it takes, so the exchange reads.
+      setTimeout(() => phone.heronFeeds(beat.givesFish ?? 0), 1400);
+      break;
+    default:
+      break;
+  }
 }
 
 // ------------------------------------------------------------------ walker
@@ -297,6 +327,7 @@ function setWalker(s, syncScrubber = true) {
     el.classList.toggle('firing', winner?.beat.id === id);
   });
 
+  phone?.setS(s);
   updateHud(s, armed, winner);
 
   // Move the listener with the walker so the mix follows the simulated visitor.
@@ -307,7 +338,8 @@ function setWalker(s, syncScrubber = true) {
       const ahead = pointAtS(Math.min(journeyLength(), s + 2), cl);
       const dx = ahead.x - here.x, dy = ahead.y - here.y, dz = ahead.z - here.z;
       const len = Math.hypot(dx, dy, dz) || 1;
-      audition.update({ x: here.x, y: here.y + 1.55, z: here.z },
+      // The path is at chest height already; the listener rides it.
+      audition.update({ x: here.x, y: here.y, z: here.z },
                       { x: dx / len, y: dy / len, z: dz / len });
     }
   }
@@ -633,14 +665,6 @@ function touch({ rail = false, scene = true, inspector = false } = {}) {
 
 // ------------------------------------------------------------------ placement
 
-function handlePick({ point, s }) {
-  const beat = currentBeat();
-  if (!beat) { toast('Select a beat first, then click the scan.', true); return; }
-  beat.position = point;
-  beat.s = s;
-  touch({ rail: true, inspector: true });
-  setWalker(s);
-}
 
 // ------------------------------------------------------------------ path and trim
 //
@@ -890,12 +914,38 @@ function setPathPanel(open) {
   $('#path-panel').hidden = !open;
   $('#btn-path').setAttribute('aria-pressed', String(open));
   $('#btn-path').classList.toggle('primary', open);
-  if (open) { setTrimPanel(false); stage.placing = false; $('#btn-place').classList.remove('primary'); }
+  if (open) setTrimPanel(false);
   stage.setPathEditing(open);
   if (open) {
     renderPathReadout();
     toast('Click a handle to select it, then drag. This is the simulated walking route.');
   }
+}
+
+/** One place that owns what is on screen, so the buttons and the scene cannot disagree. */
+function applyLayers() {
+  const L = state.layers;
+  stage.setLayerVisible('beats', L.beats);
+  stage.setLayerVisible('path', L.path);
+  stage.trimLayerVisible = L.trim;
+  stage.setLayerVisible('trim', L.trim);
+  stage.setSplatVisible(L.scan);
+  phone.enabled = L.phone;
+
+  for (const [key, id] of [['beats', 'btn-beats'], ['path', 'btn-path'], ['trim', 'btn-trim'],
+                           ['scan', 'btn-splat'], ['phone', 'btn-phone']]) {
+    $(`#${id}`)?.setAttribute('aria-pressed', String(!!L[key]));
+  }
+  localStorage.setItem('layers', JSON.stringify(L));
+}
+
+function toggleLayer(key) {
+  state.layers[key] = !state.layers[key];
+  // Turning on the path or the trim means you want to work on it, so bring its controls with
+  // it. Turning it off puts them away.
+  if (key === 'path') setPathPanel(state.layers.path);
+  if (key === 'trim') setTrimPanel(state.layers.trim);
+  applyLayers();
 }
 
 function setGizmoMode(mode) {
@@ -977,16 +1027,16 @@ function bindToolbar() {
 
   $('#btn-frame').addEventListener('click', () => stage.frame());
 
-  $('#btn-place').addEventListener('click', (e) => {
-    stage.placing = !stage.placing;
-    if (stage.placing) setPathPanel(false);
-    e.target.setAttribute('aria-pressed', String(stage.placing));
-    e.target.classList.toggle('primary', stage.placing);
-    toast(stage.placing ? 'Click the scan to move the selected beat.' : 'Placement off.');
-  });
 
-  $('#btn-path').addEventListener('click', () => setPathPanel($('#path-panel').hidden));
-  $('#path-close').addEventListener('click', () => setPathPanel(false));
+  $('#btn-beats').addEventListener('click', () => toggleLayer('beats'));
+  $('#btn-path').addEventListener('click', () => toggleLayer('path'));
+  $('#btn-trim').addEventListener('click', () => toggleLayer('trim'));
+  $('#btn-phone').addEventListener('click', () => toggleLayer('phone'));
+  $('#path-close').addEventListener('click', () => {
+    state.layers.path = false;
+    setPathPanel(false);
+    applyLayers();
+  });
 
   $('#path-auto').addEventListener('click', autoPath);
 
@@ -1021,8 +1071,11 @@ function bindToolbar() {
     persistPath();
   });
 
-  $('#btn-trim').addEventListener('click', () => setTrimPanel($('#trim-panel').hidden));
-  $('#trim-close').addEventListener('click', () => setTrimPanel(false));
+  $('#trim-close').addEventListener('click', () => {
+    state.layers.trim = false;
+    setTrimPanel(false);
+    applyLayers();
+  });
   $('#trim-on').addEventListener('change', (e) => {
     const trim = ensureTrim();
     trim.enabled = e.target.checked;
@@ -1042,11 +1095,7 @@ function bindToolbar() {
     toast('Box fitted to the scan\u2019s measured extent.');
   });
 
-  $('#btn-splat').addEventListener('click', (e) => {
-    const next = !stage.splatVisible;
-    stage.setSplatVisible(next);
-    e.target.setAttribute('aria-pressed', String(next));
-  });
+  $('#btn-splat').addEventListener('click', () => toggleLayer('scan'));
 
   $('#t-play').addEventListener('click', () => setPlaying(!state.playing));
   $('#t-rewind').addEventListener('click', rewind);

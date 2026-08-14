@@ -470,3 +470,58 @@ button.ghost:hover:not(:disabled) { color: var(--ink); background: var(--panel-2
 .beat.dragging { opacity: 0.4; cursor: grabbing; }
 .beat.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
 .beat.drop-after  { box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* Layer toggles. A pressed button means the layer is on screen, which is the only state the
+ * author needs to read at a glance. */
+.tool-sep { width: 1px; align-self: stretch; background: var(--hair-bright); margin: 0 2px; }
+.stage-tools button[aria-pressed="true"] { color: var(--ink); background: var(--panel-2); }
+.stage-tools button[aria-pressed="false"] { color: var(--muted); }
+
+/* ---------- phone screen ----------
+ * A bezel drawn in DOM over the scissored viewport PhoneView renders into. DOM rather than
+ * WebGL because it also has to be the pointer target: the screen swallows its own drags, which
+ * is what stops a look-around from orbiting the God camera or selecting a beat behind the
+ * phone. Geometry is set from JS every frame so the two always agree.
+ */
+
+.phone {
+  position: absolute;
+  border: 11px solid var(--sunk);
+  border-radius: 26px;
+  box-shadow: 0 0 0 1px var(--hair-bright), 0 16px 34px #00000066;
+  pointer-events: none;
+}
+.phone::before {                        /* earpiece slot, sitting in the top bezel */
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  margin-left: -17px;
+  border-radius: 2px;
+  background: var(--hair-bright);
+}
+.phone-screen {
+  position: absolute;
+  inset: 0;
+  border-radius: 15px;
+  box-shadow: inset 0 0 0 1px #D19A4538;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;                   /* or the browser pans the page instead of looking */
+}
+.phone-screen:active { cursor: grabbing; }
+
+.phone-caption {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -71,10 +71,13 @@
       <div class="hud" id="hud"></div>
       <div class="stage-tools">
         <button id="btn-frame" class="ghost" title="Frame the whole reach">Frame</button>
-        <button id="btn-place" class="ghost" title="Click the scan to move the selected beat">Place</button>
-        <button id="btn-path" class="ghost" title="Drag the walking route the simulation follows">Path</button>
-        <button id="btn-trim" class="ghost" title="Trim the scan to a bounding box">Trim</button>
-        <button id="btn-splat" class="ghost" aria-pressed="true" title="Show or hide the scan">Scan</button>
+        <span class="tool-sep"></span>
+        <button id="btn-beats" class="ghost" aria-pressed="true" title="Show the points of interest">Beats</button>
+        <button id="btn-path" class="ghost" aria-pressed="false" title="Show and edit the walking route">Path</button>
+        <button id="btn-trim" class="ghost" aria-pressed="false" title="Show and edit the trim box">Trim</button>
+        <button id="btn-splat" class="ghost" aria-pressed="true" title="Show the scan">Scan</button>
+        <button id="btn-phone" class="ghost" aria-pressed="true" title="Show the phone screen">Phone</button>
+        <span class="tool-sep"></span>
         <div class="seg" role="group" aria-label="Scan quality">
           <button id="q-full" aria-pressed="true" title="Every splat, as captured">Full</button>
           <button id="q-fast" aria-pressed="false" title="600k proxy — faster to load">Fast</button>

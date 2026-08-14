@@ -1,9 +1,11 @@
 /**
- * The 3D stage: the scan, the creek axis, the beat gizmos, and two cameras.
+ * The 3D stage: the scan, the creek axis, the beat gizmos, and three cameras.
  *
  * God view orbits the whole reach for placement. User view stands at eye height and walks,
  * because a beat that reads fine from above can be completely hidden from a person standing
- * on the bank — and the visitor is at eye height, not overhead.
+ * on the bank — and the visitor is at eye height, not overhead. The phone view (phoneview.js)
+ * is a third camera drawn into a scissored corner of the same canvas, so both readings are on
+ * screen at once rather than one camera mode away from each other.
  */
 
 import * as THREE from 'three';
@@ -16,7 +18,13 @@ import {
 } from '@sparkjsdev/spark';
 import { pointAtS, centrelineLength, projectToCentreline } from './geom.js';
 
-const EYE_HEIGHT = 1.55;
+/**
+ * The walking path is stored at chest height, because the phone hangs on a neck mount: the
+ * camera rides the visitor's sternum and does not move when they turn their head. So the path
+ * IS the camera track and nothing is added to it here. Only the walker gizmo needs a body
+ * drawn beneath it.
+ */
+const CHEST_HEIGHT = 1.40;
 
 const COLOUR = {
   water: 0x6da7ad,
@@ -27,17 +35,15 @@ const COLOUR = {
 };
 
 export class Stage {
-  constructor(container, { onPick, onTrimChanged, onPathChanged, onPathSelect, onBeatMoved } = {}) {
+  constructor(container, { onTrimChanged, onPathChanged, onPathSelect, onBeatMoved, onSelectBeat } = {}) {
     this.container = container;
-    this.onPick = onPick;
+    this.onSelectBeat = onSelectBeat;
     this.onTrimChanged = onTrimChanged;
     this.onPathChanged = onPathChanged;
     this.onPathSelect = onPathSelect;
     this.onBeatMoved = onBeatMoved;
     this.trimActive = false;
     this.mode = 'god';
-    this.placing = false;
-    this.drawingPath = false;
     this.editingPath = false;
     this.selectedPathIndex = -1;
     this.splat = null;
@@ -382,7 +388,8 @@ export class Stage {
     this.trimBox.position.copy(t.position);
     this.trimBox.quaternion.copy(t.quaternion);
     this.trimBox.scale.copy(t.scale);
-    this.trimBox.visible = !!this.trim && (this.trim.enabled || this.gizmoHelper?.visible);
+    this.trimBox.visible = this.trimLayerVisible !== false
+      && !!this.trim && (this.trim.enabled || this.gizmoHelper?.visible);
   }
 
   // ---------------------------------------------------------------- path editing
@@ -493,6 +500,37 @@ export class Stage {
     }));
   }
 
+  /**
+   * Layer visibility.
+   *
+   * Each of these is something the author turns on to work on and off to get out of the way.
+   * Beats stay visible by default because they are the content; the path and the trim box are
+   * scaffolding and only earn screen space while being edited.
+   */
+  setLayerVisible(layer, visible) {
+    switch (layer) {
+      case 'beats':
+        this.gizmos.visible = visible;
+        this.beatsVisible = visible;
+        // A hidden beat should not still be holding the gizmo.
+        if (!visible && this.gizmo?.object?.userData?.beatId) {
+          this.gizmo.detach();
+          if (this.gizmoHelper) this.gizmoHelper.visible = false;
+        }
+        break;
+      case 'path':
+        this.axisGroup.visible = visible;
+        this.pathHandles.visible = visible;
+        this.walker.visible = visible;
+        break;
+      case 'trim':
+        if (this.trimBox) this.trimBox.visible = visible;
+        break;
+      default:
+        break;
+    }
+  }
+
   setSplatVisible(visible) {
     this.splatVisible = visible;
     if (this.splat) this.splat.visible = visible;
@@ -581,8 +619,8 @@ export class Stage {
     const total = centrelineLength(this.centreline);
     const here = pointAtS(this.walkerS, this.centreline);
     const ahead = pointAtS(Math.min(total, this.walkerS + 2), this.centreline);
-    this.user.position.set(here.x, here.y + EYE_HEIGHT, here.z);
-    this.user.lookAt(ahead.x, ahead.y + EYE_HEIGHT * 0.85, ahead.z);
+    this.user.position.set(here.x, here.y, here.z);
+    this.user.lookAt(ahead.x, ahead.y, ahead.z);
   }
 
   frame() {
@@ -623,18 +661,18 @@ export class Stage {
   #buildWalker() {
     const g = new THREE.Group();
     const post = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.05, 0.05, EYE_HEIGHT, 8),
+      new THREE.CylinderGeometry(0.05, 0.05, CHEST_HEIGHT, 8),
       new THREE.MeshBasicMaterial({ color: COLOUR.accent, depthTest: false })
     );
     post.renderOrder = 12;
-    post.position.y = EYE_HEIGHT / 2;
+    post.position.y = -CHEST_HEIGHT / 2;
     g.add(post);
     const head = new THREE.Mesh(
       new THREE.SphereGeometry(0.16, 16, 12),
       new THREE.MeshBasicMaterial({ color: COLOUR.accent, depthTest: false })
     );
     head.renderOrder = 12;
-    head.position.y = EYE_HEIGHT;
+    head.position.y = 0;
     g.add(head);
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.45, 0.55, 32),
@@ -642,7 +680,7 @@ export class Stage {
         side: THREE.DoubleSide, depthTest: false })
     );
     ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.02;
+    ring.position.y = -CHEST_HEIGHT;
     g.add(ring);
     return g;
   }
@@ -760,55 +798,35 @@ export class Stage {
     const el = this.renderer.domElement;
 
     el.addEventListener('pointerdown', (ev) => {
-      // The orientation gizmo owns its corner of the screen.
+      if (this.mode !== 'god') return;
+
+      // Clicking the scene SELECTS. It never edits.
+      //
+      // Click-to-place was the original behaviour and it is a trap: a click that misses the
+      // intended surface throws a waypoint somewhere unexpected, and there is no way to nudge
+      // anything. Selection is safe and repeatable; moving things is the gizmo's job, where
+      // the handle you grab says exactly which axis you are changing.
+      // Only in God view, and only the helper's own corner. handleClick starts a camera
+      // animation when it hits, so letting it see every click makes the camera jump on
+      // clicks that were meant for the scene.
       if (this.mode === 'god' && this.viewHelper?.handleClick(ev)) return;
 
-      // While editing the path, a click picks a control point rather than placing anything.
-      if (this.editingPath && this.mode === 'god') {
-        const rect = el.getBoundingClientRect();
-        this.pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
-        this.pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
-        this.raycaster.setFromCamera(this.pointer, this.god);
-        const hits = this.raycaster.intersectObjects(this.pathHandles.children, false);
-        if (hits.length) {
-          this.selectPathPoint(hits[0].object.userData.pathIndex);
-          return;
-        }
-      }
-      if (!(this.placing || this.drawingPath) || this.mode !== 'god') return;
       const rect = el.getBoundingClientRect();
       this.pointer.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       this.pointer.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
       this.raycaster.setFromCamera(this.pointer, this.god);
 
-      // Prefer a hit on the scan surface; fall back to the ground plane so placement still
-      // works with the scan hidden or in a gap between splats.
-      let hit = null;
-      if (this.splat && this.splatVisible && typeof this.splat.raycast === 'function') {
-        const hits = [];
-        try {
-          this.splat.raycast(this.raycaster, hits);
-        } catch { /* spark raycast is best-effort; the plane fallback covers it */ }
-        if (hits.length) {
-          hits.sort((a, b) => a.distance - b.distance);
-          hit = hits[0].point.clone();
-        }
-      }
-      if (!hit) {
-        hit = new THREE.Vector3();
-        if (!this.raycaster.ray.intersectPlane(this.groundPlane, hit)) return;
+      if (this.editingPath) {
+        const hits = this.raycaster.intersectObjects(this.pathHandles.children, false);
+        if (hits.length) this.selectPathPoint(hits[0].object.userData.pathIndex);
+        return;
       }
 
-      const projected = this.centreline.length >= 2
-        ? projectToCentreline(hit, this.centreline)
-        : { s: 0, lateral: 0 };
-
-      this.onPick?.({
-        point: { x: +hit.x.toFixed(3), y: +hit.y.toFixed(3), z: +hit.z.toFixed(3) },
-        s: +projected.s.toFixed(2),
-        lateral: +projected.lateral.toFixed(2),
-        path: this.drawingPath,
-      });
+      // Beat markers are the only other thing worth hitting.
+      const markers = [];
+      this.gizmos.traverse((n) => { if (n.userData?.beatId && n.isMesh) markers.push(n); });
+      const hit = this.raycaster.intersectObjects(markers, false)[0];
+      if (hit) this.onSelectBeat?.(hit.object.userData.beatId);
     });
 
     window.addEventListener('resize', () => this.resize());
@@ -844,7 +862,7 @@ export class Stage {
       const delta = (forward - back) * (this.keys.has('shift') ? 0.09 : 0.035);
       if (delta !== 0) this.walkHandler(delta);
     }
-    this.walker.visible = this.mode === 'god';
+    this.walker.visible = this.mode === 'god' && this.axisGroup.visible;
     this.renderer.autoClear = true;
     this.renderer.render(this.scene, this.camera);
 
@@ -856,5 +874,6 @@ export class Stage {
       this.viewHelper.render(this.renderer);
       this.renderer.autoClear = true;
     }
+
   }
 }
