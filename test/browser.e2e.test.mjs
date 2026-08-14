@@ -39,12 +39,10 @@ try {
   const { chromium } = await import('playwright');
   browser = await chromium.launch({
     args: [
-      // This machine has a GPU; a CI container and a headless shell do not, and spark.js needs
-      // WebGL2 either way. SwiftShader is slow rather than absent, which is what the generous
-      // timeouts below are for.
+      // spark.js needs WebGL2 and there is no CPU path through this editor at all. These let
+      // Chromium fall back to software rendering where there is no usable GPU — slow, which is
+      // what the generous timeouts below are for, rather than a blank canvas and no explanation.
       '--enable-unsafe-swiftshader',
-      '--use-gl=angle',
-      '--use-angle=swiftshader',
       '--ignore-gpu-blocklist',
       '--disable-dev-shm-usage',
     ],
@@ -84,18 +82,44 @@ function makeScannedJourney() {
   return journey;
 }
 
-/** Record every toast the page raises, including ones that fade before an assertion runs. */
+/**
+ * A console error worth failing over, with the URL that produced it, or null.
+ *
+ * Neither page links a favicon, and Chromium logs the resulting 404 as a console error whose
+ * *text* says only "Failed to load resource" — the URL is in the location. So the filter has to
+ * read the location, and the message has to carry it, or a genuinely missing module reads as
+ * an unattributed line in the failure output.
+ */
+function noteConsoleError(msg) {
+  if (msg.type() !== 'error') return null;
+  const url = msg.location()?.url ?? '';
+  if (/favicon\.ico/.test(url)) return null;
+  return url ? `${msg.text()} — ${url}` : msg.text();
+}
+
+/**
+ * Record every toast the page raises.
+ *
+ * Toasts fade after a couple of seconds, so polling for one is a race the suite would lose on
+ * a slow machine — and an error toast that appeared during boot is exactly the thing worth
+ * failing on. One entry per appearance: the observer fires several times per toast, so a
+ * record is only kept when the banner becomes visible or when its wording changes.
+ */
 const WATCH_TOASTS = () => {
   window.__toasts = [];
   const watch = () => {
     const el = document.getElementById('toast');
-    if (!el) return;
+    if (!el) return;                       // the controller page has no toast of its own
+    let shown = false;
+    let last = null;
     const record = () => {
-      const entry = { text: el.textContent, error: el.classList.contains('error') };
-      const last = window.__toasts.at(-1);
-      if (!el.classList.contains('show')) return;
-      if (last && last.text === entry.text && last.error === entry.error) return;
-      window.__toasts.push(entry);
+      const showing = el.classList.contains('show');
+      const text = el.textContent;
+      if (showing && (!shown || text !== last)) {
+        window.__toasts.push({ text, error: el.classList.contains('error') });
+        last = text;
+      }
+      shown = showing;
     };
     new MutationObserver(record).observe(el, {
       attributes: true, childList: true, characterData: true, subtree: true,
@@ -150,9 +174,8 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     page = await context.newPage();
     page.on('pageerror', (err) => pageErrors.push(err.stack ?? String(err)));
     page.on('console', (msg) => {
-      // The page has no favicon, and Chromium logs the resulting 404 as a console error. That
-      // is the only noise allowed through: everything else is the point of this suite.
-      if (msg.type() === 'error' && !/favicon/.test(msg.text())) consoleErrors.push(msg.text());
+      const noted = noteConsoleError(msg);
+      if (noted) consoleErrors.push(noted);
     });
 
     await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
@@ -198,13 +221,16 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     if (!SCAN_PRESENT) {
       return t.skip(`no capture in data/splats for "${SCAN_BASE}" — nothing to load`);
     }
-    const stats = await page.evaluate(() => {
+    const loaded = await page.evaluate(() => {
       const s = window.__editor.stage.splatStats;
-      return s ? { count: s.count, loadMs: s.loadMs } : null;
+      // splatStats is only assigned once SplatMesh has called back, so its existence — not the
+      // count, which comes from the stamped bounds — is what says the scan actually arrived.
+      return { stats: s ? { count: s.count } : null, inScene: !!window.__editor.stage.splat };
     });
-    assert.ok(stats, 'the stage never finished loading a scan');
-    assert.ok(stats.count > 1_000_000, `expected a full capture, got ${stats.count} splats`);
-    assert.ok(stats.loadMs > 0, 'the load was timed, so it genuinely happened');
+    assert.ok(loaded.stats, 'the stage never finished loading a scan');
+    assert.ok(loaded.inScene, 'the scan loaded but was never added to the scene');
+    assert.ok(loaded.stats.count > 1_000_000,
+      `expected a full capture, got ${loaded.stats.count} splats`);
     await waitForToast(/splats/);
   });
 
@@ -229,18 +255,16 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     assert.ok(fps > 0 && fps < 1000, `implausible frame rate: ${text}`);
   });
 
-  test('each layer toggle flips both the button and the scene', async () => {
-    // The scene-side property each button is ultimately responsible for. `phone` renders in a
-    // separate view with nothing on the stage to read, so it is checked through state alone.
-    const probes = {
-      'btn-beats': ['beats', () => window.__editor.stage.gizmos.visible],
-      'btn-path': ['path', () => window.__editor.stage.axisGroup.visible],
-      'btn-trim': ['trim', () => true],
-      'btn-splat': ['scan', () => window.__editor.stage.splat?.visible ?? true],
-      'btn-phone': ['phone', () => true],
-    };
+  test('the beats, scan and phone toggles reach the scene', async () => {
+    // The scene-side property each button is ultimately responsible for. The phone renders
+    // into its own bezel with nothing on the stage to read, so it is checked through state.
+    const probes = [
+      ['btn-beats', 'beats', () => window.__editor.stage.gizmos.visible],
+      ['btn-splat', 'scan', () => window.__editor.stage.splat?.visible],
+      ['btn-phone', 'phone', null],
+    ];
 
-    for (const [id, [key, probe]] of Object.entries(probes)) {
+    for (const [id, key, probe] of probes) {
       const was = (await layers())[key];
       await page.click(`#${id}`);
       await page.waitForFunction(
@@ -248,7 +272,7 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
 
       assert.equal((await layers())[key], !was, `${id} did not toggle the "${key}" layer`);
       assert.equal(await pressed(`#${id}`), String(!was), `${id} did not update aria-pressed`);
-      assert.equal(await page.evaluate(probe), !was, `${id} did not reach the scene`);
+      if (probe) assert.equal(await page.evaluate(probe), !was, `${id} did not reach the scene`);
 
       await page.click(`#${id}`);
       await page.waitForFunction(
@@ -256,8 +280,30 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     }
   });
 
+  test('the path and trim toggles bring their panels with them', async () => {
+    // Both panels are closed with their own Done button rather than by pressing the toolbar
+    // toggle again: an open panel sits over that end of the toolbar, so the toggle is not
+    // actually reachable while its panel is up.
+    for (const [id, key, panel, done] of [
+      ['btn-path', 'path', '#path-panel', '#path-close'],
+      ['btn-trim', 'trim', '#trim-panel', '#trim-close'],
+    ]) {
+      if ((await layers())[key]) await page.click(done);
+
+      await page.click(`#${id}`);
+      await page.waitForSelector(`${panel}:visible`, { timeout: 5000 });
+      assert.equal((await layers())[key], true, `${id} did not switch the "${key}" layer on`);
+      assert.equal(await pressed(`#${id}`), 'true');
+
+      await page.click(done);
+      await page.waitForSelector(panel, { state: 'hidden', timeout: 5000 });
+      assert.equal((await layers())[key], false, `${done} did not switch the "${key}" layer off`);
+      assert.equal(await pressed(`#${id}`), 'false');
+    }
+  });
+
   test('adding a path point and undoing it restores the original path', async () => {
-    if ((await layers()).path !== true) await page.click('#btn-path');
+    if (!(await layers()).path) await page.click('#btn-path');
     const before = await centrelineLength();
 
     await page.click('#path-add');
@@ -283,8 +329,17 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
   });
 
   test('the history note says how many steps are available', async () => {
-    const note = await page.textContent('#history-note');
-    assert.match(note, /\d+ steps? to undo/);
+    if (!(await layers()).path) await page.click('#btn-path');
+    // Asserted after an edit of its own rather than after the test above, so this reads the
+    // note the editor writes for a known change instead of whatever history happens to be left.
+    await page.click('#path-add');
+    await page.waitForFunction(
+      () => /\d+ steps? to undo/.test(document.getElementById('history-note').textContent),
+      undefined, { timeout: 5000 });
+
+    const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
+    await page.keyboard.press(`${mod}+z`);
+    await page.click('#path-close');
   });
 
   test('the save button is never disabled, and saving says so', async () => {
@@ -308,7 +363,8 @@ describe('the editor in a real browser', { skip: unavailable ?? false }, () => {
     const errors = [];
     control.on('pageerror', (err) => errors.push(err.stack ?? String(err)));
     control.on('console', (msg) => {
-      if (msg.type() === 'error' && !/favicon/.test(msg.text())) errors.push(msg.text());
+      const noted = noteConsoleError(msg);
+      if (noted) errors.push(noted);
     });
 
     await control.goto(`${base}/control`, { waitUntil: 'domcontentloaded' });

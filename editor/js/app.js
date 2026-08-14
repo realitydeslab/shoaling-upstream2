@@ -4,6 +4,7 @@
 
 import { Stage } from './scene.js';
 import { PhoneView } from './phoneview.js';
+import { Link } from './link.js';
 import { Scrubber } from './scrubber.js';
 import { Audition } from './audition.js';
 import { centrelineLength, projectToCentreline, pointAtS } from './geom.js';
@@ -29,7 +30,7 @@ const state = {
   fired: new Set(),
 };
 
-let stage, scrubber, audition;
+let stage, scrubber, audition, link;
 // The phone screen. It renders to its own offscreen target and blits into a DOM bezel, which
 // is what keeps it from disturbing the main view's viewport the way the earlier scissored
 // version did. Constructed in boot(), after the stage.
@@ -224,6 +225,17 @@ async function boot() {
   // so it has to be handed over rather than run on a loop of its own.
   phone = new PhoneView(stage);
   stage.attachPhone(phone);
+
+  // The editor joins the control bus as an operator, so the Unity editor can follow this
+  // walk simulation and play the same beats. On the creek this is silent: VPS2 drives the pose
+  // there and the app ignores this channel.
+  link = new Link({
+    onPresence: ({ devices }) => {
+      const pill = $('#link-pill');
+      pill.textContent = devices ? `${devices} phone${devices === 1 ? '' : 's'}` : 'no phone';
+      pill.classList.toggle('off', devices === 0);
+    },
+  });
 
   const fpsEl = $('#fps');
   stage.onFps = (fps) => {
@@ -439,6 +451,21 @@ function setWalker(s, syncScrubber = true) {
 
   phone?.setS(s);
   updateHud(s, armed, winner);
+
+  // Publish where the walker is, so a Unity editor following along stays in step. Heading comes
+  // from the path rather than from the phone panel's look direction: the body follows the route
+  // and only the head turns, and it is the body that decides which beats are near.
+  const cl = state.journey?.site?.centreline;
+  if (link && cl?.length >= 2) {
+    const here = pointAtS(s, cl);
+    const ahead = pointAtS(Math.min(journeyLength(), s + 1.2), cl);
+    link.sendPose({
+      s,
+      position: here,
+      headingRad: Math.atan2(ahead.x - here.x, ahead.z - here.z),
+      slug: state.slug,
+    });
+  }
 
   // Move the listener with the walker so the mix follows the simulated visitor.
   if (audition?.enabled) {

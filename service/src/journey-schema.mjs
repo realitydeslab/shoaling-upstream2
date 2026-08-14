@@ -388,7 +388,11 @@ export function validateJourney(doc) {
     );
   }
 
-  const giveTotal = (doc.beats ?? [])
+  // `?? []` only catches null and undefined, so a truthy non-array — `{}` or a string, which is
+  // exactly what a malformed PUT carries — reached .filter and threw. validateJourney is called
+  // on whatever the editor sends, so that turned a bad request into a 500 instead of the 422
+  // with reasons the client is built to display.
+  const giveTotal = (Array.isArray(doc.beats) ? doc.beats : [])
     .filter((b) => b?.interaction === 'give' && isFiniteNumber(b.givesFish))
     .reduce((sum, b) => sum + b.givesFish, 0);
   if (isPlainObject(doc.shoal) && isFiniteNumber(doc.shoal.startingCount)) {

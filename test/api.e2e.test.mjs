@@ -191,6 +191,18 @@ test('editing after publishing does not change the published revision', async ()
     'the device keeps seeing the published revision until someone publishes again');
 });
 
+test('a structurally wrong journey is a 422 with reasons, never a 500', async () => {
+  // `beats` as an object rather than an array used to crash the validator outright, because the
+  // give-total pass guarded with `?? []` and that does not catch a truthy non-array. The editor
+  // is built to display the reasons in a 422; a 500 gives it nothing to show.
+  for (const beats of [{}, 'one, two', 42]) {
+    const broken = { ...makeJourney(), beats };
+    const { status, body } = await send(`/api/sites/${SLUG}/draft`, 'PUT', broken);
+    assert.equal(status, 422, `beats as ${JSON.stringify(beats)} should be a 422`);
+    assert.ok(body.errors.some((e) => /beats must be an array/.test(e)));
+  }
+});
+
 test('the scan and audio catalogues are served', async () => {
   for (const route of ['/api/scans', '/api/audio']) {
     const { status } = await get(route);

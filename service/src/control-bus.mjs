@@ -118,6 +118,33 @@ export class ControlBus {
   }
 
   /**
+   * Stream a simulated pose from the editor to every device.
+   *
+   * Deliberately NOT a command. A command is a discrete instruction that is scheduled against a
+   * fireAtMs and acknowledged, and the command log is bounded at 200 — a pose arriving twenty
+   * times a second would churn that log every ten seconds, put a lead time on a continuous
+   * signal, and ask every device to acknowledge a stream nobody needs receipts for.
+   *
+   * A pose is state: best-effort, latest wins, no history. It exists so the Unity editor can
+   * follow the browser's walk simulation and play the same beats without anyone standing in a
+   * creek. On device this channel is silent — VPS2 supplies the pose, and the app ignores this.
+   */
+  streamPose(pose) {
+    const message = {
+      type: 'pose',
+      s: pose.s ?? null,
+      position: pose.position ?? null,
+      headingRad: pose.headingRad ?? null,
+      slug: pose.slug ?? null,
+      // The receiver estimates its clock offset against this the same way it does for `pong`.
+      sentAtMs: Date.now(),
+    };
+    this.lastPose = message;
+    this.broadcast(message, { role: 'device' });
+    return message;
+  }
+
+  /**
    * Queue an operator command for the phone.
    * Returns the scheduled command so the operator UI can confirm locally at once — perceived
    * responsiveness has to be decoupled from delivery, because the person pressing and the

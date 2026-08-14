@@ -110,16 +110,14 @@ test('input that is not an object at all is rejected, not thrown at', () => {
   }
 });
 
-test('a beats value that is not an array throws instead of failing validation', () => {
-  // Documenting a bug, not endorsing it. `beats` is checked with Array.isArray and the error is
-  // recorded, but validation carries on and the give-total pass calls .filter on it regardless,
-  // so anything truthy and non-array crashes the validator instead of being reported. The store
-  // calls this on whatever the editor PUTs, so malformed JSON takes out the request rather than
-  // coming back as INVALID_JOURNEY.
-  assert.throws(() => check((j) => { j.beats = {}; }), TypeError);
-  assert.throws(() => check((j) => { j.beats = 'one, two'; }), TypeError);
-
-  // Only the nullish cases reach the intended error.
+test('a beats value that is not an array is reported, not thrown', () => {
+  // This used to throw. `beats` is checked with Array.isArray and the error recorded, but the
+  // give-total pass then guarded only with `?? []`, which catches null and undefined and not a
+  // truthy non-array — so `{}` or a string crashed the validator. validateJourney runs on
+  // whatever the editor PUTs, so that turned a malformed request into a 500 rather than the 422
+  // with reasons the client is built to display.
+  rejects((j) => { j.beats = {}; }, 'beats must be an array');
+  rejects((j) => { j.beats = 'one, two'; }, 'beats must be an array');
   rejects((j) => { j.beats = null; }, 'beats must be an array');
   rejects((j) => { delete j.beats; }, 'beats must be an array');
 });

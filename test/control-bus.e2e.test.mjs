@@ -223,6 +223,55 @@ test('a status report cannot set fields outside the allow-list', async () => {
   assert.equal(state.state.clients, undefined, 'keys outside the allow-list are not merged');
 });
 
+test('the editor streams a pose and the phone receives it', async () => {
+  // This is how the piece is developed: the browser scrubs the walk, and a Unity editor follows
+  // it and plays the same beats through PHASE. On the creek VPS2 supplies the pose instead and
+  // this channel is silent.
+  const device = await connect('device');
+  const editor = await connect('operator');
+
+  editor.socket.send(JSON.stringify({
+    type: 'pose',
+    s: 11.0,
+    position: { x: 1.2, y: -0.6, z: -3.4 },
+    headingRad: 0.87,
+    slug: 'test-creek',
+  }));
+
+  const pose = await until(() => device.of('pose')[0], { label: 'the phone to receive a pose' });
+  assert.equal(pose.s, 11.0);
+  assert.deepEqual(pose.position, { x: 1.2, y: -0.6, z: -3.4 });
+  assert.equal(pose.headingRad, 0.87);
+  assert.ok(pose.sentAtMs, 'carries a server clock, so the follower can estimate its offset');
+});
+
+test('a pose is state, not a command — no scheduling, no acknowledgement', async () => {
+  // A pose arriving twenty times a second must not churn the bounded command log, carry a lead
+  // time, or ask anyone for a receipt.
+  const device = await connect('device');
+  const editor = await connect('operator');
+
+  editor.socket.send(JSON.stringify({ type: 'pose', s: 4.2 }));
+  const pose = await until(() => device.of('pose').find((p) => p.s === 4.2), { label: 'the pose' });
+
+  assert.equal(pose.fireAtMs, undefined, 'a pose is acted on when it arrives, not scheduled');
+  assert.equal(pose.expiresAtMs, undefined);
+  assert.equal(pose.id, undefined, 'nothing to acknowledge means nothing to identify');
+  assert.equal(device.of('command').length, 0, 'it did not travel as a command');
+});
+
+test('only operators may stream a pose', async () => {
+  // A device echoing a pose back would drive every other device from a follower rather than
+  // from the walk.
+  const device = await connect('device');
+  const other = await connect('device');
+  const before = other.of('pose').length;
+
+  device.socket.send(JSON.stringify({ type: 'pose', s: 99 }));
+  await new Promise((r) => setTimeout(r, 250));
+  assert.equal(other.of('pose').length, before, 'a device cannot stream poses');
+});
+
 test('the current state is readable over HTTP as well as over the socket', async () => {
   const res = await fetch(`http://127.0.0.1:${port}/api/control/state`);
   assert.equal(res.status, 200);

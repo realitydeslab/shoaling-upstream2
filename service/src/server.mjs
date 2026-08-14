@@ -359,6 +359,10 @@ wss.on('connection', (socket, req) => {
         // Operators issue commands over the socket too, so the UI has one code path.
         if (role === 'operator') bus.issue(msg);
         break;
+      case 'pose':
+        // The editor's walk simulation, streamed to any device following along at a desk.
+        if (role === 'operator') bus.streamPose(msg);
+        break;
       default:
         bus.send(socket, { type: 'error', message: `unknown message type: ${msg.type}` });
     }
