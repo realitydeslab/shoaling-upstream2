@@ -544,3 +544,32 @@ button.ghost:hover:not(:disabled) { color: var(--ink); background: var(--panel-2
 }
 .fps.warn  { color: #d19a45; }
 .fps.bad   { color: #d4707f; }
+
+/* How much undo is available. Sits with the fps readout because both answer "what is the
+   editor doing right now" rather than "what is in the piece". */
+.history-note {
+  position: absolute;
+  left: 16px;
+  top: 162px;
+  padding: 3px 9px;
+  font: 500 10.5px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.05em;
+  color: #7f8c84;
+  pointer-events: none;
+}
+
+/* A clip row: name, gain, and its own preview button. */
+.clip-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 64px 30px;
+  gap: 6px;
+  align-items: center;
+  margin-top: 5px;
+}
+.clip-play {
+  padding: 0;
+  height: 26px;
+  font-size: 10px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}

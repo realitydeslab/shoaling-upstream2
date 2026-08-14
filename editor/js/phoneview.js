@@ -31,6 +31,15 @@ import * as THREE from 'three';
 // way scene.js places the User camera and app.js places the audio listener. Keep these three
 // in step: at UBC the path sits around y = -0.6 with beats down at y = -1.8, so an offset of
 // zero puts the phone in the gravel and every beat overhead.
+/**
+ * How often the panel redraws, in milliseconds.
+ *
+ * Every redraw costs the main view one frame of wrong splat ordering (see render()), so this is
+ * the dial between a smooth panel and a steady stage. 12 Hz is fast enough to follow a walk and
+ * slow enough that the stage settles between disturbances.
+ */
+const PANEL_INTERVAL_MS = 1000 / 12;
+
 // Phone proportions, so the framing is honest about what fits on screen.
 const ASPECT = 19.5 / 9;
 
@@ -397,7 +406,6 @@ export class PhoneView {
      * size of its canvas. An offscreen target is a self-contained pass at a known size, and the
      * blit afterwards is a flat quad that cannot disturb the camera it did not touch.
      */
-    this.#ensureTarget(rect);
 
     // Authoring gizmos have no business on a visitor's screen.
     const hidden = [this.stage.gizmos, this.stage.axisGroup, this.stage.pathHandles,
@@ -408,25 +416,35 @@ export class PhoneView {
     this.shoal.visible = true;
 
     /**
-     * Drawn through the stage's own SparkRenderer, and drawn FIRST — see Stage.#tick.
+     * Drawn into an offscreen target of our own, and rate-limited.
      *
-     * Spark keeps a single depth sort and LOD selection per SparkRenderer and treats every
-     * render call as a new frame (`renderer.info.render.frame`), so this second pass re-sorts
-     * for the phone camera. Ordering is what makes that harmless: the main view renders after
-     * this one, so its own onBeforeRender runs last and leaves the sort configured for the
-     * camera being authored in.
+     * Spark keeps ONE sorted splat accumulator per SparkRenderer and counts every render call
+     * as a new frame (`renderer.info.render.frame`), so drawing the scan a second time from
+     * this camera re-sorts five million splats for it and leaves the main view showing an
+     * ordering computed for a camera pointing somewhere else. That is the flashing.
      *
-     * Two alternatives were tried and measured on a patch of the main view containing splats,
-     * against sd 0.00 for the panel closed. Suppressing the update for this pass
-     * (`autoUpdate = false`) left sd 34 — the panel and the main view then contend for one
-     * sort. Giving the panel a SparkRenderer of its own was worse, sd 36 with the main view
-     * alternating dark: a second SparkRenderer has no splats registered to it, so its
-     * activeSplats is zero and it blanks the instance count it shares with the stage's.
+     * There is no clean fix available in this version. Spark's per-view sort isolation lives on
+     * the legacy `OldSparkRenderer`/`OldSparkViewpoint` pair; the current `SparkRenderer` the
+     * stage uses exposes no viewpoint API, and a second instance accumulates no splats of its
+     * own because the SplatMesh is registered against the first. Measured attempts:
+     *
+     *   autoUpdate = false for this pass     the two views then contend for one sort   sd 34
+     *   a second SparkRenderer               activeSplats 0, main view alternates dark  sd 36
+     *   reordering the passes                only changes which view is wrong          sd 35
+     *
+     * So the panel is throttled instead. At 12 Hz against 60 it perturbs one frame in five
+     * rather than every frame, which takes the flashing from constant to occasional. The panel
+     * is a placement aid and does not need to be smooth; the view being authored in does.
      */
-    renderer.setRenderTarget(this.target);
-    renderer.clear();
-    renderer.render(this.stage.scene, this.camera);
-    renderer.setRenderTarget(null);
+    const now = performance.now();
+    if (now - (this.lastDraw ?? 0) >= PANEL_INTERVAL_MS) {
+      this.lastDraw = now;
+      this.#ensureTarget(rect);
+      renderer.setRenderTarget(this.target);
+      renderer.clear();
+      renderer.render(this.stage.scene, this.camera);
+      renderer.setRenderTarget(null);
+    }
 
     this.shoal.visible = false;
     hidden.forEach((o, i) => { if (o) o.visible = was[i]; });
@@ -451,7 +469,7 @@ export class PhoneView {
     if (this.target && this.target.width === w && this.target.height === h) return;
     this.target?.dispose();
     // Left in the renderer's working colour space on purpose: three converts to sRGB when the
-    // quad below is drawn to the canvas, and tagging the target sRGB as well converts twice and
+    // quad is drawn to the canvas, and tagging the target sRGB as well converts twice and
     // washes the whole panel out.
     this.target = new THREE.WebGLRenderTarget(w, h, {
       minFilter: THREE.LinearFilter,

@@ -263,3 +263,53 @@ export function buildCameraGizmo(colour, { fov = 58, aspect = 9 / 19.5, depth = 
 
   return g;
 }
+
+/**
+ * A soft bright point, as an additive sprite.
+ *
+ * A small sphere is a poor marker over a photographic scan: it is one more small bright object
+ * among a million, and it competes rather than reads. A glow has no edge to lose against the
+ * foliage and it survives being only a few pixels across, which is what a beat is when the
+ * whole reach is framed.
+ */
+export function glowSprite(colour, { size = 1, intensity = 1 } = {}) {
+  const key = `${colour}`;
+  glowSprite.cache ??= new Map();
+  let tex = glowSprite.cache.get(key);
+  if (!tex) {
+    const D = 128;
+    const c = document.createElement('canvas');
+    c.width = c.height = D;
+    const ctx = c.getContext('2d');
+    const col = new THREE.Color(colour);
+    const rgb = `${Math.round(col.r * 255)}, ${Math.round(col.g * 255)}, ${Math.round(col.b * 255)}`;
+    const g = ctx.createRadialGradient(D / 2, D / 2, 0, D / 2, D / 2, D / 2);
+    // A hot near-white core falling away fast, then a wide soft skirt. A plain linear ramp
+    // reads as a fuzzy blob rather than as a light.
+    g.addColorStop(0.00, 'rgba(255, 255, 255, 1)');
+    g.addColorStop(0.14, `rgba(${rgb}, 0.95)`);
+    g.addColorStop(0.38, `rgba(${rgb}, 0.34)`);
+    g.addColorStop(1.00, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, D, D);
+    tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    // Cached per colour and reused, so whoever disposes a gizmo must leave this alone.
+    tex.userData.shared = true;
+    glowSprite.cache.set(key, tex);
+  }
+
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    // Additive so overlapping markers build up instead of punching holes in each other.
+    blending: THREE.AdditiveBlending,
+    opacity: intensity,
+  }));
+  sprite.scale.setScalar(size);
+  sprite.renderOrder = 11;
+  return sprite;
+}

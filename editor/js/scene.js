@@ -18,7 +18,10 @@ import {
 } from '@sparkjsdev/spark';
 import { pointAtS, centrelineLength, projectToCentreline } from './geom.js';
 import { audibleField } from './audition.js';
-import { buildAvatar, buildCameraGizmo, makeLabel, STATURE } from './figures.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { buildAvatar, buildCameraGizmo, makeLabel, glowSprite, STATURE } from './figures.js';
 
 /**
  * The walking path is stored at chest height, because the phone hangs on a neck mount: the
@@ -456,17 +459,24 @@ export class Stage {
 
     this.centreline.forEach((p, i) => {
       const selected = i === this.selectedPathIndex;
+      const colour = selected ? COLOUR.accent : COLOUR.water;
+
+      // The mesh stays the pick target — the glow behind it is a Sprite and would give a
+      // sloppy, oversized hit area if it were raycast against.
       const handle = new THREE.Mesh(
-        new THREE.SphereGeometry(selected ? 0.45 : 0.34, 16, 12),
-        new THREE.MeshBasicMaterial({
-          color: selected ? COLOUR.accent : COLOUR.water,
-          depthTest: false,
-        })
+        new THREE.SphereGeometry(selected ? 0.30 : 0.22, 18, 14),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })
       );
       handle.position.set(p.x, p.y, p.z);
       handle.renderOrder = 14;
       handle.userData.pathIndex = i;
       this.pathHandles.add(handle);
+
+      // A child of the handle, not a sibling: selectPathPoint() attaches the transform gizmo
+      // via pathHandles.children[index], so one child per path point is load-bearing. It also
+      // means the glow follows the handle through a drag for free. The raycast above is
+      // non-recursive, so the sprite never steals the hit from the mesh.
+      handle.add(glowSprite(colour, { size: selected ? 2.3 : 1.5, intensity: selected ? 1 : 0.8 }));
     });
 
     // Re-attach after a rebuild, or the gizmo points at a discarded mesh.
@@ -728,23 +738,20 @@ export class Stage {
     this.axisGroup.clear();
     if (this.centreline.length < 2) return;
 
-    const pts = this.centreline.map((p) => new THREE.Vector3(p.x, p.y, p.z));
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: COLOUR.water, transparent: true, opacity: 0.85, depthTest: false })
-    );
-    line.renderOrder = 9;
-    this.axisGroup.add(line);
+    // The route the visitor walks, drawn as a thick bright ribbon rather than a hairline. It is
+    // the spine of the piece and everything else is positioned against it, so it should be the
+    // first thing found on the stage, not something you have to hunt for against the foliage.
+    const pts = this.centreline.map((p) => ({ x: p.x, y: p.y, z: p.z }));
+    this.axisGroup.add(this.#fatLine(pts, { colour: COLOUR.water, width: 5.5, opacity: 0.95, order: 9 }));
+    // A soft wide pass underneath, so it holds up against bright sunlit water.
+    this.axisGroup.add(this.#fatLine(pts, { colour: COLOUR.water, width: 13, opacity: 0.16, order: 8 }));
 
     // Metre ticks, so distances are readable without a HUD.
     const total = centrelineLength(this.centreline);
     for (let s = 0; s <= total; s += 5) {
       const p = pointAtS(s, this.centreline);
-      const tick = new THREE.Mesh(
-        new THREE.SphereGeometry(s % 10 === 0 ? 0.14 : 0.08, 8, 6),
-        new THREE.MeshBasicMaterial({ color: COLOUR.water, transparent: true, opacity: 0.6, depthTest: false })
-      );
-      tick.renderOrder = 9;
+      const major = s % 10 === 0;
+      const tick = glowSprite(COLOUR.water, { size: major ? 0.85 : 0.5, intensity: major ? 0.9 : 0.55 });
       tick.position.set(p.x, p.y, p.z);
       this.axisGroup.add(tick);
     }
@@ -766,7 +773,13 @@ export class Stage {
     this.gizmos.traverse((n) => {
       if (n.isMesh || n.isLine || n.isSprite) {
         n.geometry?.dispose?.();
-        for (const m of [n.material].flat()) { m?.map?.dispose?.(); m?.dispose?.(); }
+        for (const m of [n.material].flat()) {
+          // Label textures are built per marker and must go. Glow textures are cached and
+          // shared by every sprite of that colour — disposing one blanks all of them from the
+          // next rebuild onwards.
+          if (!m?.map?.userData?.shared) m?.map?.dispose?.();
+          m?.dispose?.();
+        }
       }
     });
     this.gizmos.clear();
@@ -806,13 +819,19 @@ export class Stage {
       // The core, and a wire shell around it. Two shapes rather than one, because the solid
       // reads at distance and the shell gives it an edge against bright foliage.
       const core = new THREE.Mesh(
-        new THREE.OctahedronGeometry(selected ? 0.34 : 0.24, 0),
-        new THREE.MeshBasicMaterial({ color: colour, depthTest: false })
+        new THREE.OctahedronGeometry(selected ? 0.30 : 0.21, 0),
+        // White at the centre with the interaction colour carried by the glow around it: a
+        // saturated core and a saturated halo of the same hue read as one flat blob.
+        new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })
       );
       core.position.y = y + 0.55;
-      core.renderOrder = 12;
+      core.renderOrder = 13;
       core.userData.beatId = beat.id;
       group.add(core);
+
+      const glow = glowSprite(colour, { size: selected ? 3.4 : 2.2, intensity: selected ? 1 : 0.75 });
+      glow.position.y = core.position.y;
+      group.add(glow);
 
       const shell = new THREE.Mesh(
         new THREE.IcosahedronGeometry(selected ? 0.62 : 0.44, 0),
@@ -834,6 +853,10 @@ export class Stage {
       foot.renderOrder = 10;
       group.add(foot);
 
+      const footGlow = glowSprite(colour, { size: selected ? 1.7 : 1.15, intensity: 0.7 });
+      footGlow.position.y = y + 0.02;
+      group.add(footGlow);
+
       const label = makeLabel(beat.title ?? beat.id, colour);
       const h = selected ? 0.46 : 0.34;
       label.scale.set(h * (label.userData.aspect ?? 3), h, 1);
@@ -843,8 +866,8 @@ export class Stage {
       // Trigger geometry: enter solid, exit dashed. The gap between them is the hysteresis.
       const enter = beat.trigger?.enterRadiusM ?? 0;
       const exit = beat.trigger?.exitRadiusM ?? enter;
-      group.add(this.#ring(enter, colour, selected ? 0.75 : 0.4, y));
-      group.add(this.#ring(exit, colour, selected ? 0.4 : 0.2, y, true));
+      group.add(this.#ring(enter, colour, selected ? 0.95 : 0.6, y, false, selected ? 5 : 3.5));
+      group.add(this.#ring(exit, colour, selected ? 0.6 : 0.32, y, true, selected ? 3.5 : 2.5));
 
       /**
        * The audible half-life, as an expanding pulse.
@@ -859,7 +882,7 @@ export class Stage {
       const field = audibleField(beat);
       if (field) {
         const halo = new THREE.Mesh(
-          new THREE.RingGeometry(0.985, 1.0, 64),
+          new THREE.RingGeometry(0.965, 1.0, 96),
           new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: 0.5,
             side: THREE.DoubleSide, depthTest: false })
         );
@@ -870,9 +893,11 @@ export class Stage {
         this.pulses.push({ mesh: halo, radius: field.half, phase: this.pulses.length * 0.37 });
 
         // The half-life circle held steady, so there is something to measure against while the
-        // pulse is mid-flight, plus the outer edge where the source is culled entirely.
-        group.add(this.#ring(field.half, colour, selected ? 0.5 : 0.26, y + 0.01));
-        group.add(this.#ring(field.reach, colour, selected ? 0.16 : 0.08, y + 0.005, true));
+        // pulse is mid-flight. The full audible reach is deliberately NOT drawn: at 10.6 m
+        // against a 1.3 m half-life it swamped the beat it belonged to and overlapped every
+        // neighbour, which is noise rather than information. The scrubber's armed-zone bars
+        // already answer the overlap question, and answer it better.
+        group.add(this.#ring(field.half, colour, selected ? 0.7 : 0.42, y + 0.01, false, 3));
       }
 
       this.gizmos.add(group);
@@ -919,22 +944,54 @@ export class Stage {
     }
   }
 
-  #ring(radius, colour, opacity, y, dashed = false) {
-    const segments = 96;
+  /**
+   * A line with real thickness, in pixels.
+   *
+   * WebGL ignores LineBasicMaterial.linewidth on every platform that matters — it is always one
+   * pixel — so the path and the trigger rings were a single hairline over a dense scan and
+   * effectively invisible unless you already knew where to look. Line2 draws each segment as an
+   * instanced quad, which costs a little more and can actually be seen.
+   *
+   * LineMaterial needs the drawing-buffer size to convert pixels to clip space, so every
+   * material made here is kept and updated in resize().
+   */
+  #fatLine(points, { colour, width = 3, opacity = 1, dashed = false, order = 10 } = {}) {
+    const flat = [];
+    for (const p of points) flat.push(p.x, p.y, p.z);
+
+    const geo = new LineGeometry();
+    geo.setPositions(flat);
+
+    const mat = new LineMaterial({
+      color: colour,
+      linewidth: width,
+      transparent: true,
+      opacity,
+      depthTest: false,
+      dashed,
+      dashSize: 0.42,
+      gapSize: 0.3,
+    });
+    const { clientWidth: w, clientHeight: h } = this.container;
+    mat.resolution.set(Math.max(1, w), Math.max(1, h));
+
+    const line = new Line2(geo, mat);
+    line.renderOrder = order;
+    line.frustumCulled = false;
+    if (dashed) line.computeLineDistances();
+
+    (this.fatMaterials ??= []).push(mat);
+    return line;
+  }
+
+  #ring(radius, colour, opacity, y, dashed = false, width = 3) {
+    const segments = 128;
     const pts = [];
     for (let i = 0; i <= segments; i += 1) {
       const a = (i / segments) * Math.PI * 2;
-      pts.push(new THREE.Vector3(Math.cos(a) * radius, y, Math.sin(a) * radius));
+      pts.push({ x: Math.cos(a) * radius, y, z: Math.sin(a) * radius });
     }
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    const mat = dashed
-      ? new THREE.LineDashedMaterial({ color: colour, transparent: true, opacity,
-          dashSize: 0.5, gapSize: 0.35, depthTest: false })
-      : new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity, depthTest: false });
-    const line = new THREE.Line(geo, mat);
-    line.renderOrder = 10;
-    if (dashed) line.computeLineDistances();
-    return line;
+    return this.#fatLine(pts, { colour, width, opacity, dashed });
   }
 
   // ---------------------------------------------------------------- input
@@ -990,6 +1047,9 @@ export class Stage {
     const { clientWidth: w, clientHeight: h } = this.container;
     if (w === 0 || h === 0) return;
     this.renderer.setSize(w, h, false);
+    // LineMaterial converts its pixel width using this, so a stale value makes every thick line
+    // the wrong weight after a window resize.
+    for (const mat of this.fatMaterials ?? []) mat.resolution.set(w, h);
     for (const cam of [this.god, this.user]) {
       cam.aspect = w / h;
       cam.updateProjectionMatrix();

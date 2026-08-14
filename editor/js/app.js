@@ -35,6 +35,94 @@ let stage, scrubber, audition;
 // version did. Constructed in boot(), after the stage.
 let phone = null;
 
+/**
+ * Undo history for authored geometry.
+ *
+ * Everything on this stage is positioned by dragging, and a transform gizmo pulled against a
+ * ground plane at a glancing angle can throw a point tens of metres in one movement — the
+ * garden path picked up a control point at x = -34 that way, which turned a 25 m route into
+ * 78 m. Without an undo the only recovery is git, and the draft is written continuously, so by
+ * the time the damage is noticed the good version may be several saves back.
+ *
+ * Snapshots are of the whole authored document rather than of individual operations. It is a
+ * few kilobytes, it cannot get out of step with the edit that produced it, and it means an
+ * operation added later is covered without anyone remembering to write an inverse for it.
+ */
+const history = {
+  past: [],
+  future: [],
+  limit: 80,
+  baseline: null,      // the state as last committed, which is what an undo returns to
+};
+
+function snapshotJourney() {
+  return structuredClone({
+    site: state.journey.site,
+    beats: state.journey.beats,
+    editorFrame: state.journey.editorFrame,
+  });
+}
+
+/**
+ * Record that an edit has just been committed.
+ *
+ * Called after the change, not before: the baseline holds the previous committed state, so
+ * there is no need to hook the start of every drag.
+ */
+function commitHistory(label) {
+  if (!state.journey) return;
+  if (history.baseline) {
+    history.past.push({ label, doc: history.baseline });
+    if (history.past.length > history.limit) history.past.shift();
+  }
+  history.future.length = 0;
+  history.baseline = snapshotJourney();
+  updateHistoryChrome();
+}
+
+function applySnapshot(doc) {
+  state.journey.site = doc.site;
+  state.journey.beats = doc.beats;
+  state.journey.editorFrame = doc.editorFrame;
+  history.baseline = structuredClone(doc);
+
+  stage.setJourney(state.journey);
+  stage.setTrim(state.journey.editorFrame?.trim ?? null);
+  scrubber.setJourney(state.journey);
+  renderRail();
+  renderInspector();
+  renderPathReadout();
+  renderTrimReadout(state.journey.editorFrame?.trim);
+  state.dirty = true;
+  updateChrome();
+  updateHistoryChrome();
+  save();
+}
+
+function undo() {
+  const entry = history.past.pop();
+  if (!entry) { toast('Nothing to undo.'); return; }
+  history.future.push({ label: entry.label, doc: snapshotJourney() });
+  applySnapshot(entry.doc);
+  toast(`Undid ${entry.label}.`);
+}
+
+function redo() {
+  const entry = history.future.pop();
+  if (!entry) { toast('Nothing to redo.'); return; }
+  history.past.push({ label: entry.label, doc: snapshotJourney() });
+  applySnapshot(entry.doc);
+  toast(`Redid ${entry.label}.`);
+}
+
+function updateHistoryChrome() {
+  const el = $('#history-note');
+  if (!el) return;
+  el.textContent = history.past.length
+    ? `${history.past.length} step${history.past.length === 1 ? '' : 's'} to undo`
+    : '';
+}
+
 // ------------------------------------------------------------------ api
 
 async function api(path, options = {}) {
@@ -84,7 +172,7 @@ async function boot() {
       Object.assign(trim, box, { enabled: trim.enabled });
       renderTrimReadout(trim);
       // `live` fires continuously through a drag; the drag ending is the moment worth writing.
-      if (!opts?.live) persistTrim();
+      if (!opts?.live) { persistTrim(); commitHistory('changing the trim box'); }
     },
 
     // The walking path. Independent of the beats: moving the route never moves a beat, it
@@ -96,7 +184,7 @@ async function boot() {
       }
       scrubber.setJourney(state.journey);
       renderPathReadout();
-      if (!opts?.live) { renderRail(); persistPath(); }
+      if (!opts?.live) { renderRail(); persistPath(); commitHistory('moving the path'); }
     },
     onPathSelect: () => renderPathReadout(),
 
@@ -117,6 +205,7 @@ async function boot() {
         renderInspector();
         updateChrome();
         save();          // a moved beat is a complete, valid edit — keep it
+        commitHistory(`moving "${beat.title ?? beat.id}"`);
       }
     },
   });
@@ -178,6 +267,13 @@ async function loadSite(slug) {
   renderRail();
   renderInspector();
   updateChrome();
+
+  // Switching site starts a fresh history: undoing across a site boundary would write one
+  // site's geometry into another's draft.
+  history.past.length = 0;
+  history.future.length = 0;
+  history.baseline = snapshotJourney();
+  updateHistoryChrome();
 
   await loadScan();
 
@@ -265,9 +361,6 @@ function renderAudioNote() {
 
 function setPlaying(playing) {
   state.playing = playing;
-  // The frustum answers "what is on her screen right now", which is only a live question while
-  // she is moving; parked, it is one more wireframe over the scan.
-  stage.setCameraGizmoVisible(playing);
   $('#t-play').textContent = playing ? '❚❚' : '▶';
   $('#t-play').setAttribute('aria-pressed', String(playing));
   if (playing) {
@@ -458,6 +551,7 @@ function currentBeat() {
 // ------------------------------------------------------------------ inspector
 
 function renderInspector() {
+  stopPreview();
   const beat = currentBeat();
   const body = $('#insp-body');
 
@@ -537,15 +631,17 @@ function renderInspector() {
       <label>Audio layers</label>
       <span class="hint">Distance is carried by content, not gain: at 5–20 m the whole level budget is about 12 dB, which reads as “slightly louder” rather than arrival. Three recordings, not three volumes.</span>
       ${['far', 'mid', 'intimate'].map((layer) => `
-        <div style="display:grid;grid-template-columns:56px 1fr 64px;gap:6px;align-items:center;margin-top:5px">
+        <div class="clip-row">
           <span class="axis-label" style="text-align:left">${layer}</span>
           <input id="f-clip-${layer}" type="text" value="${escapeAttr(beat.audio?.[layer]?.clipId ?? '')}" placeholder="clip id">
           <input id="f-gain-${layer}" type="number" step="0.5" value="${beat.audio?.[layer]?.gainDb ?? ''}" placeholder="dB">
+          <button class="clip-play" data-for="f-clip-${layer}" title="Preview this recording on its own">▶</button>
         </div>`).join('')}
-      <div style="display:grid;grid-template-columns:56px 1fr 64px;gap:6px;align-items:center;margin-top:8px">
+      <div class="clip-row" style="margin-top:8px">
         <span class="axis-label" style="text-align:left">done</span>
         <input id="f-clip-completion" type="text" value="${escapeAttr(beat.audio?.completion?.clipId ?? '')}" placeholder="completion clip">
         <input id="f-gain-completion" type="number" step="0.5" value="${beat.audio?.completion?.gainDb ?? ''}" placeholder="dB">
+        <button class="clip-play" data-for="f-clip-completion" title="Preview this recording on its own">▶</button>
       </div>
     </div>
 
@@ -559,7 +655,52 @@ function renderInspector() {
   bindInspector(beat);
 }
 
+/**
+ * Audition a single clip, flat.
+ *
+ * Deliberately not routed through Resonance: this answers "is this the right recording",
+ * which is a question about the material itself. The spatialised version — the crossfade
+ * between far, mid and intimate as you approach — is what the walk simulation is for, and
+ * hearing a clip pre-panned and rolled off tells you very little about whether it is the
+ * right take.
+ */
+const preview = { el: null, button: null };
+
+function stopPreview() {
+  preview.el?.pause();
+  if (preview.button) preview.button.textContent = '▶';
+  preview.el = null;
+  preview.button = null;
+}
+
+function togglePreview(button) {
+  const input = $(`#${button.dataset.for}`);
+  const clipId = input?.value.trim();
+  if (!clipId) { toast('No clip assigned to that layer.', true); return; }
+
+  const wasPlaying = preview.button === button;
+  stopPreview();
+  if (wasPlaying) return;          // pressing the playing button is a pause
+
+  const url = clipUrl(clipId);
+  if (!url) { toast(`No packaged file for "${clipId}".`, true); return; }
+
+  const el = new Audio(url);
+  el.addEventListener('ended', stopPreview);
+  el.addEventListener('error', () => { toast(`Could not play "${clipId}".`, true); stopPreview(); });
+  el.play().then(() => {
+    preview.el = el;
+    preview.button = button;
+    button.textContent = '❚❚';
+  }).catch(() => toast('The browser blocked playback — click the page first.', true));
+}
+
 function bindInspector(beat) {
+  // Rebound on every inspector render, so the buttons are always the live ones.
+  for (const button of document.querySelectorAll('.clip-play')) {
+    button.addEventListener('click', () => togglePreview(button));
+  }
+
   const on = (id, event, fn) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(event, fn);
@@ -666,6 +807,9 @@ function move(beat, dir) {
   state.dirty = true;
   touch({ rail: true, inspector: true });
   save();
+  // Auto replaces the entire route in one press, which makes it the most destructive control
+  // in the editor. `before` was taken on entry so the undo returns the path that was there.
+  if (before) { history.baseline = before; commitHistory('rebuilding the path automatically'); }
 }
 
 /** One place that marks the document dirty and refreshes whatever needs it. */
@@ -729,6 +873,7 @@ function persistPath() {
  *    end, that error is the entire elevation change of the piece.
  */
 function autoPath() {
+  const before = state.journey ? snapshotJourney() : null;
   const beats = state.journey?.beats ?? [];
   if (beats.length < 2) { toast('Need at least two beats to route a path.', true); return; }
 
@@ -948,6 +1093,10 @@ function applyLayers() {
   stage.setLayerVisible('trim', L.trim);
   stage.setSplatVisible(L.scan);
   phone?.setEnabled(L.phone);
+  // The frustum is the panel's explanation: it shows where that picture is taken from. So it
+  // follows the panel, not playback — parked is exactly when you want to check what the phone
+  // would be pointing at.
+  stage.setCameraGizmoVisible(L.phone);
 
   for (const [key, id] of [['beats', 'btn-beats'], ['path', 'btn-path'], ['trim', 'btn-trim'],
                            ['scan', 'btn-splat'], ['phone', 'btn-phone']]) {
@@ -1005,8 +1154,12 @@ function updateChrome() {
   pill.textContent = calibrated ? 'calibrated' : 'uncalibrated';
   pill.className = `pill ${calibrated ? 'ok' : 'warn'}`;
 
+  // Never disabled: an explicit save is also how you confirm what is on disk matches what is
+  // on screen, which is worth being able to do at any moment. The dot marks unsaved work.
   $('#btn-save').textContent = state.dirty ? 'Save draft •' : 'Save draft';
-  $('#btn-save').disabled = !state.dirty;
+  $('#btn-save').title = state.dirty
+    ? 'Unsaved changes — write them to the draft'
+    : 'Everything is saved. Press to write the draft again anyway.';
 }
 
 let validateTimer;
@@ -1074,6 +1227,7 @@ function bindToolbar() {
     stage.selectPathPoint(at + 1);
     renderPathReadout();
     persistPath();
+    commitHistory('adding a path point');
   });
 
   $('#path-del').addEventListener('click', () => {
@@ -1086,6 +1240,7 @@ function bindToolbar() {
     stage.selectPathPoint(Math.min(i, pts.length - 1));
     renderPathReadout();
     persistPath();
+    commitHistory('deleting a path point');
   });
 
   $('#trim-close').addEventListener('click', () => {
@@ -1139,12 +1294,21 @@ function bindToolbar() {
   $('#q-fast').addEventListener('click', () => setQuality('fast'));
 
   $('#btn-add').addEventListener('click', addBeat);
-  $('#btn-save').addEventListener('click', save);
+  $('#btn-save').addEventListener('click', () => save({ force: true }));
   $('#btn-publish').addEventListener('click', publish);
 
   window.addEventListener('keydown', (e) => {
-    if (e.target.matches('input, textarea, select')) return;
+    // Optional call: a keydown dispatched at window has no matches(), and throwing here would
+    // silently swallow every shortcut below it.
+    if (e.target?.matches?.('input, textarea, select')) return;
     if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+    // Undo/redo. Shift+Z redoes on both platforms; Ctrl+Y as well, for Windows habits.
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
     if (e.key === ' ') { e.preventDefault(); setPlaying(!state.playing); }
     // Gizmo modes while the trim panel is open; otherwise g/u switch camera.
     if (!$('#trim-panel').hidden) {
@@ -1223,8 +1387,16 @@ function uniqueId(prefix, taken) {
   return id;
 }
 
-async function save() {
-  if (!state.dirty) return;
+/**
+ * Write the draft.
+ *
+ * `force` is what the Save draft button passes. Auto-save skips a clean document because it
+ * runs after every drag and there is no point rewriting an unchanged file, but pressing the
+ * button and having nothing happen — no save, no message — reads as the editor being broken.
+ * An explicit save always writes and always says so.
+ */
+async function save({ force = false } = {}) {
+  if (!state.dirty && !force) return;
   try {
     const res = await api(`/api/sites/${state.slug}/draft`, { method: 'PUT', body: state.journey });
     state.dirty = false;
