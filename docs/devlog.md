@@ -51,6 +51,21 @@ with the stage toolbar and the panels.
 
 **Trim at runtime, never in the LOD build.** See below.
 
+**Gizmos must be strong.** Thick lines and bright points. WebGL ignores
+`LineBasicMaterial.linewidth` on every platform that matters, so anything that needs to be seen
+over a photographic scan uses `Line2` fat lines and additive glow sprites.
+
+**The path is at chest height — 1.40 m.** The phone hangs on a neck mount, so the walking path
+IS the camera track. Nothing adds an eye height to it anywhere. Three files once each held their
+own idea of that offset and disagreed.
+
+**The visitor is 1.70 m.** Drawn as a scale figure on the stage, with the phone at her sternum.
+Two heights, and they are not the same one.
+
+**Ctrl+Z exists and must keep working.** Every authored value on this stage is set by dragging,
+and a gizmo pulled against a ground plane at a glancing angle can throw a point tens of metres
+in one movement.
+
 ---
 
 ## Things that destroyed work, and the guards now in place
@@ -92,6 +107,35 @@ box. Caught because the readout showed `size 200000.00`.
 
 ---
 
+### The phone panel makes the scan flash, and this is not yet solved
+
+The phone-screen panel draws the same splat scene from a second camera. Doing so makes the main
+view flash. Measured on the running stage, as brightness variance over a fixed patch that
+contains splats: **sd 0.00 with the scan hidden, sd 0.00 with the panel closed, sd ~34 with it
+open.** So it is the splats, and it is the panel that provokes them.
+
+The cause is in spark: a `SparkRenderer` keeps ONE sorted accumulator, and counts a frame as
+`renderer.info.render.frame`, which increments on **every render call** rather than once per
+animation frame. The second pass therefore reads as a new frame and re-sorts five million splats
+for the phone camera; the main view then draws with an ordering computed for a camera pointing
+somewhere else.
+
+Four approaches were tried and measured. None worked:
+
+| approach | result |
+|---|---|
+| `spark.autoUpdate = false` around the phone pass | sd 34 — the two views contend for one sort |
+| a second `SparkRenderer` with its own target | sd 36, main view alternating dark: no splats are registered against it, so `activeSplats` is 0 and it blanks the shared instance count |
+| rendering the phone pass first, blitting after | only changes which view is wrong |
+| throttling the panel to 12 Hz | sd 37 — the disturbance persists between draws |
+
+`preUpdate` is already `true` by default, so setting it changes nothing. Spark's per-view sort
+isolation (`SparkViewpoint`, `spark.newViewpoint()`) exists only on the **legacy**
+`OldSparkRenderer`; the current `SparkRenderer` the stage uses has no viewpoint API.
+
+**The remaining option is to stop drawing the scan in the panel** and keep only the sketch
+visuals. That makes the stage steady and costs the scan preview in the bezel.
+
 ## Non-obvious technical facts
 
 Each of these cost a debugging cycle. They are also in `docs/splat-pipeline-findings.md`.
@@ -124,6 +168,25 @@ destination makes it read that as a second input file and panic.
 `GetInstanceID` into hard errors and Burst 1.8.17, Input System 1.11.2 and 1.14.2 all fail
 against it. The project is on **6000.3.21f1 (6.3 LTS)**, supported to December 2027. NSDK only
 requires Unity 2021.3.
+
+**A `CanvasTexture` on a Sprite needs `flipY` left at its default**, and needs
+`needsUpdate = true` after any post-construction change to `colorSpace` or `minFilter`. Setting
+`flipY = false` renders every label upside down. Checked on the running stage, not reasoned
+about — the two conventions are easy to talk yourself into either way round.
+
+**A view frustum attached to the walker points along +Z, not -Z.** Three.js cameras look down
+-Z, but the walker group is turned with `atan2(dx, dz)`, which maps +Z onto the direction of
+travel. Building the cone to camera convention points it back the way she came.
+
+**Path handles are attached to the transform gizmo by `pathHandles.children[index]`.** Anything
+added per path point must be a CHILD of its handle, never a sibling, or every index shifts.
+
+**Glow textures are cached and shared per colour.** A gizmo rebuild that disposes `material.map`
+indiscriminately blanks every marker from then on. Shared textures are marked
+`texture.userData.shared`.
+
+**`e.target.matches()` throws for events dispatched at `window`**, which silently swallows every
+keyboard shortcut after it in the handler.
 
 **Unity 6.x moved `PlaybackEngines` outside `Unity.app`.** Checking
 `Unity.app/Contents/PlaybackEngines/iOSSupport` gives a false negative on every installed
@@ -158,6 +221,28 @@ other.
 
 ---
 
+## Tests
+
+`npm test` — 122 and counting, Node's built-in runner, no dependencies.
+
+```
+test/geometry.test.mjs        centreline maths, run against BOTH implementations
+test/journey-store.test.mjs   the store, where authored work can be lost
+test/journey-schema.test.mjs  the validator, including what it does not enforce
+test/audible-field.test.mjs   the half-life the editor draws
+test/audio-catalogue.test.mjs every clip resolves to real audio
+test/api.e2e.test.mjs         real server, real port
+test/control-bus.e2e.test.mjs real sockets, operator and device
+test/browser.e2e.test.mjs     Playwright; skips cleanly when absent
+```
+
+The service takes `PORT=0` and `JOURNEY_DIR` so a suite never touches the artist's journeys.
+
+**The projection maths exists twice** — `service/src/journey-schema.mjs` and
+`editor/js/geom.js` — and every geometry case runs against both. If they drift, the scrubber
+shows a beat arming where the device will never fire it, and nothing reveals that until someone
+is standing in a creek.
+
 ## Still open
 
 - **UBC garden splat asset is not "Set to production"** in the Niantic portal. Device
@@ -166,9 +251,9 @@ other.
   straight line along the scan's long axis. The creek runs from the downstream end to a
   waterfall; the Path tool and its Auto button exist to fix this, but it needs someone who can
   recognise the waterfall in the scan.
-- **Two ambience WAVs are missing** — `Tree creek waterplants 1/2` exceed the 10 MB Drive
-  download limit and need fetching by hand into `data/audio/source/`, then
-  `tools/package-audio.sh`.
+- ~~Two ambience WAVs are missing~~ **Done.** Both are local and packaged; "The tree" had no
+  audio at all before, since all three of its layers pointed at a clip with no packaged file.
+  Audio stays gitignored, so the Berkeley coauthor obtains it from the Drive folder, not here.
 - **The three distance layers are derived, not recorded.** `package-audio.sh` low-passes a
   single take to stand in for a distant one. Recording each source at three real distances is
   the largest piece of audio work left.
