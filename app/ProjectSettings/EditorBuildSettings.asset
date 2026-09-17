@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/ShoalingUpstream/Scenes/AR.unity
+    guid: 1481300f34ca3455394ca66ab9959ea0
+  - enabled: 1
     path: Assets/ShoalingUpstream/Scenes/Simulation.unity
     guid: f3a7cbc9cbfb34278a31250cc250d13a
   m_configObjects:
@@ -14,5 +17,6 @@ EditorBuildSettings:
     UnityEditor.XR.ARCore.ARCoreSettings: {fileID: 11400000, guid: 5cdcb44834efb42fe823d8b1c2442570, type: 2}
     UnityEditor.XR.ARKit.ARKitSettings: {fileID: 11400000, guid: 148425bcd98854b49b5a3b2c8a8e89c3, type: 2}
     com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: 587ea0cb2b23a44dfa0343632a0437e9, type: 2}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: ff0fe9f8607a04bbd91a9e5ee8ee6284, type: 2}
     com.unity.xr.openxr.settings4: {fileID: 11400000, guid: a6017fb1830604dce86e5d5e7db3b518, type: 2}
   m_UseUCBPForAssetBundles: 0

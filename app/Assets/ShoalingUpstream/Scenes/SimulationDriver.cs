@@ -29,11 +29,378 @@ namespace ShoalingUpstream.Simulation
     [AddComponentMenu("Shoaling Upstream/Simulation Driver")]
     public sealed class SimulationDriver : MonoBehaviour
     {
+        /// <summary>Spawn: plants copies of a Timeline-driven object and plays them. ReactFlock:
+        /// reaches into whatever an earlier Spawn beat left standing and animates it in place —
+        /// there is nothing here for a Timeline to be bound to, since the target list is only
+        /// known at fire time. SwimToEye: reaches into a flock left wherever an earlier beat
+        /// planted it — real-world coordinates the operator has since walked away from — and
+        /// carries it to wherever the eye is aimed now. Appear: plants copies of a plain
+        /// prefab and plays whatever Legacy Animation clip it already defaults to — for
+        /// something that just shows up and does its own thing, with no Timeline and no fall.
+        /// EatAndGrow: destroys one flock outright and grows another in place, no swap, no
+        /// shake — for "that disappeared, and these got bigger because of it". PlayClip: reaches
+        /// into an already-standing flock (typically one Appear planted) and plays a clip or
+        /// Animator state on it in place — no spawn, no destroy, no re-registration — for a
+        /// second gesture on something already on screen, like the heron lowering its head.
+        /// Despawn: destroys a whole flock outright and nothing else — for a beat that just
+        /// clears something off screen, no growth or hand-off involved. Rotate: turns a whole
+        /// flock some number of degrees around world Y, instantly, and nothing else — unlike
+        /// PlayClip's own RotateYDegrees this does not touch any clip, so an already-looping
+        /// animation (a fish's own swim loop) keeps looping through the turn instead of being
+        /// switched to a one-shot clip and left frozen once it finishes. Jump: every member of a
+        /// flock leaps up and lands back where it started, independently staggered in both when
+        /// it starts and how high it goes. Cull: keeps a random handful of a flock's members and
+        /// fades every other one to nothing over time — the survivors stay registered under
+        /// this beat's own id, the same handoff every other flock-consuming beat uses. Stunt: the
+        /// first member of a flock only — tilts its Rotation X to a target value, speeds up
+        /// whatever animation is already playing on it for a while, then reverses both.</summary>
+        public enum SceneTriggerKind
+        {
+            Spawn, ReactFlock, SwimToEye, Appear, EatAndGrow, PlayClip, Despawn, Rotate, Jump, Cull, Stunt, LieDownFade,
+        }
+
+        /// <summary>One step of a PlayClip trigger's sequence.</summary>
+        [Serializable]
+        public struct ClipStep
+        {
+            [Tooltip("Clip or Animator state name to play.")]
+            public string ClipName;
+
+            [Tooltip("Pause, in seconds, after the previous step's clip finishes and before this "
+                     + "one starts. Ignored on the first step.")]
+            public float DelaySeconds;
+
+            [Tooltip("Turns the member this many degrees around world Y, instantly, right before "
+                     + "this step's clip starts — for a clip whose own baked pose always resets "
+                     + "facing to the same direction (e.g. a repeated clip that would otherwise "
+                     + "snap back to its first playthrough's facing). Only applied to a member "
+                     + "that actually has this step's clip. 0 leaves it untouched.")]
+            public float RotateYDegrees;
+
+            [Tooltip("Nudges the member this many metres toward screen-left, instantly, at the "
+                     + "same moment as RotateYDegrees — compensates for a turn's pivot not "
+                     + "sitting exactly on the model's feet, so its feet land back where the "
+                     + "previous clip actually left them instead of drifting sideways. Only "
+                     + "applied to a member that actually has this step's clip. 0 leaves it "
+                     + "untouched.")]
+            public float NudgeLeftM;
+
+            [Tooltip("Nudges the member this many metres toward screen-left, eased smoothly over "
+                     + "THIS step's own clip duration rather than snapped all at once — for a "
+                     + "clip whose own baked rotation (e.g. the heron's \"Turn\") doesn't pivot "
+                     + "exactly on the model's feet, so easing the correction in step with the "
+                     + "clip reads as turning in place instead of drifting sideways and then "
+                     + "snapping back once the NEXT step's own NudgeLeftM fires. Only applied to a "
+                     + "member that actually has this step's clip. 0 leaves it untouched.")]
+            public float NudgeLeftDuringM;
+        }
+
+        [Serializable]
+        public struct SceneTrigger
+        {
+            public string BeatId;
+            public SceneTriggerKind Kind;
+
+            [Tooltip("Spawn only: the inactive template each copy is cloned from — a child of the "
+                     + "anchor that EggFallIntoPlace eases forward on spawn (see SpawnFallDistanceM "
+                     + "/ SpawnFallDurationSeconds), the same way Appear's own Template is cloned "
+                     + "and played.")]
+            public Transform FallTemplate;
+
+            [Tooltip("Off: planted level, at eye height, in front of wherever the operator is "
+                     + "facing — for a scene meant to be walked up to. On: planted along the "
+                     + "device's real aim, pitch included, and turned to face the same way — for "
+                     + "a scene meant to be looked AT, like something dropped when the device is "
+                     + "pointed at the ground.")]
+            public bool FollowCameraPitch;
+
+            [Tooltip("How many copies fire each time this beat does. 1 (or 0) just plays "
+                     + "FallTemplate above; more clone it, so one template can stand for a whole "
+                     + "flock rather than each copy needing its own authored fall.")]
+            public int Count;
+
+            [Tooltip("Seconds between one copy starting and the next, so a flock does not fall "
+                     + "in lock-step.")]
+            public float StaggerSeconds;
+
+            [Tooltip("Random horizontal spread, in metres, applied to each copy around the same "
+                     + "planted point — a flock scatters instead of stacking exactly.")]
+            public float ScatterRadiusM;
+
+            [Tooltip("Spawn only: plants the anchor directly under the eye's own X/Z instead of "
+                     + "SceneTriggerDistanceM out in front of it. For a beat like the fish egg "
+                     + "whose own settle logic (see SnapEggAnchorToFloorWhenSettled) already pulls "
+                     + "the final resting spot back to wherever the anchor started, in X and Z, "
+                     + "regardless of whatever EggFallIntoPlace's own scripted fall does in "
+                     + "between — so this is what actually controls where it lands, not a "
+                     + "cosmetic starting nudge.")]
+            public bool SpawnUnderEye;
+
+            [Tooltip("Spawn only: how far, along FallTemplate's own local Z, EggFallIntoPlace "
+                     + "eases each freshly spawned copy before it settles — a small scripted fall "
+                     + "rather than a hand-authored Timeline clip, so there is no external asset "
+                     + "for this to go missing. SnapEggAnchorToFloorWhenSettled pulls the settled "
+                     + "X/Z back to the anchor's own spot regardless, so this mostly just reads as "
+                     + "a brief \"drop\" motion, not the actual landing spot.")]
+            public float SpawnFallDistanceM;
+
+            [Tooltip("Spawn only: how long that scripted fall takes.")]
+            public float SpawnFallDurationSeconds;
+
+            // --- ReactFlock only ------------------------------------------------
+
+            [Tooltip("ReactFlock only: the Spawn beat whose still-standing copies this reaches "
+                     + "into. That flock is consumed — a later Spawn press starts a fresh one.")]
+            public string TargetBeatId;
+
+            [Tooltip("ReactFlock only: how long the shake-and-grow plays before each one either "
+                     + "becomes FishPrefab or, with none assigned yet, just settles.")]
+            public float HatchDurationSeconds;
+
+            [Tooltip("ReactFlock only: how much bigger each one ends up — 0.5 means 150% of "
+                     + "whatever size it was when the beat fired.")]
+            public float GrowMultiplier;
+
+            [Tooltip("ReactFlock only: peak trembling distance, in metres, while it grows.")]
+            public float ShakeAmplitudeM;
+
+            [Tooltip("ReactFlock only: what each one becomes when the duration ends. Left "
+                     + "unassigned, it grows and settles in place instead — a stand-in until the "
+                     + "real model exists.")]
+            public GameObject FishPrefab;
+
+            [Tooltip("ReactFlock only: the Legacy clip FishPrefab loops once swapped in. Left "
+                     + "empty, falls back to \"Swim\" — every fish before Rainbow Trout shares "
+                     + "that name; Rainbow Trout's own clip is \"Trout_Swim\".")]
+            public string FishSwimClipName;
+
+            [Tooltip("ReactFlock only: once FishPrefab exists, slowly eases it away from the "
+                     + "whole flock's own centroid (its position right after hatching, before "
+                     + "any spread) until its distance from that centroid is this many times what "
+                     + "it started at — 5 spreads the flock out to 5x its post-hatch spacing. "
+                     + "Additive via the same swim-offset FishDrift's own wobble rides on top of, "
+                     + "so the drift keeps going the whole time this plays out. 0 or 1 leaves "
+                     + "every member exactly where it hatched.")]
+            public float SpreadMultiplier;
+
+            [Tooltip("ReactFlock + SpreadMultiplier only: how long the slow spread-apart takes.")]
+            public float SpreadDurationSeconds;
+
+            [Tooltip("SwimToEye: how long the journey to the eye takes, start to arrival. "
+                     + "EatAndGrow: how long the closest member of TargetBeatId's flock takes to "
+                     + "swim toward ConsumeTargetBeatId's own member before it is eaten.")]
+            public float SwimDurationSeconds;
+
+            [Tooltip("SwimToEye only: how far in front of the eye it arrives — its own distance, "
+                     + "not SceneTriggerDistanceM, so a Spawn beat's placement can stay close "
+                     + "while a flock arriving here lands somewhere easier to work in front of.")]
+            public float SwimDestinationDistanceM;
+
+            [Tooltip("SwimToEye only: random spread, in metres, applied around the shared "
+                     + "destination in the eye's own right/up — so the flock arrives spread out "
+                     + "instead of piled on one point, while staying within frame.")]
+            public float SwimScatterRadiusM;
+
+            [Tooltip("Appear only: the inactive template each copy is cloned from. Placed and "
+                     + "scattered the same way Spawn's FallTemplate is, but played as a plain "
+                     + "Legacy Animation clip rather than eased through a scripted fall.")]
+            public GameObject Template;
+
+            [Tooltip("Appear only: a fixed, deliberate offset from the planted point, in the "
+                     + "eye's own right/up — x positive is toward screen-right, y positive is "
+                     + "toward screen-top. Unlike ScatterRadiusM this is not random: it is how "
+                     + "two Appear triggers on the same beat land in different corners of frame "
+                     + "instead of on top of each other. Ignored when UseWorldPosition is set.")]
+            public Vector2 AppearOffsetM;
+
+            [Tooltip("Appear only: plants this copy at a FIXED WORLD position instead of "
+                     + "camera-relative — breaks from every other trigger's wizard-of-oz "
+                     + "placement (there is no VPS fix to plant against, so everything else is "
+                     + "placed wherever the operator currently has the device pointed), so use "
+                     + "only when a beat genuinely should not follow the device. AppearOffsetM, "
+                     + "ScatterRadiusM, FollowCameraPitch and SceneTriggerDistanceM are all "
+                     + "ignored when this is set.")]
+            public bool UseWorldPosition;
+
+            [Tooltip("Appear only: the fixed world position used when UseWorldPosition is set.")]
+            public Vector3 WorldPosition;
+
+            [Tooltip("Appear only: instead of UseWorldPosition's fixed point or the default "
+                     + "eye-relative placement, plants this copy relative to the first living "
+                     + "member of this OTHER beat's own flock (e.g. the fry, so the heron can "
+                     + "follow wherever they actually ended up) — see AnchorOffsetM for how the "
+                     + "offset itself is expressed. Takes priority over the eye-relative default; "
+                     + "ignored when UseWorldPosition is also set. Left empty, placement falls "
+                     + "back to that default.")]
+            public string AnchorBeatId;
+
+            [Tooltip("Appear + AnchorBeatId only: offset from the anchor's own position — x "
+                     + "toward its head, y world-vertical, z toward its right side. Every fish "
+                     + "(and every Appear template) spawns at identity rotation and is built to "
+                     + "visually face world Vector3.left (see HatchOne's own comment on why "
+                     + "identity, not the anchor's actual rotation), so \"head\" and \"right\" "
+                     + "here are that same fixed pair of world directions, not read off the "
+                     + "anchor's Transform.")]
+            public Vector3 AnchorOffsetM;
+
+            [Tooltip("Appear only: which clip or Animator state to loop — works for either a "
+                     + "Legacy Animation or a Mecanim Animator, since a clone may carry either (or "
+                     + "several, one per child, as with the nest's three babies). Left empty on a "
+                     + "Legacy clip, it just calls Play() with no name, i.e. whatever the importer "
+                     + "picked as the default — fine for a model with exactly one clip, but worth "
+                     + "naming explicitly for one with several. An Animator needs a name "
+                     + "regardless.")]
+            public string AppearClipName;
+
+            [Tooltip("Appear and PlayClip: playback speed applied to every Legacy Animation or "
+                     + "Animator found (there can be more than one target, e.g. the nest's three "
+                     + "babies, or PlayClip's own ClipSequence). Left at 0, playback runs at each "
+                     + "clip's own normal speed.")]
+            public float AppearClipSpeed;
+
+            [Tooltip("PlayClip only: the sequence to play, in order, on every member of "
+                     + "TargetBeatId's flock — e.g. the heron lowering its head, pausing, then "
+                     + "turning. Each step's DelaySeconds is a pause after the PREVIOUS step's own "
+                     + "clip finishes (ignored on the first step) before that step starts.")]
+            public ClipStep[] ClipSequence;
+
+            [Tooltip("PlayClip only: an optional beat whose flock holds a single fish to feed to "
+                     + "TargetBeatId's Animation-bearing member (the heron, not the nest) — it "
+                     + "swims to FishFollowBoneName, turns to face up on arrival, tracks that "
+                     + "bone every frame, and disappears at the bone's own lowest point once "
+                     + "FishDisappearAfterSeconds have passed. Left empty, no fish behaviour "
+                     + "runs.")]
+            public string FishSourceBeatId;
+
+            [Tooltip("PlayClip + FishSourceBeatId only: name of the bone/child transform on the "
+                     + "target member the fish swims to and then tracks (e.g. the heron's "
+                     + "beak-tip bone).")]
+            public string FishFollowBoneName;
+
+            [Tooltip("PlayClip + FishSourceBeatId only: an offset from FishFollowBoneName, in "
+                     + "that bone's own local space, for when the bone itself sits a bit short of "
+                     + "where the fish should actually end up (e.g. the beak-tip bone reading "
+                     + "closer to the eye than the mouth).")]
+            public Vector3 FishFollowLocalOffset;
+
+            [Tooltip("PlayClip + FishSourceBeatId only: how long the fish takes to swim to "
+                     + "FishFollowBoneName before it starts tracking it every frame.")]
+            public float FishSwimDurationSeconds;
+
+            [Tooltip("PlayClip + FishSourceBeatId only: seconds after this beat fires before the "
+                     + "clip that should end with the fish being eaten begins (e.g. the second "
+                     + "\"Lower Head\") — timed to that ClipSequence step's own start, not to the "
+                     + "fish's actual disappearance. From that point the fish keeps tracking "
+                     + "FishFollowBoneName and disappears at its own lowest point afterward, "
+                     + "read at runtime rather than guessed as a fraction of the clip's length.")]
+            public float FishDisappearAfterSeconds;
+
+            [Tooltip("EatAndGrow only: the flock destroyed outright. TargetBeatId is the one "
+                     + "grown in place instead — GrowMultiplier and HatchDurationSeconds do "
+                     + "double duty here as the grow amount and how long it takes.")]
+            public string ConsumeTargetBeatId;
+
+            [Tooltip("EatAndGrow only: seconds from this beat firing until ConsumeTargetBeatId's "
+                     + "flock is actually destroyed — the closest TargetBeatId member spends this "
+                     + "time swimming toward it first (see SwimDurationSeconds).")]
+            public float EatDelaySeconds;
+
+            [Tooltip("EatAndGrow only: seconds after ConsumeTargetBeatId's flock is destroyed "
+                     + "before TargetBeatId's flock starts growing.")]
+            public float GrowDelaySeconds;
+
+            [Tooltip("Rotate only: degrees to turn every member of TargetBeatId's flock around "
+                     + "world Y.")]
+            public float RotateYDegrees;
+
+            [Tooltip("Rotate only: how long one member's own turn takes, animated rather than "
+                     + "snapped.")]
+            public float RotateDurationSeconds;
+
+            [Tooltip("Rotate only: each member waits a random amount up to this many seconds, "
+                     + "independently, before starting its own turn — so a flock turns raggedly "
+                     + "rather than all at once.")]
+            public float RotateStaggerMaxSeconds;
+
+            [Tooltip("Jump only: each member's own peak height varies between half of this and "
+                     + "this, in metres.")]
+            public float JumpHeightM;
+
+            [Tooltip("Jump only: how long one member's own up-and-back-down arc takes.")]
+            public float JumpDurationSeconds;
+
+            [Tooltip("Jump only: each member waits a random amount up to this many seconds, "
+                     + "independently, before starting its own jump — so a flock leaps raggedly "
+                     + "rather than all at once.")]
+            public float JumpStaggerMaxSeconds;
+
+            [Tooltip("Jump only: how far along world X a member ends up once it lands — a small "
+                     + "net hop rather than landing exactly back where it started.")]
+            public float JumpForwardM;
+
+            [Tooltip("Jump only: peak nose-up tilt reached partway through the rise (level at "
+                     + "takeoff, tilted here at the quarter-point, level again at the top of the "
+                     + "arc), mirrored nose-down on the way back — not derived from the "
+                     + "trajectory's own slope, a separate scripted flutter on top of it.")]
+            public float JumpPitchDegrees;
+
+            [Tooltip("Cull only: how many of TargetBeatId's flock survive, picked at random. "
+                     + "Every other member fades to nothing and is destroyed.")]
+            public int KeepCount;
+
+            [Tooltip("Cull only: how long each culled member takes to fade away.")]
+            public float CullDurationSeconds;
+
+            [Tooltip("Stunt only: target Rotation X (world/local Euler, degrees) the first "
+                     + "flock member tilts to before speeding up, then tilts back from "
+                     + "afterward. Uses RotateDurationSeconds for each of those two tilts.")]
+            public float StuntRotationXTarget;
+
+            [Tooltip("Stunt only: playback speed multiplier applied to whatever animation is "
+                     + "already playing on the member (Legacy Animation or Animator) once the "
+                     + "first tilt finishes.")]
+            public float StuntSpeedMultiplier;
+
+            [Tooltip("Stunt only: how long the sped-up playback lasts before speed and rotation "
+                     + "both reverse.")]
+            public float StuntSpeedDurationSeconds;
+
+            [Tooltip("Stunt only: egg prefab dropped from the member's tail once it settles back "
+                     + "down. Left null to skip the egg-drop finale entirely.")]
+            public GameObject EggPrefab;
+
+            [Tooltip("Stunt only: how many EggPrefab copies to drop.")]
+            public int EggCount;
+
+            [Tooltip("Stunt only: total time the EggCount eggs are staggered across — spread "
+                     + "roughly evenly, not all released at once.")]
+            public float EggDropWindowSeconds;
+
+            [Tooltip("Stunt only: random horizontal jitter radius applied to each egg's spawn "
+                     + "point around the tail, so they don't all drop from the same point.")]
+            public float EggJitterRadiusM;
+
+            [Tooltip("Stunt only: how far below its own spawn point each egg falls, and how long "
+                     + "that fall takes.")]
+            public float EggFallDistanceM;
+            public float EggFallDurationSeconds;
+
+            [Tooltip("LieDownFade only: how far forward each flock member swims (its own current "
+                     + "facing) before tilting onto its side, and how long that swim takes.")]
+            public float SwimForwardDistanceM;
+            public float SwimForwardDurationSeconds;
+
+            [Tooltip("LieDownFade only: how long each member holds its tilted pose (reusing "
+                     + "StuntRotationXTarget/RotateDurationSeconds for the tilt itself, and "
+                     + "CullDurationSeconds for the fade afterward) before fading away.")]
+            public float LieDownHoldSeconds;
+        }
+
         [Header("Service")]
         [Tooltip("The laptop running service/src/server.mjs. It prints this address on startup.")]
         public string ServiceHost = "127.0.0.1";
         public int ServicePort = 8710;
-        public string Slug = "ubc-nitobe-garden-creek";
+        public string Slug = "ucb-strawberry-creek-south";
 
         [Header("View")]
         [Tooltip("Raise the camera above the centreline. Zero because the centreline is authored "
@@ -43,6 +410,24 @@ namespace ShoalingUpstream.Simulation
         [Tooltip("The inset map in the corner. The first-person view alone makes it hard to tell "
                  + "a walk from a stall.")]
         public bool ShowOverview = true;
+
+        [Tooltip("The centreline, the beat spheres and the walker pin — useful for judging a "
+                 + "walking journey, clutter (small dots scattered across the background at "
+                 + "wherever each beat's own position happens to be) for a scene like this one "
+                 + "that is really about what SceneTriggers plant, not about the walk.")]
+        public bool ShowDebugMarkers = false;
+
+        [Header("Scene Triggers")]
+        [Tooltip("A beat that, when fired, also plays a Timeline — the visual half of a beat "
+                 + "that the audio system already knows how to fire. Play On Awake should be off "
+                 + "on each director; this is what starts it.")]
+        public List<SceneTrigger> SceneTriggers = new();
+
+        [Tooltip("How far in front of the eye a triggered scene is planted. There is no VPS fix "
+                 + "to plant it against on the wizard-of-oz path, so it is placed relative to "
+                 + "wherever the operator has the device pointed the instant they fire the beat, "
+                 + "not at the beat's own journey coordinates.")]
+        public float SceneTriggerDistanceM = 1.5f;
 
         /// <summary>
         /// Set before the scene loads to point it somewhere else. For the PlayMode fixture, which
@@ -63,6 +448,14 @@ namespace ShoalingUpstream.Simulation
 
         // --- the view -------------------------------------------------------
         private Camera _eye;
+        private float? _lastKnownGoodEyeY;
+        private UnityEngine.XR.ARFoundation.ARRaycastManager _raycastManager;
+        private List<UnityEngine.XR.XRInputSubsystem> _inputSubsystemsScratch;
+        private List<UnityEngine.XR.ARSubsystems.XRPlaneSubsystem> _planeSubsystemsScratch;
+        private UnityEngine.XR.ARFoundation.ARPlaneManager _planeManager;
+        private string _lastEggDropDiag = "(no egg dropped yet)";
+        private string _lastStableTrackingDiag = "(no spawn beat fired yet)";
+        private string _lastDraftFetchDiag = "(not attempted yet)";
         private Camera _overview;
         private readonly Dictionary<string, Renderer> _markers = new();
         private readonly Dictionary<string, float> _flashUntil = new();
@@ -97,13 +490,64 @@ namespace ShoalingUpstream.Simulation
             _link.Port = ServicePort;
 
             _eye = Camera.main;
+            // Null on the desktop scene, which has no XR Origin — FallEgg falls back to its
+            // fixed distance/duration in that case.
+            _raycastManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARRaycastManager>();
+            _planeManager = FindFirstObjectByType<UnityEngine.XR.ARFoundation.ARPlaneManager>();
             BuildOverviewCamera();
         }
 
         private IEnumerator Start()
         {
-            yield return LoadJourney();
+            StartCoroutine(WatchForStuckJourneyLoad());
+            yield return RunCatchingExceptions(LoadJourney());
             if (_journey != null) Begin();
+        }
+
+        /// <summary>LoadJourney's own UnityWebRequest carries a 5 s timeout and ResolveAsync's own
+        /// service fetch races a 2.5 s one, so under every failure mode this file's own code
+        /// accounts for, _journeyNote should read something other than the initial "loading…"
+        /// well within 10 s. If it still hasn't by then, whatever is stuck is stuck somewhere
+        /// neither of those timeouts actually covers — most likely the request itself never
+        /// calling back at all, which no exception would ever surface. Says so on the HUD instead
+        /// of leaving "loading…" indistinguishable from "still within its normal timeout".</summary>
+        private IEnumerator WatchForStuckJourneyLoad()
+        {
+            yield return new WaitForSeconds(10f);
+            if (_journeyNote == "loading…")
+            {
+                _journeyNote = "!! still loading after 10s — LoadJourney's own request never "
+                                + "came back at all (not an exception, not its own 5s timeout "
+                                + "firing either)";
+            }
+        }
+
+        /// <summary>Drives inner's own MoveNext() by hand instead of a plain `yield return inner`,
+        /// so an exception thrown at ANY point inside it — including after it has already resumed
+        /// from a yield, where a plain `yield return` can't wrap it in try/catch at all, since C#
+        /// forbids a yield inside a try that has a catch clause — lands here instead of just
+        /// silently killing the coroutine. Without this, "journey stuck on loading…" forever and
+        /// an exception thrown and swallowed somewhere inside LoadJourney look identical from the
+        /// HUD, with nothing in the Unity console to tell them apart when there is no Xcode
+        /// console in reach.</summary>
+        private IEnumerator RunCatchingExceptions(IEnumerator inner)
+        {
+            while (true)
+            {
+                object current;
+                try
+                {
+                    if (!inner.MoveNext()) yield break;
+                    current = inner.Current;
+                }
+                catch (Exception e)
+                {
+                    _journeyNote = $"!! LoadJourney threw {e.GetType().Name}: {e.Message}";
+                    Debug.LogException(e);
+                    yield break;
+                }
+                yield return current;
+            }
         }
 
         /// <summary>
@@ -155,6 +599,16 @@ namespace ShoalingUpstream.Simulation
                     Debug.LogError($"[simulation] {_journeyNote}");
                     yield break;
                 }
+
+                // Falls through to the ResolveAsync fallback below without a word about why —
+                // confirmed on a device: that made an ATS block on this very request look
+                // identical to "no laptop, falling back to what a phone would do" on the HUD,
+                // once the failure carrying the actual reason was fixed elsewhere. Put on its
+                // own HUD line, not into _journeyNote itself, since the fallback below still
+                // gets a real chance and may yet succeed — and Debug.Log alone is invisible
+                // without an Xcode console in reach.
+                _lastDraftFetchDiag = $"{url}   {request.result} — {request.error}";
+                Debug.LogWarning($"[simulation] draft fetch did not succeed: {_lastDraftFetchDiag}");
             }
 
             // No laptop. Fall back to the phone's own precedence so the scene still opens
@@ -210,7 +664,10 @@ namespace ShoalingUpstream.Simulation
             _link.SetEffects(new Effects(this));
             _link.SetStatusSource(new Status(this));
 
-            _audio.forceSimulation = true;   // the desk renderer, not PHASE
+            // forceSimulation is left as SimulationSceneBuilder set it — true for the desk
+            // (never PHASE at a laptop), false for the AR build (a real PHASE render on the
+            // device it was actually built for). Overwriting it here unconditionally used to
+            // force every build onto the desk renderer, AR included.
             _audio.listener = _eye != null ? _eye.transform : transform;
             _audio.Begin(_journey, new StreamingAssetsClipResolver());
             _audioNote = _audio.Engine != null
@@ -220,7 +677,7 @@ namespace ShoalingUpstream.Simulation
                      : "")
                 : "not started";
 
-            BuildMarkers();
+            if (ShowDebugMarkers) BuildMarkers();
             Note($"journey ready: {_journeyNote}");
         }
 
@@ -228,6 +685,36 @@ namespace ShoalingUpstream.Simulation
 
         private void Update()
         {
+            // Confirmed on a real device (via a diagnostic HUD line): ARSession.state reads
+            // SessionTracking, but SubsystemManager reports the XRInputSubsystem registered and
+            // NOT running — nothing feeds any pose-consumption API (TrackedPoseDriver,
+            // ARPoseDriver, or even the raw legacy InputTracking calls) because the subsystem
+            // that would report it was never started. Starting it here is a one-line, cheap-to-
+            // repeat nudge rather than something to chase in Player/XR settings blind.
+            _inputSubsystemsScratch ??= new List<UnityEngine.XR.XRInputSubsystem>();
+            SubsystemManager.GetSubsystems(_inputSubsystemsScratch);
+            foreach (var inputSubsystem in _inputSubsystemsScratch)
+            {
+                if (!inputSubsystem.running) inputSubsystem.Start();
+            }
+            // Same fix, same reasoning, for plane detection: the egg-drop's floor raycast kept
+            // missing every plane, which fits the identical registered-but-not-running gap.
+            _planeSubsystemsScratch ??= new List<UnityEngine.XR.ARSubsystems.XRPlaneSubsystem>();
+            SubsystemManager.GetSubsystems(_planeSubsystemsScratch);
+            foreach (var planeSubsystem in _planeSubsystemsScratch)
+            {
+                if (!planeSubsystem.running) planeSubsystem.Start();
+            }
+            // Confirmed on a device: even after waiting for SessionTracking to hold steady with a
+            // sane Y, the very next read of the same transform (a few lines of code, same or next
+            // frame) could come back tens of metres off — a one-off coordinate correction ARKit
+            // itself makes mid-session, not a timing issue this side can wait longer to avoid.
+            // Recording whichever Y last looked plausible, every frame, gives anchor placement a
+            // real fallback for the instant it asks and gets a bad one, rather than baking that
+            // instant in forever.
+            if (_eye != null && Mathf.Abs(_eye.transform.position.y) < 5f)
+                _lastKnownGoodEyeY = _eye.transform.position.y;
+
             if (_progression == null) return;
 
             // Whichever source is live. At a desk that is always the browser's scrubber; on the
@@ -262,7 +749,7 @@ namespace ShoalingUpstream.Simulation
             }
 
             _audio.SetShoalCount(_shoalCount);
-            PaintMarkers();
+            if (ShowDebugMarkers) PaintMarkers();
         }
 
         private void PlaceWalker(PoseSample pose)
@@ -333,6 +820,1539 @@ namespace ShoalingUpstream.Simulation
             FrameOverview(centreline);
         }
 
+        /// <summary>Every Spawn beat's still-standing copies, keyed by that beat's own id — what
+        /// a ReactFlock beat reaches into. Populated as PlaySceneFlock spawns each one; never
+        /// swept on a timer, only consumed when a ReactFlock beat processes the list.</summary>
+        private readonly Dictionary<string, List<Transform>> _flocks = new();
+
+        /// <summary>Each fish's own SwimToEye offset, additive on top of FishDrift's wobble
+        /// rather than something FishDrift is paused for — the two run concurrently, so a swim
+        /// reads as "still floating, also drifting left" instead of the wobble stopping while it
+        /// travels. Never reset, only ever moved further along: a second swim starts from
+        /// wherever the first left off.</summary>
+        private readonly Dictionary<Transform, Vector3> _swimOffsets = new();
+
+        /// <summary>Bumped every time the operator's "Skip forward" fires — every timed coroutine
+        /// below captures the value in effect when it starts, and jumps straight to its own end
+        /// state as soon as this no longer matches, rather than either finishing naturally or
+        /// being torn down mid-flight. A counter rather than a bool so several presses in a row,
+        /// or several beats' worth of coroutines overlapping, all still resolve correctly without
+        /// needing to track who has "already seen" a single flag.</summary>
+        private int _skipGeneration;
+
+        private void RequestSkipCurrentToEnd() => _skipGeneration++;
+
+        /// <summary>A WaitForSeconds stand-in for pure sequencing delays (not the interpolated
+        /// coroutines below, which watch _skipGeneration directly since they have their own
+        /// per-frame state to snap forward) — returns as soon as either seconds have passed or a
+        /// skip has been requested since sinceGeneration was captured.</summary>
+        private IEnumerator WaitOrSkip(float seconds, int sinceGeneration)
+        {
+            float t = 0f;
+            while (t < seconds)
+            {
+                if (_skipGeneration != sinceGeneration) yield break;
+                t += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        /// <summary>Confirmed on a device: ARSession.state can already read SessionTracking while
+        /// the reported camera position is still converging from the garbage value ARKit starts
+        /// with — a Spawn/Appear beat fired in that window bakes its anchor into wherever that
+        /// garbage position was (once, tens of metres from anywhere real) and it never moves
+        /// again, since anchoring is deliberately one-shot rather than continuous. Waiting for
+        /// tracking to have been genuinely continuous for a beat, not just started, is what
+        /// separates "reporting a state" from "reporting something trustworthy". A no-op on the
+        /// desktop scene, which has no ARSession at all (state stays None forever there).</summary>
+        private IEnumerator WaitForStableTracking(int gen)
+        {
+            if (UnityEngine.XR.ARFoundation.ARSession.state
+                == UnityEngine.XR.ARFoundation.ARSessionState.None)
+                yield break;
+
+            const float requiredStableSeconds = 1.5f;
+            const float maxWaitSeconds = 20f;
+            // Confirmed on a device: even after SessionTracking held steady for the full 1.5 s
+            // above, the reported Y (gravity-aligned) coordinate specifically kept coming back
+            // tens of metres off — every fresh spawn landed with Y around -16 to -20,
+            // independently, across many separate sessions in different rooms, while X/Z looked
+            // plausible each time. Horizontal (visual) tracking and the gravity-based vertical
+            // calibration apparently don't converge on the same schedule, so SessionTracking
+            // alone was never actually proof the position was trustworthy. No iPad is realistically
+            // 5+ metres above or below wherever its own AR session started, so that is used as a
+            // direct sanity bound on Y specifically, rather than guessing a still-longer delay.
+            const float maxSaneAbsoluteY = 5f;
+            float stableFor = 0f;
+            float waited = 0f;
+            while (stableFor < requiredStableSeconds && waited < maxWaitSeconds)
+            {
+                if (_skipGeneration != gen) yield break;
+                bool trackingOk = UnityEngine.XR.ARFoundation.ARSession.state
+                                  == UnityEngine.XR.ARFoundation.ARSessionState.SessionTracking;
+                bool positionSane = _eye == null || Mathf.Abs(_eye.transform.position.y) < maxSaneAbsoluteY;
+                stableFor = trackingOk && positionSane ? stableFor + Time.deltaTime : 0f;
+                waited += Time.deltaTime;
+                yield return null;
+            }
+            _lastStableTrackingDiag = $"waited {waited:F1}s   stableFor {stableFor:F1}s"
+                                      + $"   settledY {(_eye != null ? _eye.transform.position.y : 0f):F2}"
+                                      + (stableFor >= requiredStableSeconds ? "   OK" : "   TIMED OUT");
+        }
+
+        /// <summary>Guards the exact instant an anchor's Y gets used, not just some earlier check —
+        /// confirmed on a device that the reported Y can still jump to something absurd between a
+        /// passed stability check and the very next read of the same transform. Substitutes
+        /// whichever Y last looked plausible (tracked every frame in Update) rather than baking a
+        /// bad instant in forever; falls back to 0 if nothing plausible has been seen yet.</summary>
+        private float SaneAnchorY(float y) => Mathf.Abs(y) < 5f ? y : (_lastKnownGoodEyeY ?? 0f);
+
+        private void StartDrift(Transform fish) => StartCoroutine(FishDrift(fish));
+
+        /// <summary>Play whatever a beat is wired to. Spawn plants its own flock on top of
+        /// whatever earlier presses left standing — nothing is torn down first, so a flurry of
+        /// button presses reads as a flurry of eggs, not a replacement of one. ReactFlock instead
+        /// reaches into a named Spawn beat's flock and animates it in place.</summary>
+        private void PlayScene(string beatId)
+        {
+            foreach (var trigger in SceneTriggers)
+            {
+                if (trigger.BeatId != beatId) continue;
+                if (trigger.Kind == SceneTriggerKind.ReactFlock) StartCoroutine(PlayHatchReaction(trigger));
+                else if (trigger.Kind == SceneTriggerKind.SwimToEye) StartCoroutine(PlaySwimToEye(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Appear) StartCoroutine(PlayAppear(trigger));
+                else if (trigger.Kind == SceneTriggerKind.EatAndGrow) StartCoroutine(PlayEatAndGrow(trigger));
+                else if (trigger.Kind == SceneTriggerKind.PlayClip) StartCoroutine(PlayClipOnFlock(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Despawn) PlayDespawn(trigger);
+                else if (trigger.Kind == SceneTriggerKind.Rotate) StartCoroutine(PlayRotateFlock(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Jump) StartCoroutine(PlayJump(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Cull) StartCoroutine(PlayCull(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Stunt) StartCoroutine(PlayStunt(trigger));
+                else if (trigger.Kind == SceneTriggerKind.LieDownFade) StartCoroutine(PlayLieDownFade(trigger));
+                else if (trigger.FallTemplate != null) StartCoroutine(PlaySceneFlock(trigger));
+            }
+        }
+
+        private IEnumerator PlaySceneFlock(SceneTrigger trigger)
+        {
+            int gen = _skipGeneration;
+            yield return WaitForStableTracking(gen);
+            // The anchor, not FallTemplate's own transform: EggFallIntoPlace writes fallMember's
+            // local position every frame, so moving that member directly and then starting the
+            // fall would just fight the coroutine's own writes. Moving the untouched parent
+            // instead is what makes the placement stick.
+            Transform templateAnchor = trigger.FallTemplate.parent != null
+                ? trigger.FallTemplate.parent
+                : trigger.FallTemplate;
+
+            bool hasEye = _eye != null;
+            Vector3 anchorPos = templateAnchor.position;
+            Quaternion facing = templateAnchor.rotation;
+            Vector3 forward = Vector3.forward;
+            if (hasEye)
+            {
+                forward = _eye.transform.forward;
+                if (!trigger.FollowCameraPitch)
+                {
+                    // Level, not identity: EggFallIntoPlace's own local-axis fall (see
+                    // BuildFishEggTrigger) needs to drop toward wherever the camera is
+                    // actually yawed, or it settles along a fixed world direction that has
+                    // nothing to do with where the device was aimed when it fired — confirmed
+                    // on a device: the anchor itself sat right in front, but the egg only
+                    // came into view after turning the iPad to one side.
+                    forward.y = 0f;
+                    forward = forward.sqrMagnitude < 0.0001f ? Vector3.forward : forward.normalized;
+                }
+                // The real aim, pitch included, when FollowCameraPitch is set; otherwise the
+                // same leveled-but-yaw-matched direction used for anchorPos below.
+                facing = Quaternion.LookRotation(forward);
+                // 0, not SceneTriggerDistanceM, when SpawnUnderEye: the anchor's own X/Z is what
+                // the floor-snap pulls the settled egg back to (see SnapEggAnchorToFloorWhenSettled),
+                // regardless of which way the scripted fall pushes it in between, so this is
+                // the actual lever for "land directly under the device" rather than a starting nudge.
+                float forwardDistance = trigger.SpawnUnderEye ? 0f : SceneTriggerDistanceM;
+                anchorPos = _eye.transform.position + forward * forwardDistance;
+                anchorPos.y = SaneAnchorY(anchorPos.y);
+            }
+
+            float? sharedFallbackFloorY = null;
+            if (hasEye && _raycastManager != null)
+            {
+                // One probe straight down from the eye itself, taken once per beat fire, as a
+                // last resort for whichever eggs never find their OWN floor within the retry
+                // window below — the spot right under the operator's feet is almost certainly
+                // scanned already, since they were just standing there aiming the trigger.
+                var floorHits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
+                var floorRay = new Ray(_eye.transform.position, Vector3.down);
+                if (_raycastManager.Raycast(floorRay, floorHits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
+                                                                | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated))
+                {
+                    sharedFallbackFloorY = floorHits[0].pose.position.y;
+                }
+            }
+
+            int count = Mathf.Max(1, trigger.Count);
+            for (int i = 0; i < count; i++)
+            {
+                // Always a clone, template included: with earlier flocks left standing, reusing
+                // the template for the first egg of every press would teleport it out of the
+                // previous flock instead of leaving it behind like all the rest.
+                var clone = Instantiate(templateAnchor.gameObject, templateAnchor.parent);
+                // The template is inactive — hidden until it is played, since it never is
+                // directly — and a clone of an inactive object starts inactive too.
+                clone.SetActive(true);
+                Transform spawnAnchor = clone.transform;
+                // The template's own single child — see BuildFishEggTrigger — the same
+                // "child, not the anchor itself" pattern HatchOne's own egg-to-fish handoff uses.
+                Transform fallMember = spawnAnchor.childCount > 0 ? spawnAnchor.GetChild(0) : spawnAnchor;
+
+                if (hasEye)
+                {
+                    // In the eye's own right/up, not world X/Z, so a scatter reads as spread
+                    // across the screen regardless of which way the device is actually pointed.
+                    Vector2 jitter = UnityEngine.Random.insideUnitCircle * trigger.ScatterRadiusM;
+                    Vector3 spread = _eye.transform.right * jitter.x + _eye.transform.up * jitter.y;
+                    spawnAnchor.position = anchorPos + spread;
+                    spawnAnchor.rotation = facing;
+                }
+
+                StartCoroutine(EggFallIntoPlace(fallMember, trigger.SpawnFallDistanceM, trigger.SpawnFallDurationSeconds, gen));
+                if (_raycastManager != null)
+                    StartCoroutine(SnapEggAnchorToFloorWhenSettled(
+                        spawnAnchor, fallMember, trigger.SpawnFallDurationSeconds, gen, sharedFallbackFloorY));
+
+                // Tracked by the object the fall actually drives (one level in from the anchor),
+                // not the anchor itself — a ReactFlock beat animates this directly, and the
+                // anchor itself is never touched again once it settles.
+                if (!_flocks.TryGetValue(trigger.BeatId, out var flock))
+                {
+                    flock = new List<Transform>();
+                    _flocks[trigger.BeatId] = flock;
+                }
+                flock.Add(fallMember);
+
+                if (i < count - 1 && trigger.StaggerSeconds > 0f)
+                    yield return WaitOrSkip(trigger.StaggerSeconds, gen);
+            }
+        }
+
+        /// <summary>Destroys every member of TargetBeatId's flock outright and forgets it —
+        /// nothing grows, nothing hands off. Instant, so no coroutine.</summary>
+        private void PlayDespawn(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) return;
+            foreach (var member in flock) if (member != null) Destroy(member.gameObject);
+            flock.Clear();
+        }
+
+        /// <summary>Picks KeepCount survivors from TargetBeatId's flock at random, shrinks every
+        /// other member away over CullDurationSeconds, and re-registers only the survivors under
+        /// this beat's own id — the same consume-and-hand-off every other flock-reaching beat
+        /// uses, so a later beat can still reach into whichever fish made it through.</summary>
+        private IEnumerator PlayCull(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
+                yield break;
+
+            var members = new List<Transform>(flock);
+            for (int i = members.Count - 1; i > 0; i--)
+            {
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (members[i], members[j]) = (members[j], members[i]);
+            }
+
+            int keep = Mathf.Clamp(trigger.KeepCount, 0, members.Count);
+
+            if (!_flocks.TryGetValue(trigger.BeatId, out var survivors))
+            {
+                survivors = new List<Transform>();
+                _flocks[trigger.BeatId] = survivors;
+            }
+            for (int i = 0; i < keep; i++)
+            {
+                if (members[i] != null) survivors.Add(members[i]);
+            }
+
+            for (int i = keep; i < members.Count; i++)
+            {
+                if (members[i] != null) StartCoroutine(FadeAndDestroy(members[i], trigger.CullDurationSeconds));
+            }
+
+            flock.Clear();
+        }
+
+        /// <summary>Fades every renderer under target to fully transparent, then destroys it —
+        /// alpha, not scale, since shrinking to nothing reads as "shrank" rather than "faded
+        /// away". Uses Renderer.materials (plural), not sharedMaterials: that instantiates a
+        /// per-renderer copy first, so fading this one fish's material does not fade every other
+        /// fish still sharing the same imported material asset.</summary>
+        private IEnumerator FadeAndDestroy(Transform target, float durationSeconds)
+        {
+            int gen = _skipGeneration;
+            var materials = new List<Material>();
+            foreach (var renderer in target.GetComponentsInChildren<Renderer>())
+            {
+                foreach (var material in renderer.materials)
+                {
+                    PrepareMaterialForFade(material);
+                    materials.Add(material);
+                }
+            }
+
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            while (t < duration)
+            {
+                if (target == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                float alpha = 1f - Mathf.Clamp01(t / duration);
+                foreach (var material in materials) SetMaterialAlpha(material, alpha);
+                yield return null;
+            }
+            if (target != null) Destroy(target.gameObject);
+        }
+
+        /// <summary>Switches a material into glTFast's own alpha-blended mode — every model here
+        /// imports through "glTF/PbrMetallicRoughness" (see Runtime/Shader/Built-In in the
+        /// com.unity.cloud.gltfast package), which is explicitly derived from Unity's Standard
+        /// shader and carries the same _Mode/_SrcBlend/_DstBlend/_ZWrite properties Standard's own
+        /// Fade/Transparent modes use. Still HasProperty-guarded in case a future model imports
+        /// through a different shader (glTFUnlit, or a non-glTFast source) that does not have
+        /// them.</summary>
+        private static void PrepareMaterialForFade(Material material)
+        {
+            if (material.HasProperty("_Mode")) material.SetFloat("_Mode", 3f);
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_SrcBlend"))
+                material.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (material.HasProperty("_DstBlend"))
+                material.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (material.HasProperty("_ZWrite")) material.SetInt("_ZWrite", 0);
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.EnableKeyword("_ALPHABLEND_ON");
+            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+        }
+
+        private static void SetMaterialAlpha(Material material, float alpha)
+        {
+            // glTFast's own Built-in-RP shader ("glTF/PbrMetallicRoughness" — see
+            // Runtime/Shader/Built-In/glTFPbrMetallicRoughness.shader in the package, which every
+            // model in this project imports through) names its tint "baseColorFactor", not
+            // Unity's usual "_Color"/"_BaseColor" — neither of which this shader actually has, so
+            // alpha silently never changed until this was found and checked first.
+            if (material.HasProperty("baseColorFactor"))
+            {
+                var color = material.GetColor("baseColorFactor");
+                color.a = alpha;
+                material.SetColor("baseColorFactor", color);
+            }
+            else if (material.HasProperty("_BaseColor"))
+            {
+                var color = material.GetColor("_BaseColor");
+                color.a = alpha;
+                material.SetColor("_BaseColor", color);
+            }
+            else if (material.HasProperty("_Color"))
+            {
+                var color = material.GetColor("_Color");
+                color.a = alpha;
+                material.SetColor("_Color", color);
+            }
+        }
+
+        /// <summary>"Fish A" — the lower of TargetBeatId's (usually two, post-Cull) surviving
+        /// flock members, picked by Y position rather than flock order, which is otherwise
+        /// arbitrary (Cull's KeepCount survivors are chosen at random). "Fish B" is whichever one
+        /// is left; this beat never touches it. Fish A tilts its Rotation X to StuntRotationXTarget
+        /// over RotateDurationSeconds, pivoting about its own skeleton root rather than the body's
+        /// own origin, the same tail/head-pivot technique Jump uses; speeds up whatever it is
+        /// already playing (Legacy Animation or Animator, whichever is present) by
+        /// StuntSpeedMultiplier for StuntSpeedDurationSeconds; then reverses both: speed drops
+        /// back to normal instantly and Rotation X eases back to whatever it started at, again
+        /// over RotateDurationSeconds, pivoting the same way; then, once settled, releases
+        /// EggCount eggs from its tail.</summary>
+        private IEnumerator PlayStunt(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
+                yield break;
+            Transform member = null;
+            float lowestY = float.MaxValue;
+            foreach (var candidate in flock)
+            {
+                if (candidate == null) continue;
+                if (member == null || candidate.position.y < lowestY)
+                {
+                    member = candidate;
+                    lowestY = candidate.position.y;
+                }
+            }
+            if (member == null) yield break;
+
+            int gen = _skipGeneration;
+            float originalXDegrees = member.eulerAngles.x;
+            Quaternion startRotation = member.rotation;
+            _swimOffsets.TryGetValue(member, out var originalOffset);
+
+            yield return TiltAroundBone(member, trigger.StuntRotationXTarget, trigger.RotateDurationSeconds, gen);
+            if (member == null) yield break;
+
+            SetPlaybackSpeed(member, trigger.StuntSpeedMultiplier);
+            yield return WaitOrSkip(trigger.StuntSpeedDurationSeconds, gen);
+            if (member != null) SetPlaybackSpeed(member, 1f);
+            if (member == null) yield break;
+
+            yield return TiltAroundBone(member, originalXDegrees, trigger.RotateDurationSeconds, gen);
+            if (member == null) yield break;
+
+            // Snap back to the exact original rotation and offset rather than trusting the
+            // interpolated result — TiltAroundBone's Euler round-trip can land a hair off after
+            // passing near the gimbal-lock pole partway through.
+            _swimOffsets[member] = originalOffset;
+            member.rotation = startRotation;
+
+            // Hands off every survivor, not just Fish A — Fish B was never touched by this beat
+            // but still needs to reach beat-15, which acts on both.
+            if (!_flocks.TryGetValue(trigger.BeatId, out var settled))
+            {
+                settled = new List<Transform>();
+                _flocks[trigger.BeatId] = settled;
+            }
+            foreach (var survivor in flock) if (survivor != null) settled.Add(survivor);
+            flock.Clear();
+
+            if (trigger.EggPrefab != null && trigger.EggCount > 0)
+            {
+                Transform tailBone = null;
+                foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t0.name == "TailFinLower_M_010") { tailBone = t0; break; }
+                }
+                Vector3 tailPos = tailBone != null ? tailBone.position : member.position;
+                StartCoroutine(DropEggsFromTail(tailPos, trigger, gen));
+            }
+        }
+
+        /// <summary>Tilts member's Rotation X to targetXDegrees over duration, pivoting about its
+        /// own skeleton root bone (Root_M_00) rather than the body's own origin —
+        /// SkinnedMeshRenderer.bounds is known to be unreliable on this asset (confirmed once
+        /// already, on Rainbow Trout's spawn placement), so a real bone position is used instead,
+        /// the same technique JumpOne uses for its own tail pivot. Falls back to the body's own
+        /// origin (no pivot correction) if the bone isn't found. Shared by Stunt's two tilts and
+        /// the lie-down finale so all three pivot identically.</summary>
+        private IEnumerator TiltAroundBone(Transform member, float targetXDegrees, float duration, int gen)
+        {
+            duration = Mathf.Max(0.01f, duration);
+            Vector3 targetEuler = member.eulerAngles;
+            targetEuler.x = targetXDegrees;
+
+            Quaternion startRotation = member.rotation;
+            Quaternion targetRotation = Quaternion.Euler(targetEuler);
+            _swimOffsets.TryGetValue(member, out var baseOffset);
+            Vector3 startPos = member.position;
+
+            Transform pivotBone = null;
+            foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+            {
+                if (t0.name == "Root_M_00") { pivotBone = t0; break; }
+            }
+            Vector3 pivotPoint = pivotBone != null ? pivotBone.position : startPos;
+            Vector3 toOrigin = startPos - pivotPoint;
+            Debug.Log($"[StuntDiag v5] member={member.name} pivotBoneFound={pivotBone != null} startPos={startPos} pivotPoint={pivotPoint} toOrigin={toOrigin}");
+
+            float t = 0f;
+            while (t < duration)
+            {
+                if (member == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                // Slerp between the two rotations directly, not a per-axis Euler lerp: eulerAngles
+                // reads back in [0, 360) — e.g. -89 comes back as 271 — so lerping that range
+                // component-wise on the way back swept 271° the long way round instead of the
+                // intended 89° turn back. Slerp always takes the shorter arc.
+                Quaternion current = Quaternion.Slerp(startRotation, targetRotation, Mathf.Clamp01(t / duration));
+                Vector3 offsetDelta = (pivotPoint + (current * Quaternion.Inverse(startRotation)) * toOrigin) - startPos;
+                _swimOffsets[member] = baseOffset + offsetDelta;
+                member.rotation = current;
+                yield return null;
+            }
+            if (member == null) yield break;
+            Vector3 targetOffsetDelta = (pivotPoint + (targetRotation * Quaternion.Inverse(startRotation)) * toOrigin) - startPos;
+            _swimOffsets[member] = baseOffset + targetOffsetDelta;
+            member.rotation = targetRotation;
+        }
+
+        /// <summary>07-c: every survivor of TargetBeatId's flock (both Fish A and Fish B) swims
+        /// forward, tilts onto its side the same way Fish A did for 07-b's stunt, holds there for
+        /// LieDownHoldSeconds, then fades away over CullDurationSeconds and is destroyed.</summary>
+        private IEnumerator PlayLieDownFade(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
+                yield break;
+            int gen = _skipGeneration;
+            foreach (var member in new List<Transform>(flock))
+            {
+                if (member != null) StartCoroutine(LieDownAndFade(member, trigger, gen));
+            }
+            flock.Clear();
+        }
+
+        private IEnumerator LieDownAndFade(Transform member, SceneTrigger trigger, int gen)
+        {
+            yield return SwimForward(member, trigger.SwimForwardDistanceM, trigger.SwimForwardDurationSeconds, gen);
+            if (member == null) yield break;
+            yield return TiltAroundBone(member, trigger.StuntRotationXTarget, trigger.RotateDurationSeconds, gen);
+            if (member == null) yield break;
+            yield return WaitOrSkip(trigger.LieDownHoldSeconds, gen);
+            if (member == null) yield break;
+            yield return FadeAndDestroy(member, trigger.CullDurationSeconds);
+        }
+
+        /// <summary>Moves member forward (its own current facing) by distance over duration,
+        /// additively through _swimOffsets like every other deliberate move here, so it composes
+        /// with FishDrift's idle wobble instead of fighting it.</summary>
+        private IEnumerator SwimForward(Transform member, float distance, float duration, int gen)
+        {
+            duration = Mathf.Max(0.01f, duration);
+            _swimOffsets.TryGetValue(member, out var baseOffset);
+            Vector3 forwardDelta = member.forward * distance;
+            float t = 0f;
+            while (t < duration)
+            {
+                if (member == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                _swimOffsets[member] = baseOffset + forwardDelta * Mathf.Clamp01(t / duration);
+                yield return null;
+            }
+            if (member != null) _swimOffsets[member] = baseOffset + forwardDelta;
+        }
+
+        /// <summary>07-b's finale: EggCount eggs released from wherever the member's tail settled,
+        /// staggered across EggDropWindowSeconds so they don't all pop into existence at once, each
+        /// jittered a little horizontally so they don't all fall from the exact same point.</summary>
+        private IEnumerator DropEggsFromTail(Vector3 tailPos, SceneTrigger trigger, int gen)
+        {
+            int count = Mathf.Max(1, trigger.EggCount);
+            float window = Mathf.Max(0f, trigger.EggDropWindowSeconds);
+            float stagger = count > 1 ? window / (count - 1) : 0f;
+            for (int i = 0; i < count; i++)
+            {
+                Vector2 jitter = UnityEngine.Random.insideUnitCircle * Mathf.Max(0f, trigger.EggJitterRadiusM);
+                Vector3 spawnPos = tailPos + new Vector3(jitter.x, 0f, jitter.y);
+                var egg = Instantiate(trigger.EggPrefab, spawnPos, Quaternion.identity);
+                StartCoroutine(FallEgg(egg.transform, trigger.EggFallDistanceM, trigger.EggFallDurationSeconds, gen));
+                if (i < count - 1 && stagger > 0f)
+                    yield return WaitOrSkip(stagger, gen);
+            }
+        }
+
+        /// <summary>07-a/01-a's Timeline-driven fall (BuildFishEggTrigger) can't be redirected
+        /// mid-flight the way FallEgg is — the Timeline writes the inner egg's LOCAL position
+        /// every sample, so anything this coroutine set on it would just be overwritten on the
+        /// next frame. What the Timeline never touches is the ANCHOR one level up, so once the
+        /// fall's own authored keyframes finish, this nudges the ANCHOR by whatever delta brings
+        /// the settled child back onto the real floor — moving the whole child along with it.
+        ///
+        /// Confirmed on a device: with root motion disabled, the clip's own authored fall applies
+        /// as a plain local offset rather than a bug-driven vertical plunge — but before
+        /// BuildFishEggTrigger's anchor-scale fix, that offset was a full 18 units (from the
+        /// original desktop-scale design), tens of metres from anywhere the device had actually
+        /// been, let alone scanned. Raycasting down from where the child actually settled almost
+        /// always finds nothing, since the floor is only ever detected near the anchor's own spot.
+        /// Raycasting from just above the ANCHOR's own original position instead — where the
+        /// device (and therefore its LiDAR scan) actually was — finds a real floor even now that
+        /// the settle distance is a much smaller, real-world fraction of a metre, and the full
+        /// delta (X and Z along with Y) is what pulls the settled child back to directly below the
+        /// anchor at the real floor height, rather than only fixing the vertical component of it.
+        ///
+        /// director.playableAsset.duration is the actual authored fall length, not a guess; the
+        /// clip holds its last value forever after that, which is what "infinite" meant in the
+        /// original design note, so waiting exactly that long is waiting for it to have visibly
+        /// finished falling.</summary>
+        private IEnumerator SnapEggAnchorToFloorWhenSettled(Transform anchor, Transform fallMember, float settleSeconds, int gen, float? fallbackFloorY)
+        {
+            if (anchor == null || fallMember == null) yield break;
+            Vector3 anchorStartPos = anchor.position;
+
+            yield return WaitOrSkip(Mathf.Max(0.01f, settleSeconds), gen);
+            if (anchor == null || fallMember == null) yield break;
+
+            // Confirmed on a device: a whole flock's worth of these lands scattered across up to
+            // a few metres (ScatterRadiusM), and only whichever ones happen to fall over ground
+            // already scanned by that moment land correctly — the rest never get a second try. As
+            // the operator keeps looking around, more of that area gets scanned over the next
+            // several seconds, so retrying here rather than checking once gives every egg, not
+            // just the lucky ones, a real chance to land.
+            const float retryWindowSeconds = 15f;
+            const float retryIntervalSeconds = 0.5f;
+            var hits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
+            bool hitFloor = false;
+            float waited = 0f;
+            while (!hitFloor && waited < retryWindowSeconds)
+            {
+                if (_skipGeneration != gen || anchor == null || fallMember == null) yield break;
+                var ray = new Ray(anchorStartPos + Vector3.up * 0.1f, Vector3.down);
+                // PlaneEstimated too, not just PlaneWithinPolygon: a plane can exist at this spot
+                // without its tracked BOUNDARY having grown to cover it yet (freshly detected
+                // planes start small), which reads as "nothing here" even when the floor
+                // genuinely has been seen. PlaneEstimated tests the plane's full mathematical
+                // extent instead.
+                hitFloor = _raycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
+                                                              | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated);
+                if (hitFloor)
+                {
+                    Vector3 targetWorldPos = new Vector3(anchorStartPos.x, hits[0].pose.position.y, anchorStartPos.z);
+                    anchor.position += targetWorldPos - fallMember.position;
+                }
+                else
+                {
+                    yield return WaitOrSkip(retryIntervalSeconds, gen);
+                    waited += retryIntervalSeconds;
+                }
+            }
+
+            bool usedFallback = false;
+            if (!hitFloor && fallbackFloorY.HasValue && anchor != null && fallMember != null)
+            {
+                // Nothing was ever scanned directly under this specific egg — rather than leave
+                // it hanging at head height, settle it at the floor height measured once under
+                // the eye itself when this beat fired (see PlaySceneFlock), a reasonable stand-in
+                // for "the floor" in most rooms.
+                Vector3 targetWorldPos = new Vector3(anchorStartPos.x, fallbackFloorY.Value, anchorStartPos.z);
+                anchor.position += targetWorldPos - fallMember.position;
+                usedFallback = true;
+            }
+
+            _lastEggDropDiag = $"beat-1 snap   anchorStart {anchorStartPos:F2}"
+                                + $"   settledAt {(fallMember != null ? fallMember.position : Vector3.zero):F2}"
+                                + $"   hit {hitFloor} ({hits.Count})   fallback {usedFallback}   waited {waited:F1}s";
+        }
+
+        /// <summary>Eases fallMember's own local position from the anchor's origin out to
+        /// (0, 0, distanceM) along its own local Z over durationSeconds — the scripted stand-in
+        /// for what used to be a hand-authored Timeline clip (see BuildFishEggTrigger), so this
+        /// beat no longer depends on an external Timeline asset that can go missing. This only
+        /// needs to read as a small, brief "drop": SnapEggAnchorToFloorWhenSettled pulls the
+        /// settled X/Z straight back to the anchor's own spot once it finds a floor, regardless
+        /// of which direction this fall actually pushed it.</summary>
+        private IEnumerator EggFallIntoPlace(Transform fallMember, float distanceM, float durationSeconds, int gen)
+        {
+            if (fallMember == null) yield break;
+            Vector3 end = new Vector3(0f, 0f, distanceM);
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            while (t < duration)
+            {
+                if (fallMember == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                fallMember.localPosition = Vector3.Lerp(Vector3.zero, end, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (fallMember != null) fallMember.localPosition = end;
+        }
+
+        /// <summary>Falls to the real floor when a raycast against detected AR planes finds one
+        /// (LiDAR-assisted plane detection on a supporting device) — straight down from the
+        /// egg's own spawn point, since that is directly below wherever the fish actually is.
+        /// Falls back to the fixed distance/duration below when there's no ARRaycastManager
+        /// (the desktop scene) or nothing detected yet (floor not scanned at that spot).</summary>
+        private IEnumerator FallEgg(Transform egg, float distance, float duration, int gen)
+        {
+            if (egg == null) yield break;
+            Vector3 start = egg.position;
+            Vector3 end = start + Vector3.down * Mathf.Max(0f, distance);
+            bool hitPlane = false;
+            int hitCount = 0;
+            if (_raycastManager != null)
+            {
+                var hits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
+                var ray = new Ray(start, Vector3.down);
+                hitPlane = _raycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
+                                                              | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated);
+                hitCount = hits.Count;
+                if (hitPlane) end = hits[0].pose.position;
+            }
+            _lastEggDropDiag = $"raycastManager {_raycastManager != null}   start {start:F2}"
+                                + $"   hit {hitPlane} ({hitCount})   end {end:F2}";
+            duration = Mathf.Max(0.01f, duration);
+            float t = 0f;
+            while (t < duration)
+            {
+                if (egg == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                egg.position = Vector3.Lerp(start, end, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (egg != null) egg.position = end;
+        }
+
+        private static void SetPlaybackSpeed(Transform member, float speed)
+        {
+            foreach (var animation in member.GetComponentsInChildren<Animation>())
+            {
+                foreach (AnimationState state in animation) state.speed = speed;
+            }
+            foreach (var animator in member.GetComponentsInChildren<Animator>())
+            {
+                animator.speed = speed;
+            }
+        }
+
+        private IEnumerator PlayRotateFlock(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
+            foreach (var member in flock)
+            {
+                if (member != null) StartCoroutine(RotateOne(member, trigger));
+            }
+        }
+
+        /// <summary>One member's own turn, animated over RotateDurationSeconds rather than
+        /// snapped, after an independently randomised delay (seeded off the member's own instance
+        /// ID, the same pattern JumpOne uses) so a flock turns raggedly instead of in lockstep.
+        /// </summary>
+        private IEnumerator RotateOne(Transform member, SceneTrigger trigger)
+        {
+            int gen = _skipGeneration;
+            float seed = member.GetInstanceID() * 0.019f;
+            float staggerMax = Mathf.Max(0f, trigger.RotateStaggerMaxSeconds);
+            float delay = staggerMax > 0f ? Mathf.PerlinNoise(seed, 0f) * staggerMax : 0f;
+            yield return WaitOrSkip(delay, gen);
+            if (member == null) yield break;
+
+            Quaternion start = member.rotation;
+            Quaternion end = start * Quaternion.Euler(0f, trigger.RotateYDegrees, 0f);
+            float duration = Mathf.Max(0.01f, trigger.RotateDurationSeconds);
+            float t = 0f;
+            while (t < duration)
+            {
+                if (member == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                member.rotation = Quaternion.Slerp(start, end, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (member != null) member.rotation = end;
+        }
+
+        private IEnumerator PlayJump(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
+            foreach (var member in flock)
+            {
+                if (member != null) StartCoroutine(JumpOne(member, trigger));
+            }
+        }
+
+        /// <summary>One member's own up-and-back-down arc, additive on top of FishDrift's wobble
+        /// the same way every other swim offset here is — a fixed sine arc rather than physics,
+        /// since it always has to land exactly back where it started. Start time and peak height
+        /// are each independently randomised, seeded off the member's own instance ID so a given
+        /// member jumps the same way every time this beat fires rather than re-rolling.</summary>
+        private IEnumerator JumpOne(Transform member, SceneTrigger trigger)
+        {
+            int gen = _skipGeneration;
+            float seed = member.GetInstanceID() * 0.021f;
+            float staggerMax = Mathf.Max(0f, trigger.JumpStaggerMaxSeconds);
+            float delay = staggerMax > 0f ? Mathf.PerlinNoise(seed, 0f) * staggerMax : 0f;
+            yield return WaitOrSkip(delay, gen);
+            if (member == null) yield break;
+
+            float height = Mathf.Max(0.01f, trigger.JumpHeightM) * Mathf.Lerp(0.5f, 1f, Mathf.PerlinNoise(seed, 10f));
+            float duration = Mathf.Max(0.01f, trigger.JumpDurationSeconds);
+
+            Transform tail = null;
+            foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+            {
+                if (t0.name == "TailFinLower_M_010")
+                {
+                    tail = t0;
+                    break;
+                }
+            }
+            Quaternion startRotation = member.rotation;
+            // Fixed once, in the fish's own local space, rather than re-found every frame — the
+            // tail bone is itself animating (Trout_Swim), and this only needs "roughly where the
+            // tail is," not its live position. Falls back to half the trout's own ~13.8 m length,
+            // behind rather than ahead, if no such bone is found.
+            Vector3 tailLocalOffset = tail != null
+                ? member.InverseTransformPoint(tail.position)
+                : Vector3.back * 6.9f;
+            // The tail's own world-space offset from the body's origin before any tilt — the
+            // reference the pivot compensation below measures against.
+            Vector3 tailWorldOffset = startRotation * tailLocalOffset;
+
+            _swimOffsets.TryGetValue(member, out var baseOffset);
+            float t = 0f;
+            while (t < duration)
+            {
+                if (member == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                float p = Mathf.Clamp01(t / duration);
+
+                // A true parabola, not a sine arc — 0 at both ends, height at the midpoint — so
+                // takeoff and landing read as departing/rejoining the water rather than an
+                // arbitrary curve.
+                float y = 4f * height * p * (1f - p);
+                // Level at takeoff, tilted nose-up at the quarter-point, level again at the peak;
+                // mirrored nose-down across the second half — a flutter layered on the trajectory
+                // rather than derived from its slope, since following the slope directly (steep
+                // at both ends, level only at the exact peak) read as unnatural.
+                float pitchDegrees = p <= 0.5f
+                    ? Mathf.Sin(p / 0.5f * Mathf.PI) * trigger.JumpPitchDegrees
+                    : -Mathf.Sin((p - 0.5f) / 0.5f * Mathf.PI) * trigger.JumpPitchDegrees;
+
+                // Around world Z, and around the tail rather than the body's own origin: the
+                // amount the tilt alone would have moved the tail is subtracted back out, so the
+                // tail stays put and the rest of the body swings around it instead.
+                Quaternion tilt = Quaternion.AngleAxis(pitchDegrees, Vector3.forward);
+                Vector3 pivotCompensation = tailWorldOffset - tilt * tailWorldOffset;
+
+                _swimOffsets[member] = baseOffset
+                    + new Vector3(0f, y, 0f)
+                    + new Vector3(p * trigger.JumpForwardM, 0f, 0f)
+                    + pivotCompensation;
+                member.rotation = tilt * startRotation;
+                yield return null;
+            }
+            if (member != null)
+            {
+                _swimOffsets[member] = baseOffset + new Vector3(trigger.JumpForwardM, 0f, 0f);
+                member.rotation = startRotation;
+            }
+        }
+
+        /// <summary>Whichever member of TargetBeatId's flock sits to ConsumeTargetBeatId's own
+        /// member's right and is closest to it swims that way over SwimDurationSeconds;
+        /// EatDelaySeconds after
+        /// firing, that flock is destroyed outright; GrowDelaySeconds after that,
+        /// TargetBeatId's whole flock (the approaching member included — it was never removed,
+        /// only nudged) grows in place — no swap, no shake. Re-registered under this beat's own
+        /// id, the same handoff every other flock-consuming beat uses.</summary>
+        private IEnumerator PlayEatAndGrow(SceneTrigger trigger)
+        {
+            int gen = _skipGeneration;
+            if (!_flocks.TryGetValue(trigger.ConsumeTargetBeatId, out var eaten) || eaten.Count == 0)
+                yield break;
+            Transform eatenTarget = eaten[0];
+
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
+                yield break;
+
+            if (eatenTarget != null)
+            {
+                // Only a member to the strider's own right is a candidate at all — closest
+                // overall is not enough on its own.
+                Transform closest = null;
+                float closestDist = float.MaxValue;
+                foreach (var member in flock)
+                {
+                    if (member == null || member.position.x <= eatenTarget.position.x) continue;
+                    float dist = Vector3.Distance(member.position, eatenTarget.position);
+                    if (dist < closestDist)
+                    {
+                        closestDist = dist;
+                        closest = member;
+                    }
+                }
+                if (closest != null)
+                    StartCoroutine(SwimOneToward(closest, eatenTarget.position, trigger.SwimDurationSeconds));
+            }
+
+            yield return WaitOrSkip(trigger.EatDelaySeconds, gen);
+
+            foreach (var member in eaten) if (member != null) Destroy(member.gameObject);
+            eaten.Clear();
+
+            yield return WaitOrSkip(trigger.GrowDelaySeconds, gen);
+
+            var targets = new List<Transform>(flock);
+            flock.Clear();
+
+            if (!_flocks.TryGetValue(trigger.BeatId, out var grown))
+            {
+                grown = new List<Transform>();
+                _flocks[trigger.BeatId] = grown;
+            }
+
+            foreach (var target in targets)
+            {
+                if (target == null) continue;
+                grown.Add(target);
+                StartCoroutine(GrowInPlace(target, trigger.GrowMultiplier, trigger.HatchDurationSeconds));
+            }
+        }
+
+        /// <summary>Eases the fish's swim offset toward wherever targetPos currently is —
+        /// additive, and left running alongside FishDrift the same way SwimOneToEye is, so the
+        /// wobble keeps going the whole time this plays out. Unlike SwimOneToEye's fixed delta,
+        /// this aims at an absolute point.</summary>
+        private IEnumerator SwimOneToward(Transform fish, Vector3 targetPos, float durationSeconds)
+        {
+            _swimOffsets.TryGetValue(fish, out var startOffset);
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            int gen = _skipGeneration;
+            while (t < duration)
+            {
+                if (fish == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                _swimOffsets.TryGetValue(fish, out var currentOffset);
+                Vector3 basePlusWobble = fish.position - currentOffset;
+                Vector3 desiredOffset = targetPos - basePlusWobble;
+                _swimOffsets[fish] = Vector3.Lerp(startOffset, desiredOffset, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+        }
+
+        private IEnumerator GrowInPlace(Transform target, float growMultiplier, float durationSeconds)
+        {
+            Vector3 start = target.localScale;
+            Vector3 end = start * (1f + growMultiplier);
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            int gen = _skipGeneration;
+            while (t < duration)
+            {
+                if (target == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                target.localScale = Vector3.Lerp(start, end, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (target != null) target.localScale = end;
+        }
+
+        /// <summary>Plants copies of Template in front of the eye and lets each one run whatever
+        /// Legacy Animation clip it already defaults to — no Timeline, no fall, just "here it is,
+        /// doing its own thing". Registered under this beat's own id, same as Spawn, so a later
+        /// beat can reach into the flock.</summary>
+        private IEnumerator PlayAppear(SceneTrigger trigger)
+        {
+            if (trigger.Template == null) yield break;
+            int gen = _skipGeneration;
+            bool useAnchorFlock = !string.IsNullOrEmpty(trigger.AnchorBeatId);
+            if (!trigger.UseWorldPosition && !useAnchorFlock) yield return WaitForStableTracking(gen);
+
+            bool hasEye = _eye != null && !trigger.UseWorldPosition && !useAnchorFlock;
+            Vector3 anchorPos = trigger.Template.transform.position;
+            Quaternion facing = trigger.Template.transform.rotation;
+            if (trigger.UseWorldPosition)
+            {
+                anchorPos = trigger.WorldPosition;
+            }
+            else if (useAnchorFlock)
+            {
+                if (_flocks.TryGetValue(trigger.AnchorBeatId, out var anchorFlock) && anchorFlock.Count > 0)
+                {
+                    // The flock's own centroid, not just its first member — confirmed on a device:
+                    // anchoring to a single fish reads as "in front of that one fish", visibly off
+                    // to whichever side it happened to end up on once the flock spreads apart
+                    // (see SpreadMultiplier), rather than in front of the group as a whole.
+                    Vector3 centroid = Vector3.zero;
+                    int validCount = 0;
+                    foreach (var member in anchorFlock)
+                    {
+                        if (member == null) continue;
+                        centroid += member.position;
+                        validCount++;
+                    }
+                    if (validCount > 0)
+                    {
+                        centroid /= validCount;
+                        // Every fish (and this template) spawns at identity rotation and is built
+                        // to visually face world Vector3.left — see HatchOne's own comment — so
+                        // "toward its head" and "toward its right side" are this fixed pair of
+                        // world directions, not something read off any member's own Transform.
+                        Vector3 anchorHead = Vector3.left;
+                        Vector3 anchorRight = Vector3.forward;
+                        anchorPos = centroid
+                                  + anchorHead * trigger.AnchorOffsetM.x
+                                  + Vector3.up * trigger.AnchorOffsetM.y
+                                  + anchorRight * trigger.AnchorOffsetM.z;
+                    }
+                }
+            }
+            else if (hasEye)
+            {
+                Vector3 forward = _eye.transform.forward;
+                if (trigger.FollowCameraPitch)
+                {
+                    facing = Quaternion.LookRotation(forward);
+                }
+                else
+                {
+                    forward.y = 0f;
+                    forward = forward.sqrMagnitude < 0.0001f ? Vector3.forward : forward.normalized;
+                }
+                anchorPos = _eye.transform.position + forward * SceneTriggerDistanceM
+                    + _eye.transform.right * trigger.AppearOffsetM.x
+                    + _eye.transform.up * trigger.AppearOffsetM.y;
+                anchorPos.y = SaneAnchorY(anchorPos.y);
+            }
+
+            int count = Mathf.Max(1, trigger.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var clone = Instantiate(trigger.Template);
+                // The template is inactive — hidden until it is played — and a clone of an
+                // inactive object starts inactive too.
+                clone.SetActive(true);
+
+                if (trigger.UseWorldPosition || useAnchorFlock)
+                {
+                    clone.transform.position = anchorPos;
+                    clone.transform.rotation = facing;
+                }
+                else if (hasEye)
+                {
+                    Vector2 jitter = UnityEngine.Random.insideUnitCircle * trigger.ScatterRadiusM;
+                    Vector3 spread = _eye.transform.right * jitter.x + _eye.transform.up * jitter.y;
+                    clone.transform.position = anchorPos + spread;
+                    clone.transform.rotation = facing;
+                }
+
+                // Plural, not singular: a clone can carry more than one animated child (the
+                // nest's three babies, each with its own Animator), and every one of them needs
+                // the same clip and speed applied independently.
+                foreach (var animation in clone.GetComponentsInChildren<Animation>())
+                {
+                    animation.wrapMode = WrapMode.Loop;
+                    string clipName = trigger.AppearClipName;
+                    if (string.IsNullOrEmpty(clipName)) animation.Play();
+                    else animation.Play(clipName);
+
+                    if (trigger.AppearClipSpeed > 0f)
+                    {
+                        var state = animation[string.IsNullOrEmpty(clipName) ? animation.clip.name : clipName];
+                        if (state != null) state.speed = trigger.AppearClipSpeed;
+                    }
+                }
+
+                // Several Animators on one clone (the nest's three babies) start at evenly spread
+                // points in the clip's own cycle rather than all in lockstep, so a loop reads as
+                // three separate animals rather than one clip times three.
+                var animators = clone.GetComponentsInChildren<Animator>();
+                for (int a = 0; a < animators.Length; a++)
+                {
+                    var animator = animators[a];
+                    if (!string.IsNullOrEmpty(trigger.AppearClipName))
+                    {
+                        float phase = animators.Length > 1 ? (float)a / animators.Length : 0f;
+                        animator.Play(trigger.AppearClipName, 0, phase);
+                    }
+                    if (trigger.AppearClipSpeed > 0f) animator.speed = trigger.AppearClipSpeed;
+                }
+
+                if (!_flocks.TryGetValue(trigger.BeatId, out var flock))
+                {
+                    flock = new List<Transform>();
+                    _flocks[trigger.BeatId] = flock;
+                }
+                flock.Add(clone.transform);
+
+                if (i < count - 1 && trigger.StaggerSeconds > 0f)
+                    yield return WaitOrSkip(trigger.StaggerSeconds, gen);
+            }
+        }
+
+        /// <summary>Reaches into TargetBeatId's still-standing flock and plays ClipSequence on
+        /// each member in place, one step after another — no spawn, no destroy, and the flock is
+        /// left registered exactly as it was, since this is a gesture on something already on
+        /// screen rather than a hand-off to a new beat. Unlike Appear's own looped playback, each
+        /// step plays once: a gesture like the heron lowering its head is a beat, not an idle
+        /// loop.</summary>
+        private IEnumerator PlayClipOnFlock(SceneTrigger trigger)
+        {
+            if (trigger.ClipSequence == null || trigger.ClipSequence.Length == 0) yield break;
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
+
+            foreach (var member in flock)
+            {
+                if (member != null) StartCoroutine(PlayClipSequence(member, trigger));
+            }
+
+            if (!string.IsNullOrEmpty(trigger.FishSourceBeatId)) StartCoroutine(FeedFishToTarget(trigger, flock));
+        }
+
+        /// <summary>Pulls one fish out of FishSourceBeatId's flock — it is removed there, not
+        /// consumed-and-reregistered the way ReactFlock/EatAndGrow hand a whole flock onward,
+        /// since only a single member is being fed rather than the group progressing to a new
+        /// beat. Swims it to FishFollowBoneName on whichever TargetBeatId member actually carries
+        /// a Legacy Animation (the heron, not the nest), then tracks that bone every frame — as an
+        /// additive offset on top of FishDrift's own wobble, the same pattern SwimOneToEye uses,
+        /// rather than taking the fish's Transform over outright. On arrival it is turned to face
+        /// up, as if held vertically in the beak. It keeps tracking through FishDisappearAfterSeconds
+        /// (timed to the second ClipSequence clip starting), then switches to watching the beak's
+        /// own height for a local minimum — a runtime read of the actual lowest point reached
+        /// rather than a guessed instant inside the clip — and disappears exactly there.</summary>
+        private IEnumerator FeedFishToTarget(SceneTrigger trigger, List<Transform> targetFlock)
+        {
+            int gen = _skipGeneration;
+            Transform target = null;
+            foreach (var candidate in targetFlock)
+            {
+                if (candidate != null && candidate.GetComponentInChildren<Animation>() != null)
+                {
+                    target = candidate;
+                    break;
+                }
+            }
+            if (target == null) yield break;
+
+            if (!_flocks.TryGetValue(trigger.FishSourceBeatId, out var fishFlock) || fishFlock.Count == 0)
+                yield break;
+            Transform fish = fishFlock[0];
+            fishFlock.RemoveAt(0);
+            if (fish == null) yield break;
+
+            Transform beak = null;
+            foreach (var t in target.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == trigger.FishFollowBoneName)
+                {
+                    beak = t;
+                    break;
+                }
+            }
+            if (beak == null) yield break;
+
+            _swimOffsets.TryGetValue(fish, out var startOffset);
+            float swimDuration = Mathf.Max(0.01f, trigger.FishSwimDurationSeconds);
+            float t2 = 0f;
+            while (t2 < swimDuration)
+            {
+                if (fish == null || beak == null) yield break;
+                t2 += Time.deltaTime;
+                if (_skipGeneration != gen) t2 = swimDuration;
+                _swimOffsets.TryGetValue(fish, out var currentOffset);
+                Vector3 basePlusWobble = fish.position - currentOffset;
+                Vector3 desiredOffset = beak.TransformPoint(trigger.FishFollowLocalOffset) - basePlusWobble;
+                _swimOffsets[fish] = Vector3.Lerp(startOffset, desiredOffset, Mathf.Clamp01(t2 / swimDuration));
+                yield return null;
+            }
+
+            // Arrived: "head up", as if the heron is holding it vertically before swallowing.
+            if (fish != null) fish.Rotate(0f, 0f, -90f, Space.World);
+
+            float untilSecondClip = Mathf.Max(0f, trigger.FishDisappearAfterSeconds - swimDuration);
+            float t3 = 0f;
+            while (t3 < untilSecondClip)
+            {
+                if (fish == null || beak == null) { if (fish != null) Destroy(fish.gameObject); yield break; }
+                if (_skipGeneration != gen) break;
+                _swimOffsets.TryGetValue(fish, out var currentOffset);
+                Vector3 basePlusWobble = fish.position - currentOffset;
+                _swimOffsets[fish] = beak.TransformPoint(trigger.FishFollowLocalOffset) - basePlusWobble;
+                t3 += Time.deltaTime;
+                yield return null;
+            }
+
+            // The 0.3s CrossFade into the second clip can wobble the beak's height briefly while
+            // it blends — settled through here rather than mistaken for the clip's own real dip.
+            // Skipped outright along with the wait above: both exist purely to pace this against
+            // the heron's own animation, which a skip has already jumped past.
+            float settle = _skipGeneration != gen ? 0f : 0.4f;
+            while (settle > 0f)
+            {
+                if (fish == null || beak == null) { if (fish != null) Destroy(fish.gameObject); yield break; }
+                if (_skipGeneration != gen) break;
+                _swimOffsets.TryGetValue(fish, out var currentOffset);
+                Vector3 basePlusWobble = fish.position - currentOffset;
+                _swimOffsets[fish] = beak.TransformPoint(trigger.FishFollowLocalOffset) - basePlusWobble;
+                settle -= Time.deltaTime;
+                yield return null;
+            }
+
+            // From here, track the beak's own height every frame and disappear the instant it
+            // stops falling and starts rising again — its actual lowest point, not a guessed
+            // fraction of the clip's length.
+            float lastHeight = beak != null ? beak.TransformPoint(trigger.FishFollowLocalOffset).y : 0f;
+            while (fish != null && beak != null)
+            {
+                if (_skipGeneration != gen) break;
+                _swimOffsets.TryGetValue(fish, out var currentOffset);
+                Vector3 basePlusWobble = fish.position - currentOffset;
+                _swimOffsets[fish] = beak.TransformPoint(trigger.FishFollowLocalOffset) - basePlusWobble;
+
+                float height = beak.TransformPoint(trigger.FishFollowLocalOffset).y;
+                if (height > lastHeight) break;
+                lastHeight = height;
+                yield return null;
+            }
+
+            if (fish != null) Destroy(fish.gameObject);
+
+            // The babies switch off their idle loop to "Clicked" once the fish is gone — spread
+            // across evenly staggered starting points in the clip's own cycle, the same way
+            // PlayAppear itself staggers several Animators on one clone, so all three reading as
+            // one shared reaction rather than a single clip times three.
+            foreach (var other in targetFlock)
+            {
+                if (other == null || other == target) continue;
+                var animators = other.GetComponentsInChildren<Animator>();
+                for (int a = 0; a < animators.Length; a++)
+                {
+                    float phase = animators.Length > 1 ? (float)a / animators.Length : 0f;
+                    animators[a].Play("Clicked", 0, phase);
+                }
+            }
+        }
+
+        private IEnumerator PlayClipSequence(Transform member, SceneTrigger trigger)
+        {
+            int gen = _skipGeneration;
+            for (int i = 0; i < trigger.ClipSequence.Length; i++)
+            {
+                if (member == null) yield break;
+
+                var step = trigger.ClipSequence[i];
+                if (i > 0 && step.DelaySeconds > 0f) yield return WaitOrSkip(step.DelaySeconds, gen);
+
+                // Instant, and only on a member that actually has this clip — otherwise a mixed
+                // flock (the heron plus the nest, both under "beat-6") would spin (or nudge) the
+                // nest too.
+                bool matchesHere = (step.RotateYDegrees != 0f || step.NudgeLeftM != 0f)
+                    && HasNamedClip(member, step.ClipName);
+                if (matchesHere && step.RotateYDegrees != 0f)
+                    member.Rotate(0f, step.RotateYDegrees, 0f, Space.World);
+                if (matchesHere && step.NudgeLeftM != 0f && _eye != null)
+                    member.position -= _eye.transform.right * step.NudgeLeftM;
+
+                float duration = PlayNamedClip(member, step.ClipName, trigger.AppearClipSpeed);
+
+                if (step.NudgeLeftDuringM != 0f && _eye != null && HasNamedClip(member, step.ClipName))
+                    StartCoroutine(NudgeLeftDuringClip(member, step.NudgeLeftDuringM, duration, gen));
+
+                bool isLast = i == trigger.ClipSequence.Length - 1;
+                if (!isLast) yield return WaitOrSkip(duration, gen);
+            }
+        }
+
+        /// <summary>Eases member toward screen-left by totalNudgeM over durationSeconds, run
+        /// alongside a clip whose own baked rotation doesn't pivot exactly on the model's feet —
+        /// see ClipStep.NudgeLeftDuringM. The eye's own right, read once at the start rather than
+        /// every frame, same as NudgeLeftM's own instant version — this only runs a few seconds
+        /// at most, not long enough for the operator's own aim to meaningfully drift mid-clip.
+        /// </summary>
+        private IEnumerator NudgeLeftDuringClip(Transform member, float totalNudgeM, float durationSeconds, int gen)
+        {
+            if (member == null || _eye == null) yield break;
+            Vector3 start = member.position;
+            Vector3 end = start - _eye.transform.right * totalNudgeM;
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            while (t < duration)
+            {
+                if (member == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                member.position = Vector3.Lerp(start, end, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (member != null) member.position = end;
+        }
+
+        /// <summary>Whether member carries clipName as a Legacy Animation clip or an Animator
+        /// state, without playing anything — used to gate a side effect (like ClipStep's own
+        /// rotation) to only the member(s) this step's clip actually matches.</summary>
+        private static bool HasNamedClip(Transform member, string clipName)
+        {
+            foreach (var animation in member.GetComponentsInChildren<Animation>())
+            {
+                if (animation.GetClip(clipName) != null) return true;
+            }
+            foreach (var animator in member.GetComponentsInChildren<Animator>())
+            {
+                if (animator.HasState(0, Animator.StringToHash(clipName))) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Plays clipName on whatever Legacy Animation or Animator components member
+        /// carries — guarded by whether each actually has it, since a mixed flock (the heron plus
+        /// the nest's babies, both under "beat-6") only has some members carrying any one clip,
+        /// and Animator.Play in particular logs an error for a state it can't find rather than
+        /// no-oping quietly the way Legacy's Play does. Returns how long the slowest Legacy match
+        /// takes at the given speed, so a caller can wait for it before chaining a follow-up clip
+        /// — 0 if nothing on member carries clipName.</summary>
+        private static float PlayNamedClip(Transform member, string clipName, float speed)
+        {
+            float duration = 0f;
+            foreach (var animation in member.GetComponentsInChildren<Animation>())
+            {
+                if (animation.GetClip(clipName) == null) continue;
+                animation.wrapMode = WrapMode.Once;
+                // CrossFade, not Play: two clips authored independently rarely share a starting
+                // pose, so a hard cut reads as a sudden extra snap on top of whatever the clip
+                // itself animates. Blending hides that seam.
+                animation.CrossFade(clipName, 0.3f);
+                var state = animation[clipName];
+                if (state == null) continue;
+                if (speed > 0f) state.speed = speed;
+                duration = Mathf.Max(duration, state.length / (speed > 0f ? speed : 1f));
+            }
+
+            foreach (var animator in member.GetComponentsInChildren<Animator>())
+            {
+                int hash = Animator.StringToHash(clipName);
+                if (!animator.HasState(0, hash)) continue;
+                animator.Play(hash);
+                if (speed > 0f) animator.speed = speed;
+            }
+
+            return duration;
+        }
+
+        /// <summary>Reaches into a Spawn beat's still-standing flock and animates each member in
+        /// place: a shake-and-grow, then either a swap for FishPrefab or, with none assigned yet,
+        /// a settle. The flock is consumed — this batch will not be reached into again.</summary>
+        private IEnumerator PlayHatchReaction(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
+                yield break;
+
+            var targets = new List<Transform>(flock);
+            flock.Clear();
+
+            // The flock's own centroid, measured before anything hatches — SpreadMultiplier eases
+            // each new fish away from THIS point, not away from each other pairwise, so the whole
+            // flock expands uniformly outward rather than members near the middle barely moving.
+            Vector3 centroid = Vector3.zero;
+            int validCount = 0;
+            foreach (var target in targets)
+            {
+                if (target == null) continue;
+                centroid += target.position;
+                validCount++;
+            }
+            if (validCount > 0) centroid /= validCount;
+
+            foreach (var target in targets)
+            {
+                if (target != null) StartCoroutine(HatchOne(target, trigger, centroid));
+            }
+        }
+
+        private IEnumerator HatchOne(Transform egg, SceneTrigger trigger, Vector3 flockCentroid)
+        {
+            Vector3 basePosition = egg.position;
+            Vector3 startScale = egg.localScale;
+            Vector3 endScale = startScale * (1f + trigger.GrowMultiplier);
+            // Staggered within the window rather than every egg finishing together, so a flock
+            // bursts one after another instead of all at once.
+            float duration = UnityEngine.Random.Range(
+                Mathf.Max(0.01f, trigger.HatchDurationSeconds * 0.3f),
+                Mathf.Max(0.01f, trigger.HatchDurationSeconds));
+            // Offsets the noise per egg so a whole flock does not tremble in lockstep.
+            float seed = egg.GetInstanceID() * 0.017f;
+            float t = 0f;
+            int gen = _skipGeneration;
+
+            while (t < duration)
+            {
+                if (egg == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                float p = Mathf.Clamp01(t / duration);
+
+                // 0.5x per feedback that the pre-hatch shake read too fast — halves how quickly
+                // Time.time advances through the Perlin noise, not its amplitude.
+                Vector3 jitter = new Vector3(
+                    Mathf.PerlinNoise(Time.time * 8.5f + seed, 0f) - 0.5f,
+                    Mathf.PerlinNoise(Time.time * 6.5f + seed, 10f) - 0.5f,
+                    Mathf.PerlinNoise(Time.time * 9.5f + seed, 20f) - 0.5f) * trigger.ShakeAmplitudeM;
+
+                egg.position = basePosition + jitter;
+                egg.localScale = Vector3.Lerp(startScale, endScale, p);
+                yield return null;
+            }
+
+            if (egg == null) yield break;
+            egg.position = basePosition;
+            egg.localScale = endScale;
+
+            if (trigger.FishPrefab != null)
+            {
+                // egg's own pivot, not its Mesh child's: every Build*Prefab centres its mesh by
+                // shifting the MESH's local offset until the geometry's centre lands on the
+                // root's own origin (see e.g. BuildFishPrefab's bounds-centring), so it is the
+                // root — egg here — whose position reliably tracks the visible geometry's centre
+                // at runtime; the Mesh child's own position is just whatever that correction
+                // left it at, not something to spawn the next stage at. Confirmed as the actual
+                // cause of Rainbow Trout not landing on the fry's own spot: this used to read
+                // the Mesh child's position instead, which is exactly the position this comment
+                // already said not to use. Identity rotation, not egg.rotation, since egg's is
+                // whichever way the camera happened to be aimed when it was planted, not a fixed
+                // orientation — using it would face the next stage an arbitrary direction instead
+                // of the correction baked into the prefab.
+                var fish = Instantiate(trigger.FishPrefab, egg.position, Quaternion.identity);
+                // Legacy import (see ALEVIN FISH.glb.meta): an Animation component that plays a
+                // clip by name directly. Mecanim was tried first and needs an AnimatorController
+                // asset glTFast does not generate, so nothing was ever wired to the Animator.
+                var fishAnimation = fish.GetComponentInChildren<Animation>();
+                if (fishAnimation != null)
+                {
+                    // Looping explicitly, not trusting whatever the imported clip defaulted to
+                    // — if it defaulted to Once, the fish would already be sitting on its last
+                    // frame, static, by the time a later beat moves it.
+                    fishAnimation.wrapMode = WrapMode.Loop;
+                    string clipName = string.IsNullOrEmpty(trigger.FishSwimClipName) ? "Swim" : trigger.FishSwimClipName;
+                    var swimState = fishAnimation[clipName];
+                    if (swimState != null) swimState.wrapMode = WrapMode.Loop;
+                    fishAnimation.Play(clipName);
+                }
+                StartDrift(fish.transform);
+                if (trigger.SpreadMultiplier > 1f)
+                    StartCoroutine(SpreadFishFromCentroid(
+                        fish.transform, egg.position, flockCentroid, trigger.SpreadMultiplier, trigger.SpreadDurationSeconds));
+
+                // Registered under this Hatch beat's own id — a later ReactFlock/SwimToEye beat
+                // targets it by that id, the same way this beat targeted Spawn's.
+                if (!_flocks.TryGetValue(trigger.BeatId, out var hatched))
+                {
+                    hatched = new List<Transform>();
+                    _flocks[trigger.BeatId] = hatched;
+                }
+                hatched.Add(fish.transform);
+
+                Destroy(egg.gameObject);
+            }
+            // else: no fish model yet — left grown and settled, a visible stand-in until
+            // FishPrefab is wired in.
+        }
+
+        /// <summary>Eases fish's swim offset from 0 out to (spawnPosition - flockCentroid) *
+        /// (multiplier - 1) — additive, same as every other scripted move here, so it composes
+        /// with FishDrift's own wobble instead of fighting it. A member right on the centroid
+        /// barely moves; one already out at the flock's own edge moves the most, so the whole
+        /// flock reads as expanding uniformly from its own middle rather than each fish drifting
+        /// a fixed distance.</summary>
+        private IEnumerator SpreadFishFromCentroid(
+            Transform fish, Vector3 spawnPosition, Vector3 flockCentroid, float multiplier, float durationSeconds)
+        {
+            Vector3 endOffset = (spawnPosition - flockCentroid) * (multiplier - 1f);
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            int gen = _skipGeneration;
+            while (t < duration)
+            {
+                if (fish == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                _swimOffsets[fish] = Vector3.Lerp(Vector3.zero, endOffset, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (fish != null) _swimOffsets[fish] = endOffset;
+        }
+
+        /// <summary>A gentle, endless hover once a fish exists: forward/back, left/right and
+        /// up/down within about 0.2 body-lengths of wherever it surfaced — its own spawn point
+        /// stays the origin the whole time — so it reads as suspended in water rather than
+        /// pinned in place. Stops on its own once the fish is destroyed.</summary>
+        private IEnumerator FishDrift(Transform fish)
+        {
+            var renderers = fish.GetComponentsInChildren<Renderer>();
+            float bodyLength = 0.3f;
+            if (renderers.Length > 0)
+            {
+                var bounds = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+                bodyLength = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            }
+            // All three axes, 0 to 0.4 body-lengths. Capped in absolute metres, not just
+            // body-lengths: rainbow trout at their 100x scale otherwise compute an amplitude
+            // upward of 5 m, dwarfing any deliberate move (Stunt's own pivot tuning proved
+            // unnoticeable at every value tried, up to and including near-zero, because this
+            // wobble was masking it entirely) and turning "idle sway" into a wobble bigger than
+            // the fish itself.
+            float amplitude = Mathf.Min(bodyLength * 0.4f, 0.0375f);
+            float seed = fish.GetInstanceID() * 0.031f;
+            Vector3 basePosition = fish.position;
+
+            while (fish != null)
+            {
+                Vector3 wobble = new Vector3(
+                    (Mathf.PerlinNoise(Time.time * 0.15f + seed, 0f) - 0.5f) * (2f * amplitude),
+                    (Mathf.PerlinNoise(Time.time * 0.12f + seed, 10f) - 0.5f) * (2f * amplitude),
+                    (Mathf.PerlinNoise(Time.time * 0.13f + seed, 20f) - 0.5f) * (2f * amplitude));
+                _swimOffsets.TryGetValue(fish, out var swimOffset);
+                fish.position = basePosition + wobble + swimOffset;
+                yield return null;
+            }
+            _swimOffsets.Remove(fish);
+        }
+
+        /// <summary>Placeholder for the "device has physically moved" case: rather than actually
+        /// carrying the flock to wherever the eye now is, each member just nudges a fixed
+        /// distance toward its own head. Revisit once every scene's animation is done and the
+        /// real device-moved behaviour is worth building. Consumed and re-registered under this
+        /// beat's own id, the same handoff Spawn → ReactFlock already uses, so a later beat could
+        /// carry this flock onward again.</summary>
+        private IEnumerator PlaySwimToEye(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
+                yield break;
+
+            var targets = new List<Transform>(flock);
+            flock.Clear();
+
+            if (!_flocks.TryGetValue(trigger.BeatId, out var arrived))
+            {
+                arrived = new List<Transform>();
+                _flocks[trigger.BeatId] = arrived;
+            }
+
+            // A fixed world direction, not -_eye.transform.right: every fish spawns at identity
+            // rotation and is built to visually face world Vector3.left (see HatchOne's own
+            // comment), a fact that never changes as the device turns. Using the eye's own
+            // "right" instead only matched that fixed heading by coincidence on the desk, where
+            // the camera itself never turns — confirmed on a device: as soon as the operator
+            // aimed the iPad anywhere other than its spawn-time heading, "screen left" stopped
+            // lining up with which way the fish actually faced, and it read as swimming backward
+            // (tail-first) rather than toward its own head.
+            Vector3 towardHead = Vector3.left;
+            // A fixed nudge rather than a fraction of the fish's own measured size: the Swim
+            // animation is playing, and a skinned mesh's bounds while animating reflect whatever
+            // pose it happens to be in when sampled — a fin flung wide reads as a much bigger
+            // fish than it is, and the nudge grew along with it.
+            const float nudgeM = 1f;
+
+            foreach (var target in targets)
+            {
+                if (target == null) continue;
+                arrived.Add(target);
+                StartCoroutine(SwimOneToEye(target, towardHead * nudgeM, trigger.SwimDurationSeconds));
+            }
+        }
+
+        /// <summary>Eases the fish's swim offset by `delta` on top of whatever it already is —
+        /// additive, and left running alongside FishDrift rather than taking the Transform over,
+        /// so the wobble keeps going the whole time this plays out.</summary>
+        private IEnumerator SwimOneToEye(Transform fish, Vector3 delta, float durationSeconds)
+        {
+            _swimOffsets.TryGetValue(fish, out var start);
+            Vector3 end = start + delta;
+            float duration = Mathf.Max(0.01f, durationSeconds);
+            float t = 0f;
+            int gen = _skipGeneration;
+            while (t < duration)
+            {
+                if (fish == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = duration;
+                _swimOffsets[fish] = Vector3.Lerp(start, end, Mathf.Clamp01(t / duration));
+                yield return null;
+            }
+            if (fish != null) _swimOffsets[fish] = end;
+        }
+
         private void FrameOverview(IReadOnlyList<Vec3> centreline)
         {
             if (_overview == null) return;
@@ -395,7 +2415,7 @@ namespace ShoalingUpstream.Simulation
             style.normal.textColor = Color.white;
 
             GUI.color = new Color(0f, 0f, 0f, 0.65f);
-            GUI.DrawTexture(new Rect(8, 8, 560, 210), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(8, 8, 780, 284), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
             string connection = _link == null ? "—" : _link.Client.State.ToString();
@@ -407,8 +2427,42 @@ namespace ShoalingUpstream.Simulation
             text.AppendLine($"link      <color={connectionColour}>{connection}</color>"
                             + (string.IsNullOrEmpty(_link?.Client.LastNote) ? "" : $"  ({_link.Client.LastNote})"));
             text.AppendLine($"journey   {(_journeyNote.StartsWith("!!") ? $"<color=#ff8f6b>{_journeyNote}</color>" : _journeyNote)}");
-            text.AppendLine($"gate      {_gateNote}");
-            text.AppendLine($"audio     {_audioNote}");
+            text.AppendLine($"draft     {_lastDraftFetchDiag}");
+            // _progression is set right before _link.SetEffects() in Begin() — if this is false,
+            // Begin() never got that far (gate refused it, or the journey never loaded at all),
+            // which is exactly what "nothing wired to play it" means.
+            text.AppendLine($"gate      {_gateNote}   progression-set {_progression != null}");
+            text.AppendLine($"settle    {_lastStableTrackingDiag}");
+            text.AppendLine($"eggDrop   {_lastEggDropDiag}");
+            text.AppendLine($"ar        state {UnityEngine.XR.ARFoundation.ARSession.state}"
+                            + $"   notTracking {UnityEngine.XR.ARFoundation.ARSession.notTrackingReason}"
+                            + $"   cam.pos {(_eye != null ? _eye.transform.position.ToString("F2") : "—")}");
+            if (_flocks.TryGetValue("beat-1", out var beat1Flock) && beat1Flock.Count > 0)
+            {
+                // The most recently spawned egg, not flock[0] — flock[0] can be left over from a
+                // much earlier press (a different camera pose entirely), which is nowhere near
+                // whatever is actually on screen right now.
+                Transform egg = null;
+                for (int i = beat1Flock.Count - 1; i >= 0; i--)
+                {
+                    if (beat1Flock[i] != null) { egg = beat1Flock[i]; break; }
+                }
+                if (egg != null)
+                {
+                    text.AppendLine($"eggLast   pos {egg.position:F2}   localPos {egg.localPosition:F2}"
+                                    + $"   parent {(egg.parent != null ? egg.parent.name : "—")}"
+                                    + $"   dist-from-cam {(_eye != null ? Vector3.Distance(_eye.transform.position, egg.position) : -1f):F2}");
+                    // Where the script's own Camera+Transform data says this egg should draw —
+                    // compared against where it actually appears on screen, this is the most
+                    // direct possible test of whether rendering is using the same transform the
+                    // rest of this HUD reads, or something else entirely (an XR "native display"
+                    // matrix, for instance, can differ from the GameObject Transform Unity
+                    // exposes to script).
+                    Vector3 screenPt = _eye != null ? _eye.WorldToScreenPoint(egg.position) : Vector3.zero;
+                    text.AppendLine($"eggScreen screenPt {screenPt:F0}   screen {Screen.width}x{Screen.height}"
+                                    + $"   inFront {screenPt.z > 0f}");
+                }
+            }
 
             if (_progression != null)
             {
@@ -426,7 +2480,7 @@ namespace ShoalingUpstream.Simulation
             }
             text.AppendLine($"<color=#9fb4c4>{string.Join("  ·  ", _log)}</color>");
 
-            GUI.Label(new Rect(16, 12, 548, 200), text.ToString(), style);
+            GUI.Label(new Rect(16, 12, 548, 216), text.ToString(), style);
         }
 
         // ------------------------------------------------------------------ the bus
@@ -438,11 +2492,25 @@ namespace ShoalingUpstream.Simulation
             private readonly SimulationDriver _driver;
             public Effects(SimulationDriver driver) => _driver = driver;
 
+            /// <summary>The order "Skip forward" walks — 01-a through 07-c. Explicit rather than
+            /// trusting journey.beats' own array order: the journey document lists "beat-7" (03-b)
+            /// before "beat-6" (04-a), so iterating it directly would let a skip jump straight to
+            /// 03-b ahead of 04-a instead of respecting the numbered sequence.</summary>
+            private static readonly string[] AdvanceOrder =
+            {
+                "beat-1", "beat-2", "beat-3", "beat-4", "beat-5", "beat-7", "beat-6", "beat-8",
+                "beat-11", "beat-9", "beat-10", "beat-12", "beat-13", "beat-14", "beat-15",
+            };
+
             public bool FireBeat(string beatId)
             {
                 if (_driver._progression == null || string.IsNullOrEmpty(beatId)) return false;
                 bool fired = _driver._progression.ForceBeat(beatId);
-                if (fired) _driver.Note($"operator fired {beatId}");
+                if (fired)
+                {
+                    _driver.Note($"operator fired {beatId}");
+                    _driver.PlayScene(beatId);
+                }
                 return fired;
             }
 
@@ -454,14 +2522,44 @@ namespace ShoalingUpstream.Simulation
 
             public bool Advance()
             {
-                var journey = _driver._journey;
-                if (journey == null) return false;
-                foreach (var beat in journey.beats)
+                if (_driver._journey == null) return false;
+                foreach (var beatId in AdvanceOrder)
                 {
-                    if (_driver._progression.StateOf(beat.id) == BeatState.Complete) continue;
-                    return FireBeat(beat.id);
+                    if (_driver._progression.StateOf(beatId) == BeatState.Complete) continue;
+
+                    // Whatever is still mid-flight from an earlier beat jumps to its own end
+                    // state first, so the skip reads as "finish that, then this" rather than
+                    // leaving it running underneath the next beat's own animation. Bumping
+                    // _skipGeneration only flags the change — the coroutines that actually act on
+                    // it (registering a hatched fish into its own flock, for one) do not run that
+                    // code until they next resume, at least a couple of frames out. PlayScene
+                    // below is delayed to give them that time; ForceBeat is not — it has to mark
+                    // this beat Complete synchronously, in this same call, or an operator mashing
+                    // Skip forward faster than that delay would see this same beat as still
+                    // incomplete on their very next press and re-queue it instead of advancing,
+                    // stalling progress entirely rather than merely misreading an empty flock.
+                    _driver.RequestSkipCurrentToEnd();
+                    bool fired = _driver._progression.ForceBeat(beatId);
+                    if (fired)
+                    {
+                        _driver.Note($"operator fired {beatId}");
+                        _driver.StartCoroutine(PlaySceneDelayed(beatId));
+                    }
+                    return fired;
                 }
                 return false;
+            }
+
+            private IEnumerator PlaySceneDelayed(string beatId)
+            {
+                // A single frame is not enough on its own: a skipped HatchOne, for one, needs one
+                // frame to notice _skipGeneration changed and a second to fall out of its own
+                // while loop and reach its post-loop registration code — and that can chain
+                // (01-b's hatch feeding 02-a's swim feeding 02-b's hatch again) if the operator is
+                // mashing Skip forward through several beats at once. Several frames costs nothing
+                // perceptible and comfortably covers that chain.
+                for (int i = 0; i < 10; i++) yield return null;
+                _driver.PlayScene(beatId);
             }
 
             // Refused rather than faked. The audio engine has no mute, and an operator seeing a

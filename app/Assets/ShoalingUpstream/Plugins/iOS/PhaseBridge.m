@@ -146,7 +146,7 @@ static PHASESamplerNodeDefinition *SUSampler(NSString *assetId,
 static void SUSetMeta(PHASESoundEvent *event, NSString *identifier, float value) {
     PHASENumberMetaParameter *parameter =
         (PHASENumberMetaParameter *)event.metaParameters[identifier];
-    if (parameter) parameter.value = value;
+    if (parameter) parameter.value = @(value);
 }
 
 static simd_float4x4 SUTransform(float px, float py, float pz,
@@ -180,7 +180,7 @@ int SUPhaseStart(float masterGainDb, int headTracking, int reverbPreset) {
     gEngine.defaultReverbPreset = gReverbPreset;
     gEngine.outputSpatializationMode = PHASESpatializationModeAutomatic;
     gEngine.unitsPerMeter = 1.0;
-    gEngine.outputLevel = powf(10.0f, masterGainDb / 20.0f);
+    //gEngine.outputLevel = powf(10.0f, masterGainDb / 20.0f);
 
     gSources = [NSMutableArray array];
     gVoices = [NSMutableArray array];
@@ -363,8 +363,8 @@ void SUPhaseSetSourceActive(int handle, int active) {
     if (active) {
         SUBuildSource(entry);
         NSError *error = nil;
-        if (entry.event && ![entry.event startAndReturnError:&error]) {
-            NSLog(@"[phase] start: %@", error);
+        if (entry.event) {
+            [entry.event startWithCompletion:nil];
         }
     } else if (entry.event) {
         [entry.event stopAndInvalidate];
@@ -482,7 +482,7 @@ static void SURebuildVoices(void) {
         }
         SUSetMeta(voice.event, @"gain-low", 0.0f);
         SUSetMeta(voice.event, @"gain-high", 0.0f);
-        if (![voice.event startAndReturnError:&error]) NSLog(@"[phase] shoal start: %@", error);
+        [voice.event startWithCompletion:nil];
     }
 }
 

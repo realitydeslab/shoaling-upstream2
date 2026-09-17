@@ -4,7 +4,10 @@
   "references": [
     "ShoalingUpstream.Runtime",
     "ShoalingUpstream.Localization",
-    "ShoalingUpstream.Localization.Nsdk"
+    "ShoalingUpstream.Localization.Nsdk",
+    "Unity.XR.ARFoundation",
+    "Unity.XR.ARSubsystems",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

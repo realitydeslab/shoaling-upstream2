@@ -5,7 +5,11 @@
     "ShoalingUpstream.Runtime",
     "ShoalingUpstream.Simulation",
     "ShoalingUpstream.Localization",
-    "ShoalingUpstream.Localization.Nsdk"
+    "ShoalingUpstream.Localization.Nsdk",
+    "Unity.XR.CoreUtils",
+    "Unity.XR.ARFoundation",
+    "Unity.Timeline",
+    "Unity.InputSystem"
   ],
   "includePlatforms": [ "Editor" ],
   "excludePlatforms": [],

@@ -1,0 +1,767 @@
+{
+  "schemaVersion": "2.0",
+  "journeyId": "ucb-strawberry-creek-south",
+  "title": "Shoaling Upstream — Strawberry Creek South",
+  "revision": 2,
+  "note": "Upstream is north, toward +Z: the bed rises +2.21 m over 65.2 m of traced channel (3.4 % mean gradient), which agrees with the 2.27 m of rise across the VPS mesh. There is no waterfall on this reach — the steepest 2 m of channel rises 0.44 m. The ending is the dark still reach at z 27–36 and the gravel above it. Beat positions/S values below beat-1..beat-15 are placeholders interpolated from the earlier six-chapter survey points, pending real on-site GPS/VPS measurement for the detailed beat list.",
+  "site": {
+    "slug": "ucb-strawberry-creek-south",
+    "nianticOrgId": "f35a6672-fc09-4c74-ad33-488c721850fb",
+    "nianticSiteId": "187bbd62-4d21-480e-8f8d-e484754aa22b",
+    "vpsAssetId": "aa815b01-bed7-416c-9d52-b5aef03892f4",
+    "anchorPayload": "",
+    "centreline": [
+      {
+        "x": 4.727,
+        "y": -0.78,
+        "z": -3.681
+      },
+      {
+        "x": 2.432,
+        "y": -0.55,
+        "z": -0.854
+      },
+      {
+        "x": -1.354,
+        "y": -0.45,
+        "z": -0.894
+      },
+      {
+        "x": -3.723,
+        "y": -0.05,
+        "z": 1.868
+      },
+      {
+        "x": -6.856,
+        "y": 0.2,
+        "z": 3.306
+      },
+      {
+        "x": -8.842,
+        "y": 0.22,
+        "z": 6.084
+      },
+      {
+        "x": -11.115,
+        "y": 0.25,
+        "z": 8.677
+      },
+      {
+        "x": -10.979,
+        "y": 0.68,
+        "z": 12.173
+      },
+      {
+        "x": -12.807,
+        "y": 0.81,
+        "z": 15.411
+      },
+      {
+        "x": -11.815,
+        "y": 0.68,
+        "z": 18.99
+      },
+      {
+        "x": -13.499,
+        "y": 0.98,
+        "z": 22.138
+      },
+      {
+        "x": -12.779,
+        "y": 0.96,
+        "z": 25.515
+      },
+      {
+        "x": -12.767,
+        "y": 0.68,
+        "z": 28.94
+      },
+      {
+        "x": -11.457,
+        "y": 0.85,
+        "z": 32.211
+      },
+      {
+        "x": -12.694,
+        "y": 0.92,
+        "z": 35.669
+      },
+      {
+        "x": -10.974,
+        "y": 1.03,
+        "z": 38.872
+      },
+      {
+        "x": -11.191,
+        "y": 1.12,
+        "z": 42.423
+      },
+      {
+        "x": -10.535,
+        "y": 1.2,
+        "z": 45.244
+      }
+    ],
+    "upstreamAxis": {
+      "kind": "altitude",
+      "risesToward": "north, the −along end of the trim box, world about (−10, +45). Measured from a thalweg traced as the lowest bed per 1 m slice: +2.21 m over 65.2 m. Not from brightness — bright desaturated splats mark broken water, and here they are lowest exactly where the water is deepest and stillest."
+    }
+  },
+  "editorFrame": {
+    "splatFile": "ucb-strawberry-creek-south.proxy.spz",
+    "calibrated": false,
+    "rotation": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "translation": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "scale": 1,
+    "trim": {
+      "enabled": true,
+      "position": {
+        "x": -8.049,
+        "y": 2,
+        "z": 18.961
+      },
+      "rotation": [
+        0,
+        0.590254,
+        0,
+        0.807218
+      ],
+      "halfExtent": {
+        "x": 27,
+        "y": 7,
+        "z": 9.2
+      }
+    },
+    "bounds": {
+      "splats": 4848429,
+      "lo": {
+        "x": -21.426,
+        "y": -4.479,
+        "z": -12.194
+      },
+      "hi": {
+        "x": 8.547,
+        "y": 8.836,
+        "z": 49.229
+      },
+      "centre": {
+        "x": -9.035,
+        "y": 0.463,
+        "z": 16.591
+      },
+      "span": {
+        "x": 29.973,
+        "y": 13.315,
+        "z": 61.423
+      },
+      "note": "1st-99th percentile. Raw min/max is meaningless: every scan carries floater splats hundreds of metres out."
+    }
+  },
+  "beats": [
+    {
+      "id": "beat-1",
+      "title": "01-a: New Born - Spawn",
+      "prompt": "Eggs are falling in front of you.",
+      "interaction": "proximity",
+      "position": {
+        "x": 3.379,
+        "y": -2.059,
+        "z": -2.093
+      },
+      "s": 2,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "new-born-spawn--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "new-born-spawn--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "new-born-spawn--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-2",
+      "title": "01-b: New Born - Hatch",
+      "prompt": "Something is moving inside the eggs.",
+      "interaction": "proximity",
+      "position": {
+        "x": -0.008,
+        "y": -1.833,
+        "z": -0.63
+      },
+      "s": 6,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "new-born-hatch--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "new-born-hatch--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "new-born-hatch--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-3",
+      "title": "02-a: Grow - Swim",
+      "prompt": "The alevin are swimming out to meet you.",
+      "interaction": "proximity",
+      "position": {
+        "x": -3.396,
+        "y": -1.608,
+        "z": 0.833
+      },
+      "s": 10,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "grow-swim--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "grow-swim--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "grow-swim--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-4",
+      "title": "02-b: Grow - Alevin to Fry",
+      "prompt": "They are growing into fry.",
+      "interaction": "proximity",
+      "position": {
+        "x": -6.514,
+        "y": -1.381,
+        "z": 2.641
+      },
+      "s": 14,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "grow-fry--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "grow-fry--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "grow-fry--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-5",
+      "title": "03-a: Strider - Show",
+      "prompt": "Something is moving on the surface of the water.",
+      "interaction": "catch",
+      "position": {
+        "x": -8.291,
+        "y": -1.148,
+        "z": 6.162
+      },
+      "s": 18,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "strider-show--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "strider-show--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "strider-show--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-7",
+      "title": "03-b: Strider - Eat Strider & Grow",
+      "prompt": "One of the fry takes the strider.",
+      "interaction": "catch",
+      "position": {
+        "x": -11.505,
+        "y": -0.729,
+        "z": 13.21
+      },
+      "s": 22,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "strider-eat--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "strider-eat--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "strider-eat--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-6",
+      "title": "04-a: Heron - Show",
+      "prompt": "The heron has arrived, standing still in the shallows.",
+      "interaction": "give",
+      "position": {
+        "x": -10.068,
+        "y": -0.915,
+        "z": 9.684
+      },
+      "s": 26,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "heron-show--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "heron-show--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "heron-show--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true,
+      "givesFish": 12
+    },
+    {
+      "id": "beat-8",
+      "title": "04-b: Heron - Feed",
+      "prompt": "Let the heron take one of the shoal.",
+      "interaction": "give",
+      "position": {
+        "x": -12.473,
+        "y": -0.609,
+        "z": 16.742
+      },
+      "s": 30,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "heron-feed--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "heron-feed--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "heron-feed--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true,
+      "givesFish": 12
+    },
+    {
+      "id": "beat-11",
+      "title": "04-c: Heron - Hide",
+      "prompt": "The heron steps back out of sight.",
+      "interaction": "give",
+      "position": {
+        "x": -12.156,
+        "y": -0.399,
+        "z": 28.069
+      },
+      "s": 34,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "heron-hide--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "heron-hide--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "heron-hide--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true,
+      "givesFish": 12
+    },
+    {
+      "id": "beat-9",
+      "title": "05-a: Fry to Rainbow Trout",
+      "prompt": "The fry are becoming rainbow trout.",
+      "interaction": "proximity",
+      "position": {
+        "x": -13.441,
+        "y": -0.488,
+        "z": 20.274
+      },
+      "s": 38,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "fry-to-trout--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "fry-to-trout--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "fry-to-trout--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-10",
+      "title": "06-a: Return Home - Return",
+      "prompt": "The trout turn back the way they came.",
+      "interaction": "proximity",
+      "position": {
+        "x": -13.201,
+        "y": -0.425,
+        "z": 24.08
+      },
+      "s": 42,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "return-home-return--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "return-home-return--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "return-home-return--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-12",
+      "title": "06-b: Return Home - Jump",
+      "prompt": "The trout leap up out of the water, back into the current.",
+      "interaction": "lift",
+      "position": {
+        "x": -11.11,
+        "y": -0.374,
+        "z": 32.058
+      },
+      "s": 46,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "return-home-jump--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "return-home-jump--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "return-home-jump--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-13",
+      "title": "07-a: Rebirth - Locate",
+      "prompt": "Find the gravel where they will spawn.",
+      "interaction": "crouch",
+      "position": {
+        "x": -10.723,
+        "y": -0.337,
+        "z": 35.736
+      },
+      "s": 50,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "rebirth-locate--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "rebirth-locate--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "rebirth-locate--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-14",
+      "title": "07-b: Rebirth - Spawn",
+      "prompt": "New eggs settle into the gravel.",
+      "interaction": "crouch",
+      "position": {
+        "x": -10.454,
+        "y": -0.297,
+        "z": 39.359
+      },
+      "s": 54,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "rebirth-spawn--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "rebirth-spawn--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "rebirth-spawn--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    },
+    {
+      "id": "beat-15",
+      "title": "07-c: Rebirth - Fade",
+      "prompt": "The trout lie still, then fade from the water.",
+      "interaction": "crouch",
+      "position": {
+        "x": -10.199,
+        "y": -0.26,
+        "z": 42.801
+      },
+      "s": 58,
+      "trigger": {
+        "enterRadiusM": 1.75,
+        "exitRadiusM": 2.8,
+        "dwellSeconds": 1.2,
+        "minimumHoldSeconds": 25,
+        "requiresPreviousComplete": true
+      },
+      "audio": {
+        "far": {
+          "clipId": "rebirth-fade--far",
+          "gainDb": -14,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "rebirth-fade--mid",
+          "gainDb": -8,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "rebirth-fade--intimate",
+          "gainDb": -4,
+          "loop": true
+        }
+      },
+      "placeholder": true
+    }
+  ],
+  "ambient": [
+    {
+      "id": "creek-bed",
+      "title": "The creek itself",
+      "position": {
+        "x": -11.815,
+        "y": 0.68,
+        "z": 18.99
+      },
+      "audibleRadiusM": 66.2,
+      "audio": {
+        "far": {
+          "clipId": "tree-creek-waterplants-2--far",
+          "gainDb": -20,
+          "loop": true
+        },
+        "mid": {
+          "clipId": "tree-creek-waterplants-2--mid",
+          "gainDb": -17,
+          "loop": true
+        },
+        "intimate": {
+          "clipId": "tree-creek-waterplants-2--intimate",
+          "gainDb": -15,
+          "loop": true
+        }
+      }
+    }
+  ],
+  "shoal": {
+    "startingCount": 40,
+    "minimumCount": 6
+  },
+  "safety": {
+    "short": "Keep your eyes on the ground, not the screen.",
+    "full": "Wear headphones that let the world through. Move at your own pace; nothing is timed. Do not enter the water where the bank is undercut or the footing is loose. The heron and the shoal are not real; the creek is."
+  },
+  "publishedAt": "2026-09-17T08:33:54.231Z"
+}
