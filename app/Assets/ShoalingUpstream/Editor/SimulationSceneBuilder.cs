@@ -282,10 +282,30 @@ namespace ShoalingUpstream.EditorTools
             driver.SceneTriggers.Add(BuildFryToRainbowTroutTrigger());
             driver.SceneTriggers.Add(BuildHeronHideTrigger());
             driver.SceneTriggers.Add(BuildTroutReturnTrigger());
+            driver.SceneTriggers.Add(BuildTroutSwimTrigger());
             driver.SceneTriggers.Add(BuildTroutJumpTrigger());
             driver.SceneTriggers.Add(BuildRebirthLocateTrigger());
             driver.SceneTriggers.Add(BuildRebirthSpawnTrigger());
             driver.SceneTriggers.Add(BuildRebirthFadeTrigger());
+        }
+
+        /// <summary>Shared by BuildFishEggTrigger's fall-in egg mesh (01-a) and
+        /// BuildFishEggMeshPrefab's runtime egg mesh (07-b's tail-drop finale) so both read as
+        /// the same size egg, per feedback ("07-b FIRE后，生成的egg保持和01-a里一样的大小") —
+        /// previously each had its own independently-tuned scale and had drifted apart.</summary>
+        private static float ComputeEggMeshLocalScale()
+        {
+            // Per feedback, the egg's visible VOLUME should read as 0.6x of what it currently is
+            // — volume scales with the cube of linear size, so the localScale factor below needs
+            // the cube root of 0.6, not 0.6 itself.
+            const float visibleVolumeScale = 0.6f;
+            float visibleLinearScale = Mathf.Pow(visibleVolumeScale, 1f / 3f);
+            // The source GLB was authored in centimetres, not the metres glTFast assumes. 1/10 on
+            // top of that per feedback in AR, where the base size read too large, then
+            // visibleLinearScale on top of THAT per the 0.6x-volume feedback above, and now a
+            // further 10x per the latest feedback ("scale改为现在的10倍").
+            const float latestSizeMultiplier = 10f;
+            return 0.0001f * visibleLinearScale * latestSizeMultiplier;
         }
 
         /// <summary>"01 New Born" (beat id "beat-1"): a flock of fish eggs, dropped one after
@@ -293,14 +313,9 @@ namespace ShoalingUpstream.EditorTools
         /// SimulationDriver replants each copy's anchor in front of the eye the instant the beat
         /// fires, since there is no VPS fix to key it against on the wizard-of-oz path.
         ///
-        /// Two levels deep on purpose. EggFallIntoPlace (SimulationDriver) writes an ABSOLUTE
-        /// local position on the inner object every frame — so animating the anchor itself and
-        /// then starting the fall would just have the coroutine fight the placement every frame.
-        /// Splitting placement from animation fixes it: SimulationDriver moves the outer anchor,
-        /// which the fall coroutine never touches; the fall plays out as the inner object's
-        /// position relative to that anchor. (Originally a hand-authored Timeline clip drove this
-        /// same inner object the same way, for the same reason; replaced with a plain scripted
-        /// ease so this beat has no external Timeline asset to go missing.)
+        /// Two levels deep on purpose. SnapEggAnchorToFloorWhenSettled (SimulationDriver) moves
+        /// the OUTER anchor once a floor is found under it, straight down from spawn height —
+        /// see its own comment for why nothing here plays out on the inner object directly.
         ///
         /// The mesh is a child of the inner object rather than the object the fall itself drives,
         /// because the source GLB's own pivot sits well off its geometry's centre — a Sketchfab
@@ -317,20 +332,11 @@ namespace ShoalingUpstream.EditorTools
             var root = new GameObject("Fish Egg");
             root.transform.SetParent(anchor.transform, false);
 
-            // Per feedback, the egg's visible VOLUME should read as 0.6x of what it currently is
-            // — volume scales with the cube of linear size, so the localScale factor below needs
-            // the cube root of 0.6, not 0.6 itself.
-            const float visibleVolumeScale = 0.6f;
-            float visibleLinearScale = Mathf.Pow(visibleVolumeScale, 1f / 3f);
-
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(OrangeEggPath);
             var mesh = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             mesh.name = "Mesh";
             mesh.transform.SetParent(root.transform, false);
-            // The source GLB was authored in centimetres, not the metres glTFast assumes. 1/10 on
-            // top of that per feedback in AR, where the base size read too large, and now
-            // visibleLinearScale on top of THAT per the 0.6x-volume feedback above.
-            mesh.transform.localScale = Vector3.one * 0.0001f * visibleLinearScale;
+            mesh.transform.localScale = Vector3.one * ComputeEggMeshLocalScale();
             mesh.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
 
             var renderers = mesh.GetComponentsInChildren<Renderer>();
@@ -353,31 +359,23 @@ namespace ShoalingUpstream.EditorTools
                 BeatId = "beat-1",
                 Kind = SimulationDriver.SceneTriggerKind.Spawn,
                 FallTemplate = root.transform,
-                // False, not true: this anchor's rotation drives which LOCAL axis
-                // EggFallIntoPlace's own scripted fall drops the egg along. With
-                // FollowCameraPitch true, tilting the device down to actually watch eggs land
-                // rotates that local axis to point straight down too, turning a level drift into
-                // a vertical plunge. False keeps it level; PlaySceneFlock still yaws that level
-                // direction to match wherever the camera is pointed when it fires, so the egg
-                // settles somewhere in front of the device rather than along a fixed world
-                // direction unrelated to which way the room happens to be oriented.
+                // Level, not tilted with the device's own pitch — an egg falling straight down
+                // (world Y) should look the same regardless of where the operator happened to be
+                // aiming when it spawned.
                 FollowCameraPitch = false,
                 // Directly under the device, not SceneTriggerDistanceM out in front of it: the
                 // floor-snap (SnapEggAnchorToFloorWhenSettled) already pulls the settled egg's
-                // X/Z back to wherever the anchor itself started, regardless of the scripted
-                // fall's own direction, so this is what actually places the clutch under the
-                // iPad rather than a few metres ahead of it.
+                // X/Z back to wherever the anchor itself started, so this is what actually places
+                // the clutch under the iPad rather than a few metres ahead of it.
                 SpawnUnderEye = true,
-                // A small, brief scripted drop — SnapEggAnchorToFloorWhenSettled pulls the
-                // settled X/Z straight back to the anchor's own spot regardless, so neither of
-                // these needs to be large; they mostly just read as "it fell a little."
-                SpawnFallDistanceM = 0.5f,
+                // How long the visible straight-down fall itself takes, once a floor is found.
                 SpawnFallDurationSeconds = 1.5f,
                 Count = 20,
                 StaggerSeconds = 0.05f,
-                // Half of the previous 1 m radius per feedback that the clutch read too spread
-                // out — half the radius halves the whole cluster's diameter.
-                ScatterRadiusM = 0.5f,
+                // Quarter of the original 1 m radius — half of THAT per earlier feedback, and
+                // half again per feedback that the whole clutch's diameter should be half of
+                // what it currently was ("所有egg散开的直径改为现在的1/2").
+                ScatterRadiusM = 0.25f,
             };
         }
 
@@ -429,8 +427,9 @@ namespace ShoalingUpstream.EditorTools
             var mesh = (GameObject)PrefabUtility.InstantiatePrefab(source);
             mesh.name = "Mesh";
             mesh.transform.SetParent(root.transform, false);
-            // 1/10 per feedback in AR, where every model besides the egg still read too large.
-            mesh.transform.localScale = Vector3.one * 0.26f;
+            // 1/10 per feedback in AR, where every model besides the egg still read too large,
+            // then a further 0.7x per feedback ("alevin scale 改为当前的0.7倍").
+            mesh.transform.localScale = Vector3.one * 0.26f * 0.7f;
             // A first guess at "head to the left" — check it by eye and adjust if it is facing
             // the wrong way or the rotation axis is wrong entirely.
             mesh.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
@@ -545,8 +544,11 @@ namespace ShoalingUpstream.EditorTools
             var mesh = (GameObject)PrefabUtility.InstantiatePrefab(source);
             mesh.name = "Mesh";
             mesh.transform.SetParent(root.transform, false);
-            // 1/10 per feedback in AR, where every model besides the egg still read too large.
-            mesh.transform.localScale = Vector3.one * 10f;
+            // 1/10 per feedback in AR, where every model besides the egg still read too large,
+            // then a further 0.7x per feedback ("Rainbow tout scale改为现在的0.7"). BuildTroutJump
+            // Trigger's own JumpHeightM/JumpForwardM are scaled by the same 0.7x to match — see
+            // its own comment.
+            mesh.transform.localScale = Vector3.one * 10f * 0.7f;
             // First guess, matching the fry's own convention — check by eye and adjust here if
             // it faces the wrong way.
             mesh.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
@@ -573,13 +575,14 @@ namespace ShoalingUpstream.EditorTools
             return asset;
         }
 
-        /// <summary>"03-a Strider - Show" (beat id "beat-5"): a single strider appears 3 m in
+        /// <summary>"03-a Strider - Show" (beat id "beat-5"): a single strider appears 2 m in
         /// front of the fry's own head, level with them — not a fixed world position, and not
         /// camera-relative either, since this needs to read as "right where the fry already
         /// are" regardless of where the operator is standing when this fires — and loops
         /// "Idle_A" at half speed. "beat-4" still holds the fry at this point in the beat order
         /// (03-a fires before 03-b's EatAndGrow reaches into it), so that is the flock this
-        /// anchors to.</summary>
+        /// anchors to. See PlayAppear's own retry loop for why this used to render nowhere near
+        /// the fry when beat-4 was still mid-hatch.</summary>
         private static SimulationDriver.SceneTrigger BuildStriderTrigger() => new()
         {
             BeatId = "beat-5",
@@ -587,7 +590,7 @@ namespace ShoalingUpstream.EditorTools
             Template = BuildStriderTemplate(),
             Count = 1,
             AnchorBeatId = "beat-4",
-            AnchorOffsetM = new Vector3(3f, 0f, 0f),
+            AnchorOffsetM = new Vector3(2f, 0f, 0f),
             AppearClipName = "Idle_A",
             AppearClipSpeed = 0.5f,
         };
@@ -662,7 +665,13 @@ namespace ShoalingUpstream.EditorTools
             Template = BuildHeronTemplate(),
             Count = 1,
             AnchorBeatId = "beat-7",
-            AnchorOffsetM = new Vector3(0f, 0f, 6f),
+            // Per feedback: X (head axis) now tracks whichever fry is furthest ahead rather than
+            // the flock's own average, Y is pinned to the real floor rather than floating at the
+            // fry's own (mid-water) height, and Z (how far to the fry's right) is 1.5x the
+            // previous 6 m.
+            AnchorToFrontmost = true,
+            AnchorOnGround = true,
+            AnchorOffsetM = new Vector3(0f, 0f, 9f),
             AppearClipName = "Idle",
         };
 
@@ -781,7 +790,10 @@ namespace ShoalingUpstream.EditorTools
             Template = BuildNestTemplate(),
             Count = 1,
             AnchorBeatId = "beat-7",
-            AnchorOffsetM = new Vector3(-2.8f, 0f, 6f),
+            // Same X/Y treatment as BuildHeronTrigger, for the same reason — see its own comment.
+            AnchorToFrontmost = true,
+            AnchorOnGround = true,
+            AnchorOffsetM = new Vector3(-2.8f, 0f, 9f),
             AppearClipName = "Idle A",
             AppearClipSpeed = 0.5f,
         };
@@ -917,36 +929,62 @@ namespace ShoalingUpstream.EditorTools
             RotateStaggerMaxSeconds = 3f,
         };
 
-        /// <summary>"06-b Return Home - Jump" (beat id "beat-12"): every rainbow trout from
-        /// "beat-9" arcs up and back down along world Y on a true parabola while translating along
-        /// world X — a leap out of the water and a dive back into it — pitching around world Z
-        /// (level at takeoff, 60° nose-up at the quarter-point, level at the peak, mirrored
-        /// nose-down on the way back), pivoting on its own tail bone, "TailFinLower_M_010", rather
-        /// than its body centre. Each fish is independently staggered in when it starts (up to
-        /// 1.5 s) and how high it goes (16–32 m, scaled to the trout's own 100x size).</summary>
+        /// <summary>"06-b: Return Home - Swim" (beat id "beat-16"): every rainbow trout from
+        /// "beat-9" eases 1 m forward along its own current facing, independently staggered in
+        /// when it starts, per feedback ("所有 Rainbow tout 陆续向头的方向移动1m") — a new beat
+        /// inserted between the existing 06-a Return (turn around) and what was "06-b: Return
+        /// Home - Jump", relabelled 06-c below to make room for this one.</summary>
+        private static SimulationDriver.SceneTrigger BuildTroutSwimTrigger() => new()
+        {
+            BeatId = "beat-16",
+            Kind = SimulationDriver.SceneTriggerKind.SwimFlock,
+            TargetBeatId = "beat-9",
+            SwimForwardDistanceM = 1f,
+            SwimForwardDurationSeconds = 1.5f,
+            RotateStaggerMaxSeconds = 1.5f,
+        };
+
+        /// <summary>"06-c Return Home - Jump" (beat id "beat-12"; labelled 06-b until the new
+        /// 06-b Swim above was inserted ahead of it): every rainbow trout from "beat-9" arcs up
+        /// and back down along world Y on a true parabola while translating along world X — a
+        /// leap out of the water and a dive back into it — pitching around world Z (level at
+        /// takeoff, 60° nose-up at the quarter-point, level at the peak, mirrored nose-down on
+        /// the way back), pivoting on its own tail bone, "TailFinLower_M_010", rather than its
+        /// body centre. Each fish is independently staggered in when it starts (up to 1.5 s) and
+        /// how high it goes (1.12–2.24 m). This whole shape (true parabola, pitch easing
+        /// level→up→level→down→level, tail pivot) matches what read right in an earlier session,
+        /// found again by searching that session's own transcript per feedback ("按照当时满意的
+        /// 效果重新制作") — JumpHeightM/JumpForwardM there were tuned to 32/2 against the trout's
+        /// OLD, much larger mesh scale (100x baked-in + a further ~130x on top); BuildRainbowTrout
+        /// Prefab's own mesh has since had a further 1/10, then a further 0.7x, applied ("every
+        /// model besides the egg still read too large", then "scale改为现在的0.7" — see its own
+        /// comment) that these two absolute-metre fields never got, so left alone they would again
+        /// launch the trout many times its own body length into the air. Scaled by the same
+        /// 1/10 * 0.7 here to match.</summary>
         private static SimulationDriver.SceneTrigger BuildTroutJumpTrigger() => new()
         {
             BeatId = "beat-12",
             Kind = SimulationDriver.SceneTriggerKind.Jump,
             TargetBeatId = "beat-9",
-            JumpHeightM = 32f,
+            JumpHeightM = 3.2f * 0.7f,
             JumpDurationSeconds = 1.5f,
             JumpStaggerMaxSeconds = 1.5f,
-            JumpForwardM = 2f,
+            JumpForwardM = 0.2f * 0.7f,
             JumpPitchDegrees = 60f,
         };
 
         /// <summary>"07-a Rebirth - Locate" (beat id "beat-13"): keeps 2 of "beat-9"'s rainbow
-        /// trout, picked at random, and fades every other one away over 10 seconds. The two
-        /// survivors carry on registered under "beat-13" for whatever "07-b Rebirth - Spawn" and
-        /// "07-c Rebirth - Fade" need next.</summary>
+        /// trout, picked at random, and fades every other one away over 6 seconds (alpha, not a
+        /// sudden disappearance — see FadeAndDestroy). The two survivors carry on registered
+        /// under "beat-13" for whatever "07-b Rebirth - Spawn" and "07-c Rebirth - Fade" need
+        /// next.</summary>
         private static SimulationDriver.SceneTrigger BuildRebirthLocateTrigger() => new()
         {
             BeatId = "beat-13",
             Kind = SimulationDriver.SceneTriggerKind.Cull,
             TargetBeatId = "beat-9",
             KeepCount = 2,
-            CullDurationSeconds = 10f,
+            CullDurationSeconds = 6f,
         };
 
         /// <summary>"07-b Rebirth - Spawn" (beat id "beat-14"): of the two survivors "beat-13"
@@ -979,20 +1017,21 @@ namespace ShoalingUpstream.EditorTools
         };
 
         /// <summary>"07-c Rebirth - Fade" (beat id "beat-15"): both survivors of beat-14's flock
-        /// (Fish A and Fish B) swim forward, tilt onto their side the same way Fish A did for
+        /// (Fish A and Fish B) swim forward 1 m, tilt onto their side the same way Fish A did for
         /// 07-b's stunt (reuses StuntRotationXTarget/RotateDurationSeconds), hold there for
-        /// LieDownHoldSeconds, then fade away over CullDurationSeconds and are destroyed.</summary>
+        /// LieDownHoldSeconds, then fade away (alpha, not a sudden disappearance — see
+        /// FadeAndDestroy) over 6 seconds and are destroyed.</summary>
         private static SimulationDriver.SceneTrigger BuildRebirthFadeTrigger() => new()
         {
             BeatId = "beat-15",
             Kind = SimulationDriver.SceneTriggerKind.LieDownFade,
             TargetBeatId = "beat-14",
-            SwimForwardDistanceM = 3f,
+            SwimForwardDistanceM = 1f,
             SwimForwardDurationSeconds = 1f,
             StuntRotationXTarget = -89f,
             RotateDurationSeconds = 1f,
             LieDownHoldSeconds = 3f,
-            CullDurationSeconds = 3f,
+            CullDurationSeconds = 6f,
         };
 
         /// <summary>A standalone egg mesh for runtime spawning — reuses ORANGE EGG's unit-scale
@@ -1008,10 +1047,11 @@ namespace ShoalingUpstream.EditorTools
             var mesh = (GameObject)PrefabUtility.InstantiatePrefab(source);
             mesh.name = "Mesh";
             mesh.transform.SetParent(root.transform, false);
-            // The source GLB was authored in centimetres, not the metres glTFast assumes — same
-            // fix as BuildFishEggTrigger's own egg mesh. 10x on top of that per feedback in the
-            // scene, where the base size read too small for this finale.
-            mesh.transform.localScale = Vector3.one * 0.01f;
+            // Started out matching BuildFishEggTrigger's own egg mesh (01-a) exactly, per earlier
+            // feedback that the two should be the same size; now a further 10x on top of that per
+            // feedback specific to this finale ("egg scale改为现在的10倍") — the two have
+            // deliberately diverged again since.
+            mesh.transform.localScale = Vector3.one * ComputeEggMeshLocalScale() * 10f;
             mesh.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
 
             var renderers = mesh.GetComponentsInChildren<Renderer>();

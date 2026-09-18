@@ -227,6 +227,24 @@ namespace ShoalingUpstream.Journey
             return true;
         }
 
+        /// <summary>Operator override from the controller: unwinds every beat back to Idle, as if
+        /// nothing had ever fired, for "Resume"/"Replay current" to rebuild the visual scene from
+        /// a clean slate up to whichever point they want. Does not raise Released/Completed
+        /// events for whatever was torn down — those describe the visitor's own journey through
+        /// the piece, and an operator's rebuild is not part of that story.</summary>
+        public void ResetAll()
+        {
+            foreach (var beatId in new List<string>(_states.Keys)) _states[beatId] = BeatState.Idle;
+            _completed.Clear();
+            _pending.Clear();
+            _current = null;
+            _dwellBeatId = null;
+            _dwellAccumulated = 0f;
+            _heldFor = 0f;
+            _highWaterMark = -1;
+            ShoalCount = _journey.shoal?.startingCount ?? 40;
+        }
+
         /// <summary>Operator override from the controller. Completes whatever beat is named,
         /// whether or not the visitor is anywhere near it.</summary>
         public bool ForceBeat(string beatId)

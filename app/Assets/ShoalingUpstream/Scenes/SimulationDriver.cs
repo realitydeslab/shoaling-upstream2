@@ -53,10 +53,13 @@ namespace ShoalingUpstream.Simulation
         /// fades every other one to nothing over time — the survivors stay registered under
         /// this beat's own id, the same handoff every other flock-consuming beat uses. Stunt: the
         /// first member of a flock only — tilts its Rotation X to a target value, speeds up
-        /// whatever animation is already playing on it for a while, then reverses both.</summary>
+        /// whatever animation is already playing on it for a while, then reverses both. SwimFlock:
+        /// every member of a flock eases forward along its own current facing by a fixed
+        /// distance, in place — like Rotate, no swap, no re-registration — independently
+        /// staggered in when it starts (reuses RotateStaggerMaxSeconds).</summary>
         public enum SceneTriggerKind
         {
-            Spawn, ReactFlock, SwimToEye, Appear, EatAndGrow, PlayClip, Despawn, Rotate, Jump, Cull, Stunt, LieDownFade,
+            Spawn, ReactFlock, SwimToEye, Appear, EatAndGrow, PlayClip, Despawn, Rotate, Jump, Cull, Stunt, LieDownFade, SwimFlock,
         }
 
         /// <summary>One step of a PlayClip trigger's sequence.</summary>
@@ -102,9 +105,9 @@ namespace ShoalingUpstream.Simulation
             public SceneTriggerKind Kind;
 
             [Tooltip("Spawn only: the inactive template each copy is cloned from — a child of the "
-                     + "anchor that EggFallIntoPlace eases forward on spawn (see SpawnFallDistanceM "
-                     + "/ SpawnFallDurationSeconds), the same way Appear's own Template is cloned "
-                     + "and played.")]
+                     + "anchor SnapEggAnchorToFloorWhenSettled eases straight down once a floor is "
+                     + "found (see SpawnFallDurationSeconds), the same way Appear's own Template is "
+                     + "cloned and played.")]
             public Transform FallTemplate;
 
             [Tooltip("Off: planted level, at eye height, in front of wherever the operator is "
@@ -128,23 +131,15 @@ namespace ShoalingUpstream.Simulation
             public float ScatterRadiusM;
 
             [Tooltip("Spawn only: plants the anchor directly under the eye's own X/Z instead of "
-                     + "SceneTriggerDistanceM out in front of it. For a beat like the fish egg "
-                     + "whose own settle logic (see SnapEggAnchorToFloorWhenSettled) already pulls "
-                     + "the final resting spot back to wherever the anchor started, in X and Z, "
-                     + "regardless of whatever EggFallIntoPlace's own scripted fall does in "
-                     + "between — so this is what actually controls where it lands, not a "
-                     + "cosmetic starting nudge.")]
+                     + "SceneTriggerDistanceM out in front of it — this is what actually controls "
+                     + "where it lands, not a cosmetic starting nudge.")]
             public bool SpawnUnderEye;
 
-            [Tooltip("Spawn only: how far, along FallTemplate's own local Z, EggFallIntoPlace "
-                     + "eases each freshly spawned copy before it settles — a small scripted fall "
-                     + "rather than a hand-authored Timeline clip, so there is no external asset "
-                     + "for this to go missing. SnapEggAnchorToFloorWhenSettled pulls the settled "
-                     + "X/Z back to the anchor's own spot regardless, so this mostly just reads as "
-                     + "a brief \"drop\" motion, not the actual landing spot.")]
-            public float SpawnFallDistanceM;
-
-            [Tooltip("Spawn only: how long that scripted fall takes.")]
+            [Tooltip("Spawn only: how long SnapEggAnchorToFloorWhenSettled's own straight-down "
+                     + "ease takes once a floor is found under this copy — the whole of the visible "
+                     + "\"fall\", from wherever it spawned (screen/eye height) down to the floor. "
+                     + "Not a hand-authored Timeline clip, so there is no external asset for this "
+                     + "to go missing.")]
             public float SpawnFallDurationSeconds;
 
             // --- ReactFlock only ------------------------------------------------
@@ -242,6 +237,20 @@ namespace ShoalingUpstream.Simulation
                      + "here are that same fixed pair of world directions, not read off the "
                      + "anchor's Transform.")]
             public Vector3 AnchorOffsetM;
+
+            [Tooltip("Appear + AnchorBeatId only: the head-axis component of AnchorOffsetM is "
+                     + "measured from whichever anchor-flock member sits furthest along the head "
+                     + "direction, not the flock's own centroid — for a flock that has spread out "
+                     + "(see SpreadMultiplier), the centroid trails behind whoever is actually "
+                     + "leading. Off by default (centroid, matching every other axis).")]
+            public bool AnchorToFrontmost;
+
+            [Tooltip("Appear + AnchorBeatId only: overrides the computed anchor's Y with a real "
+                     + "floor height, raycast straight down against detected AR planes (falls back "
+                     + "to a fixed distance below the anchor if none is found, or on the desktop "
+                     + "scene with no ARRaycastManager) — for a beat meant to stand something on "
+                     + "the ground rather than float it at the flock's own (mid-water) height.")]
+            public bool AnchorOnGround;
 
             [Tooltip("Appear only: which clip or Animator state to loop — works for either a "
                      + "Legacy Animation or a Mecanim Animator, since a clone may carry either (or "
@@ -842,6 +851,13 @@ namespace ShoalingUpstream.Simulation
 
         private void RequestSkipCurrentToEnd() => _skipGeneration++;
 
+        /// <summary>Guards RebuildJourneyUpTo against a second press landing mid-rebuild — with
+        /// two overlapping, _flocks and _progression would both be getting torn down and refired
+        /// by two coroutines at once. Refused rather than queued: an operator who presses again
+        /// before the first finishes almost certainly wants a fresh rebuild from the button's
+        /// CURRENT meaning, not two stacked ones.</summary>
+        private bool _rebuildInProgress;
+
         /// <summary>A WaitForSeconds stand-in for pure sequencing delays (not the interpolated
         /// coroutines below, which watch _skipGeneration directly since they have their own
         /// per-frame state to snap forward) — returns as soon as either seconds have passed or a
@@ -925,6 +941,7 @@ namespace ShoalingUpstream.Simulation
                 else if (trigger.Kind == SceneTriggerKind.PlayClip) StartCoroutine(PlayClipOnFlock(trigger));
                 else if (trigger.Kind == SceneTriggerKind.Despawn) PlayDespawn(trigger);
                 else if (trigger.Kind == SceneTriggerKind.Rotate) StartCoroutine(PlayRotateFlock(trigger));
+                else if (trigger.Kind == SceneTriggerKind.SwimFlock) StartCoroutine(PlaySwimFlock(trigger));
                 else if (trigger.Kind == SceneTriggerKind.Jump) StartCoroutine(PlayJump(trigger));
                 else if (trigger.Kind == SceneTriggerKind.Cull) StartCoroutine(PlayCull(trigger));
                 else if (trigger.Kind == SceneTriggerKind.Stunt) StartCoroutine(PlayStunt(trigger));
@@ -933,14 +950,72 @@ namespace ShoalingUpstream.Simulation
             }
         }
 
+        /// <summary>The order "Skip forward"/"Replay current"/"Resume" all walk — 01-a through
+        /// 07-c. Explicit rather than trusting journey.beats' own array order: the journey
+        /// document lists "beat-7" (03-b) before "beat-6" (04-a), so iterating it directly would
+        /// let a skip (or a rebuild) jump straight to 03-b ahead of 04-a instead of respecting
+        /// the numbered sequence.</summary>
+        private static readonly string[] AdvanceOrder =
+        {
+            "beat-1", "beat-2", "beat-3", "beat-4", "beat-5", "beat-7", "beat-6", "beat-8",
+            "beat-11", "beat-9", "beat-10", "beat-16", "beat-12", "beat-13", "beat-14", "beat-15",
+        };
+
+        /// <summary>Tears down every currently-spawned flock and replays the whole journey from
+        /// beat-1 up through (and, with includeTarget, INCLUDING) targetBeatId in AdvanceOrder —
+        /// a full rebuild rather than a per-beat undo, since a later beat routinely
+        /// destroys/consumes an earlier one's own flock (Hatch swapping an egg for a fish, for
+        /// one), so there is no "previous state" sitting around to simply restore. Every beat up
+        /// to the target is fast-forwarded to its own end state instantly (see
+        /// RequestSkipCurrentToEnd); the target itself, when included, plays out at its normal
+        /// pace so the operator actually sees it — this is what "Replay current" fires. Without
+        /// the target, this lands the scene exactly where it stood right after the PREVIOUS beat
+        /// finished and before the target ever fired — what "Resume" fires.</summary>
+        private IEnumerator RebuildJourneyUpTo(string targetBeatId, bool includeTarget)
+        {
+            if (_rebuildInProgress) yield break;
+            _rebuildInProgress = true;
+
+            foreach (var flock in _flocks.Values)
+                foreach (var member in flock)
+                    if (member != null) Destroy(member.root.gameObject);
+            _flocks.Clear();
+            _swimOffsets.Clear();
+            _progression?.ResetAll();
+            RequestSkipCurrentToEnd();
+
+            int targetIndex = Array.IndexOf(AdvanceOrder, targetBeatId);
+            if (targetIndex < 0) { _rebuildInProgress = false; yield break; }
+
+            int lastIndex = includeTarget ? targetIndex : targetIndex - 1;
+            for (int i = 0; i <= lastIndex; i++)
+            {
+                string beatId = AdvanceOrder[i];
+                bool isLast = i == lastIndex;
+                _progression.ForceBeat(beatId);
+                PlayScene(beatId);
+                if (!isLast || !includeTarget)
+                {
+                    // Not the one the operator actually wants to watch — snap it to its end state
+                    // instead of waiting out its real duration, the same way Skip forward does,
+                    // so rebuilding through a dozen earlier beats reads as fast, not as replaying
+                    // the whole piece from scratch.
+                    RequestSkipCurrentToEnd();
+                }
+                for (int f = 0; f < 10; f++) yield return null;
+            }
+
+            _rebuildInProgress = false;
+        }
+
         private IEnumerator PlaySceneFlock(SceneTrigger trigger)
         {
             int gen = _skipGeneration;
             yield return WaitForStableTracking(gen);
-            // The anchor, not FallTemplate's own transform: EggFallIntoPlace writes fallMember's
-            // local position every frame, so moving that member directly and then starting the
-            // fall would just fight the coroutine's own writes. Moving the untouched parent
-            // instead is what makes the placement stick.
+            // The anchor, not FallTemplate's own transform: SnapEggAnchorToFloorWhenSettled moves
+            // the anchor once a floor is found, so placing the inner object directly here and
+            // then letting that coroutine move the anchor out from under it would leave the two
+            // fighting over where the egg actually is.
             Transform templateAnchor = trigger.FallTemplate.parent != null
                 ? trigger.FallTemplate.parent
                 : trigger.FallTemplate;
@@ -954,12 +1029,11 @@ namespace ShoalingUpstream.Simulation
                 forward = _eye.transform.forward;
                 if (!trigger.FollowCameraPitch)
                 {
-                    // Level, not identity: EggFallIntoPlace's own local-axis fall (see
-                    // BuildFishEggTrigger) needs to drop toward wherever the camera is
-                    // actually yawed, or it settles along a fixed world direction that has
-                    // nothing to do with where the device was aimed when it fired — confirmed
-                    // on a device: the anchor itself sat right in front, but the egg only
-                    // came into view after turning the iPad to one side.
+                    // Level, not identity: this still needs to yaw to match wherever the camera
+                    // is actually facing, or the anchor (and so the whole clutch) settles along a
+                    // fixed world direction that has nothing to do with where the device was
+                    // aimed when it fired — confirmed on a device: the anchor itself sat right in
+                    // front only after turning the iPad to face the same way it had been aimed.
                     forward.y = 0f;
                     forward = forward.sqrMagnitude < 0.0001f ? Vector3.forward : forward.normalized;
                 }
@@ -1016,7 +1090,6 @@ namespace ShoalingUpstream.Simulation
                     spawnAnchor.rotation = facing;
                 }
 
-                StartCoroutine(EggFallIntoPlace(fallMember, trigger.SpawnFallDistanceM, trigger.SpawnFallDurationSeconds, gen));
                 if (_raycastManager != null)
                     StartCoroutine(SnapEggAnchorToFloorWhenSettled(
                         spawnAnchor, fallMember, trigger.SpawnFallDurationSeconds, gen, sharedFallbackFloorY));
@@ -1173,6 +1246,13 @@ namespace ShoalingUpstream.Simulation
         /// back to normal instantly and Rotation X eases back to whatever it started at, again
         /// over RotateDurationSeconds, pivoting the same way; then, once settled, releases
         /// EggCount eggs from its tail.</summary>
+        /// <summary>"07-b Rebirth - Spawn": both survivors from "beat-13" swim down to just
+        /// above the real floor first (per feedback, "都先游到地面附近"), then Fish A (the lower
+        /// of the two once settled) plays the spawning stunt — tilts near-vertical, tail-wags
+        /// (speeds up its own already-playing swim clip) — with the egg release now started
+        /// partway through that tail-wag rather than after Fish A has already settled back down
+        /// (per feedback, "摆尾结束前egg掉落"), then reverses the tilt. Fish B swims up to hover
+        /// over wherever the eggs landed once they have had time to (see HoverOverEggs).</summary>
         private IEnumerator PlayStunt(SceneTrigger trigger)
         {
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
@@ -1191,6 +1271,29 @@ namespace ShoalingUpstream.Simulation
             if (member == null) yield break;
 
             int gen = _skipGeneration;
+
+            // Hands off every survivor, not just Fish A — Fish B was never touched by this beat's
+            // own tilt/speedup, but still needs to reach beat-15 (which acts on both) and now
+            // also gets its own swim-to-ground and swim-above-the-egg moves below.
+            if (!_flocks.TryGetValue(trigger.BeatId, out var settled))
+            {
+                settled = new List<Transform>();
+                _flocks[trigger.BeatId] = settled;
+            }
+            foreach (var survivor in flock) if (survivor != null) settled.Add(survivor);
+            Transform other = null;
+            foreach (var survivor in flock)
+            {
+                if (survivor != null && survivor != member) { other = survivor; break; }
+            }
+            flock.Clear();
+
+            const float swimToGroundSeconds = 2f;
+            var groundWait = StartCoroutine(SwimDownToGround(member, swimToGroundSeconds, gen));
+            if (other != null) StartCoroutine(SwimDownToGround(other, swimToGroundSeconds, gen));
+            yield return groundWait;
+            if (member == null) yield break;
+
             float originalXDegrees = member.eulerAngles.x;
             Quaternion startRotation = member.rotation;
             _swimOffsets.TryGetValue(member, out var originalOffset);
@@ -1199,6 +1302,19 @@ namespace ShoalingUpstream.Simulation
             if (member == null) yield break;
 
             SetPlaybackSpeed(member, trigger.StuntSpeedMultiplier);
+
+            if (trigger.EggPrefab != null && trigger.EggCount > 0)
+            {
+                Transform tailBone = null;
+                foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t0.name == "TailFinLower_M_010") { tailBone = t0; break; }
+                }
+                Vector3 tailPos = tailBone != null ? tailBone.position : member.position;
+                StartCoroutine(DropEggsFromTail(tailPos, trigger, gen));
+                if (other != null) StartCoroutine(HoverOverEggs(other, tailPos, trigger, gen));
+            }
+
             yield return WaitOrSkip(trigger.StuntSpeedDurationSeconds, gen);
             if (member != null) SetPlaybackSpeed(member, 1f);
             if (member == null) yield break;
@@ -1211,27 +1327,43 @@ namespace ShoalingUpstream.Simulation
             // passing near the gimbal-lock pole partway through.
             _swimOffsets[member] = originalOffset;
             member.rotation = startRotation;
+        }
 
-            // Hands off every survivor, not just Fish A — Fish B was never touched by this beat
-            // but still needs to reach beat-15, which acts on both.
-            if (!_flocks.TryGetValue(trigger.BeatId, out var settled))
+        /// <summary>Eases member down to just above the real floor directly beneath it (raycast
+        /// against detected AR planes, same technique the egg drop uses), or a fixed fallback
+        /// distance below its current height if no plane is found there — never leaves it
+        /// hanging at whatever mid-water height it happened to be swimming at.</summary>
+        private IEnumerator SwimDownToGround(Transform member, float durationSeconds, int gen)
+        {
+            if (member == null) yield break;
+            const float clearanceM = 0.5f;
+            const float lastResortFallM = 1.2f;
+            float targetY = member.position.y - lastResortFallM;
+            if (_raycastManager != null)
             {
-                settled = new List<Transform>();
-                _flocks[trigger.BeatId] = settled;
-            }
-            foreach (var survivor in flock) if (survivor != null) settled.Add(survivor);
-            flock.Clear();
-
-            if (trigger.EggPrefab != null && trigger.EggCount > 0)
-            {
-                Transform tailBone = null;
-                foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+                var hits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
+                var ray = new Ray(member.position, Vector3.down);
+                if (_raycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
+                                                      | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated))
                 {
-                    if (t0.name == "TailFinLower_M_010") { tailBone = t0; break; }
+                    targetY = hits[0].pose.position.y + clearanceM;
                 }
-                Vector3 tailPos = tailBone != null ? tailBone.position : member.position;
-                StartCoroutine(DropEggsFromTail(tailPos, trigger, gen));
             }
+            Vector3 targetPos = new Vector3(member.position.x, targetY, member.position.z);
+            yield return SwimOneToward(member, targetPos, durationSeconds);
+        }
+
+        /// <summary>Fish B's own move for 07-b: waits out the egg drop's whole staggered window
+        /// plus one egg's own fall time — how long it takes the LAST egg released to actually
+        /// land — plus a further 2 s per feedback ("egg落地2s后 Rainbow tout B游到egg上方漂浮"),
+        /// then swims up to hover directly over where they landed.</summary>
+        private IEnumerator HoverOverEggs(Transform member, Vector3 tailPos, SceneTrigger trigger, int gen)
+        {
+            float wait = Mathf.Max(0f, trigger.EggDropWindowSeconds) + Mathf.Max(0f, trigger.EggFallDurationSeconds) + 2f;
+            yield return WaitOrSkip(wait, gen);
+            if (member == null) yield break;
+            const float hoverHeightM = 1f;
+            yield return SwimOneToward(member, tailPos + Vector3.up * hoverHeightM, 2f);
         }
 
         /// <summary>Tilts member's Rotation X to targetXDegrees over duration, pivoting about its
@@ -1348,36 +1480,40 @@ namespace ShoalingUpstream.Simulation
             }
         }
 
-        /// <summary>07-a/01-a's Timeline-driven fall (BuildFishEggTrigger) can't be redirected
-        /// mid-flight the way FallEgg is — the Timeline writes the inner egg's LOCAL position
-        /// every sample, so anything this coroutine set on it would just be overwritten on the
-        /// next frame. What the Timeline never touches is the ANCHOR one level up, so once the
-        /// fall's own authored keyframes finish, this nudges the ANCHOR by whatever delta brings
-        /// the settled child back onto the real floor — moving the whole child along with it.
-        ///
-        /// Confirmed on a device: with root motion disabled, the clip's own authored fall applies
-        /// as a plain local offset rather than a bug-driven vertical plunge — but before
-        /// BuildFishEggTrigger's anchor-scale fix, that offset was a full 18 units (from the
-        /// original desktop-scale design), tens of metres from anywhere the device had actually
-        /// been, let alone scanned. Raycasting down from where the child actually settled almost
-        /// always finds nothing, since the floor is only ever detected near the anchor's own spot.
-        /// Raycasting from just above the ANCHOR's own original position instead — where the
-        /// device (and therefore its LiDAR scan) actually was — finds a real floor even now that
-        /// the settle distance is a much smaller, real-world fraction of a metre, and the full
-        /// delta (X and Z along with Y) is what pulls the settled child back to directly below the
-        /// anchor at the real floor height, rather than only fixing the vertical component of it.
-        ///
-        /// director.playableAsset.duration is the actual authored fall length, not a guess; the
-        /// clip holds its last value forever after that, which is what "infinite" meant in the
-        /// original design note, so waiting exactly that long is waiting for it to have visibly
-        /// finished falling.</summary>
-        private IEnumerator SnapEggAnchorToFloorWhenSettled(Transform anchor, Transform fallMember, float settleSeconds, int gen, float? fallbackFloorY)
+        /// <summary>Eases anchor from wherever it currently is down to targetPos, with a
+        /// quadratic ease-in (accelerating, gravity-like rather than a uniform slide) — used by
+        /// SnapEggAnchorToFloorWhenSettled so the egg visibly, vertically falls from spawn height
+        /// straight down to the floor once one is found, per feedback ("egg直接从屏幕高度竖直掉
+        /// 到地上").</summary>
+        private IEnumerator EaseAnchorDown(Transform anchor, Vector3 targetPos, float durationSeconds, int gen)
+        {
+            if (anchor == null) yield break;
+            durationSeconds = Mathf.Max(0.01f, durationSeconds);
+            Vector3 start = anchor.position;
+            float t = 0f;
+            while (t < durationSeconds)
+            {
+                if (anchor == null) yield break;
+                t += Time.deltaTime;
+                if (_skipGeneration != gen) t = durationSeconds;
+                float p = Mathf.Clamp01(t / durationSeconds);
+                anchor.position = Vector3.Lerp(start, targetPos, p * p);
+                yield return null;
+            }
+            if (anchor != null) anchor.position = targetPos;
+        }
+
+        /// <summary>The whole of egg's visible "fall": starts looking for a real floor the
+        /// instant it spawns (no scripted horizontal drift first — that used to run concurrently
+        /// with this and read as sliding sideways before it fell, per feedback), then eases
+        /// straight down onto whichever one it finds. Never leaves an egg hanging: if no plane is
+        /// ever detected anywhere under it (a room LiDAR has not scanned yet), a last-resort
+        /// fallback well below spawn height stands in, so nothing is left floating in mid air
+        /// forever, per feedback ("有些停在半空没有掉落").</summary>
+        private IEnumerator SnapEggAnchorToFloorWhenSettled(Transform anchor, Transform fallMember, float fallDurationSeconds, int gen, float? fallbackFloorY)
         {
             if (anchor == null || fallMember == null) yield break;
             Vector3 anchorStartPos = anchor.position;
-
-            yield return WaitOrSkip(Mathf.Max(0.01f, settleSeconds), gen);
-            if (anchor == null || fallMember == null) yield break;
 
             // Confirmed on a device: a whole flock's worth of these lands scattered across up to
             // a few metres (ScatterRadiusM), and only whichever ones happen to fall over ground
@@ -1404,7 +1540,8 @@ namespace ShoalingUpstream.Simulation
                 if (hitFloor)
                 {
                     Vector3 targetWorldPos = new Vector3(anchorStartPos.x, hits[0].pose.position.y, anchorStartPos.z);
-                    anchor.position += targetWorldPos - fallMember.position;
+                    Vector3 anchorTarget = anchor.position + (targetWorldPos - fallMember.position);
+                    yield return StartCoroutine(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
                 }
                 else
                 {
@@ -1414,44 +1551,27 @@ namespace ShoalingUpstream.Simulation
             }
 
             bool usedFallback = false;
-            if (!hitFloor && fallbackFloorY.HasValue && anchor != null && fallMember != null)
+            if (!hitFloor && anchor != null && fallMember != null)
             {
                 // Nothing was ever scanned directly under this specific egg — rather than leave
                 // it hanging at head height, settle it at the floor height measured once under
                 // the eye itself when this beat fired (see PlaySceneFlock), a reasonable stand-in
-                // for "the floor" in most rooms.
-                Vector3 targetWorldPos = new Vector3(anchorStartPos.x, fallbackFloorY.Value, anchorStartPos.z);
-                anchor.position += targetWorldPos - fallMember.position;
+                // for "the floor" in most rooms. And if even THAT probe found nothing (a room
+                // LiDAR has scanned nothing at all yet), fall a fixed, plausible distance below
+                // spawn height rather than leave the egg hanging in mid air forever, per feedback
+                // ("有些停在半空没有掉落") — a wrong floor height is a far smaller problem than an
+                // egg that never lands.
+                const float lastResortFallM = 1.2f;
+                float targetY = fallbackFloorY ?? (anchorStartPos.y - lastResortFallM);
+                Vector3 targetWorldPos = new Vector3(anchorStartPos.x, targetY, anchorStartPos.z);
+                Vector3 anchorTarget = anchor.position + (targetWorldPos - fallMember.position);
+                yield return StartCoroutine(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
                 usedFallback = true;
             }
 
             _lastEggDropDiag = $"beat-1 snap   anchorStart {anchorStartPos:F2}"
                                 + $"   settledAt {(fallMember != null ? fallMember.position : Vector3.zero):F2}"
                                 + $"   hit {hitFloor} ({hits.Count})   fallback {usedFallback}   waited {waited:F1}s";
-        }
-
-        /// <summary>Eases fallMember's own local position from the anchor's origin out to
-        /// (0, 0, distanceM) along its own local Z over durationSeconds — the scripted stand-in
-        /// for what used to be a hand-authored Timeline clip (see BuildFishEggTrigger), so this
-        /// beat no longer depends on an external Timeline asset that can go missing. This only
-        /// needs to read as a small, brief "drop": SnapEggAnchorToFloorWhenSettled pulls the
-        /// settled X/Z straight back to the anchor's own spot once it finds a floor, regardless
-        /// of which direction this fall actually pushed it.</summary>
-        private IEnumerator EggFallIntoPlace(Transform fallMember, float distanceM, float durationSeconds, int gen)
-        {
-            if (fallMember == null) yield break;
-            Vector3 end = new Vector3(0f, 0f, distanceM);
-            float duration = Mathf.Max(0.01f, durationSeconds);
-            float t = 0f;
-            while (t < duration)
-            {
-                if (fallMember == null) yield break;
-                t += Time.deltaTime;
-                if (_skipGeneration != gen) t = duration;
-                fallMember.localPosition = Vector3.Lerp(Vector3.zero, end, Mathf.Clamp01(t / duration));
-                yield return null;
-            }
-            if (fallMember != null) fallMember.localPosition = end;
         }
 
         /// <summary>Falls to the real floor when a raycast against detected AR planes finds one
@@ -1537,6 +1657,33 @@ namespace ShoalingUpstream.Simulation
                 yield return null;
             }
             if (member != null) member.rotation = end;
+        }
+
+        /// <summary>"06-b: Return Home - Swim": every rainbow trout from "beat-9" eases forward
+        /// along its own current facing by SwimForwardDistanceM, in place — no swap, no
+        /// re-registration, the same as Rotate (06-a) and Jump (06-c) both already do to this
+        /// same flock.</summary>
+        private IEnumerator PlaySwimFlock(SceneTrigger trigger)
+        {
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
+            foreach (var member in flock)
+            {
+                if (member != null) StartCoroutine(SwimForwardStaggered(member, trigger));
+            }
+        }
+
+        /// <summary>One member's own forward swim, after an independently randomised delay
+        /// (seeded off the member's own instance id, the same pattern RotateOne uses) so a flock
+        /// sets off raggedly instead of in lockstep, per feedback ("陆续向头的方向移动").</summary>
+        private IEnumerator SwimForwardStaggered(Transform member, SceneTrigger trigger)
+        {
+            int gen = _skipGeneration;
+            float seed = member.GetInstanceID() * 0.023f;
+            float staggerMax = Mathf.Max(0f, trigger.RotateStaggerMaxSeconds);
+            float delay = staggerMax > 0f ? Mathf.PerlinNoise(seed, 0f) * staggerMax : 0f;
+            yield return WaitOrSkip(delay, gen);
+            if (member == null) yield break;
+            yield return SwimForward(member, trigger.SwimForwardDistanceM, trigger.SwimForwardDurationSeconds, gen);
         }
 
         private IEnumerator PlayJump(SceneTrigger trigger)
@@ -1749,7 +1896,27 @@ namespace ShoalingUpstream.Simulation
             }
             else if (useAnchorFlock)
             {
-                if (_flocks.TryGetValue(trigger.AnchorBeatId, out var anchorFlock) && anchorFlock.Count > 0)
+                // The anchor beat's own hatch/grow animation (see HatchOne) can still be mid-
+                // flight for several seconds after ITS trigger fires — its flock is registered
+                // but still empty until each member finishes swapping in. Checking once, right
+                // here, raced that window: firing this beat shortly after the anchor beat (the
+                // normal operating pace) often found nothing yet and fell all the way back to
+                // the template's own build-time position (world origin) — confirmed as the cause
+                // of feedback that the Strider never appeared. Retrying for a few seconds gives
+                // the anchor beat a real chance to finish first.
+                const float anchorWaitSeconds = 8f;
+                const float anchorRetryIntervalSeconds = 0.25f;
+                float anchorWaited = 0f;
+                List<Transform> anchorFlock = null;
+                while (anchorWaited < anchorWaitSeconds)
+                {
+                    if (_skipGeneration != gen) break;
+                    if (_flocks.TryGetValue(trigger.AnchorBeatId, out anchorFlock) && anchorFlock.Count > 0)
+                        break;
+                    yield return WaitOrSkip(anchorRetryIntervalSeconds, gen);
+                    anchorWaited += anchorRetryIntervalSeconds;
+                }
+                if (anchorFlock != null && anchorFlock.Count > 0)
                 {
                     // The flock's own centroid, not just its first member — confirmed on a device:
                     // anchoring to a single fish reads as "in front of that one fish", visibly off
@@ -1770,12 +1937,45 @@ namespace ShoalingUpstream.Simulation
                         // to visually face world Vector3.left — see HatchOne's own comment — so
                         // "toward its head" and "toward its right side" are this fixed pair of
                         // world directions, not something read off any member's own Transform.
+                        // The three form an orthonormal basis, so centroid decomposes cleanly onto
+                        // them below rather than needing centroid added back in wholesale.
                         Vector3 anchorHead = Vector3.left;
                         Vector3 anchorRight = Vector3.forward;
-                        anchorPos = centroid
-                                  + anchorHead * trigger.AnchorOffsetM.x
-                                  + Vector3.up * trigger.AnchorOffsetM.y
-                                  + anchorRight * trigger.AnchorOffsetM.z;
+
+                        float headAxis = Vector3.Dot(centroid, anchorHead);
+                        if (trigger.AnchorToFrontmost)
+                        {
+                            float best = float.NegativeInfinity;
+                            foreach (var member in anchorFlock)
+                            {
+                                if (member == null) continue;
+                                float d = Vector3.Dot(member.position, anchorHead);
+                                if (d > best) best = d;
+                            }
+                            if (best > float.NegativeInfinity) headAxis = best;
+                        }
+                        float rightAxis = Vector3.Dot(centroid, anchorRight);
+
+                        anchorPos = anchorHead * (headAxis + trigger.AnchorOffsetM.x)
+                                  + anchorRight * (rightAxis + trigger.AnchorOffsetM.z)
+                                  + Vector3.up * (centroid.y + trigger.AnchorOffsetM.y);
+
+                        if (trigger.AnchorOnGround)
+                        {
+                            const float lastResortFallM = 1.2f;
+                            float groundY = anchorPos.y - lastResortFallM;
+                            if (_raycastManager != null)
+                            {
+                                var groundHits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
+                                var groundRay = new Ray(anchorPos + Vector3.up * 0.1f, Vector3.down);
+                                if (_raycastManager.Raycast(groundRay, groundHits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
+                                                                                   | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated))
+                                {
+                                    groundY = groundHits[0].pose.position.y;
+                                }
+                            }
+                            anchorPos.y = groundY;
+                        }
                     }
                 }
             }
@@ -2021,7 +2221,43 @@ namespace ShoalingUpstream.Simulation
                 bool matchesHere = (step.RotateYDegrees != 0f || step.NudgeLeftM != 0f)
                     && HasNamedClip(member, step.ClipName);
                 if (matchesHere && step.RotateYDegrees != 0f)
-                    member.Rotate(0f, step.RotateYDegrees, 0f, Space.World);
+                {
+                    // Rotating member's own transform in place (Transform.Rotate) pivots on its
+                    // build-time bounds centre (see BuildHeronTemplate) — the geometric middle of
+                    // the WHOLE bird, neck and beak included, not its feet. Per feedback ("以脚
+                    // 为轴原地旋转，现在旋转时X方向产生了位移，不要位移"), pivoting there still
+                    // swings the visible bird sideways as it turns, since the feet sweep an arc
+                    // around a point that is not where they actually are. "Bone" (no numeric
+                    // suffix) is Blender's own default name for the FIRST bone added to an
+                    // armature — almost always the root/hip a rig is built outward from, and a
+                    // plausible sibling of "Bone.007" (already used elsewhere here as "a first
+                    // guess at the beak-tip bone", i.e. numbered further down the same chain) — a
+                    // far better stand-in for "the feet" than the whole mesh's own bounds centre.
+                    // First guess, not measured: check by eye and swap the name below if it turns
+                    // out to be some other bone, or falls back to the bounds centre it's replacing.
+                    Transform pivotBone = null;
+                    foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (t0.name == "Bone") { pivotBone = t0; break; }
+                    }
+                    Vector3 pivot;
+                    if (pivotBone != null)
+                    {
+                        pivot = pivotBone.position;
+                    }
+                    else
+                    {
+                        pivot = member.position;
+                        var renderers = member.GetComponentsInChildren<Renderer>();
+                        if (renderers.Length > 0)
+                        {
+                            var bounds = renderers[0].bounds;
+                            for (int r = 1; r < renderers.Length; r++) bounds.Encapsulate(renderers[r].bounds);
+                            pivot = bounds.center;
+                        }
+                    }
+                    member.RotateAround(pivot, Vector3.up, step.RotateYDegrees);
+                }
                 if (matchesHere && step.NudgeLeftM != 0f && _eye != null)
                     member.position -= _eye.transform.right * step.NudgeLeftM;
 
@@ -2192,7 +2428,21 @@ namespace ShoalingUpstream.Simulation
                 // whichever way the camera happened to be aimed when it was planted, not a fixed
                 // orientation — using it would face the next stage an arbitrary direction instead
                 // of the correction baked into the prefab.
-                var fish = Instantiate(trigger.FishPrefab, egg.position, Quaternion.identity);
+                // Head toward wherever the operator is currently facing, not a fixed world
+                // direction, per feedback ("每个egg生成的alevin (相对于user) 头朝前，尾朝后").
+                // Read fresh per fish rather than shared for the whole flock: HatchOne's own
+                // stagger spreads hatching across several seconds, and each fish should face
+                // however the device happened to be aimed at ITS OWN moment. Quaternion.identity
+                // (i.e. headDirection left at Vector3.left) is still what a desktop scene with no
+                // eye gets — the same "correction baked into the prefab" facing this always used.
+                Vector3 headDirection = Vector3.left;
+                if (_eye != null)
+                {
+                    Vector3 f = _eye.transform.forward;
+                    f.y = 0f;
+                    if (f.sqrMagnitude > 0.0001f) headDirection = f.normalized;
+                }
+                var fish = Instantiate(trigger.FishPrefab, egg.position, Quaternion.FromToRotation(Vector3.left, headDirection));
                 // Legacy import (see ALEVIN FISH.glb.meta): an Animation component that plays a
                 // clip by name directly. Mecanim was tried first and needs an AnimatorController
                 // asset glTFast does not generate, so nothing was ever wired to the Animator.
@@ -2210,8 +2460,21 @@ namespace ShoalingUpstream.Simulation
                 }
                 StartDrift(fish.transform);
                 if (trigger.SpreadMultiplier > 1f)
+                {
+                    // The iPad's own current X/Z, not the egg cluster's centroid, as the point
+                    // the flock fans out from — per feedback ("最终散开位置以iPad所在位置为基点
+                    // 向前方散开") — kept at the flock's own Y so reading it doesn't yank fish up
+                    // to eye height (see SpreadFishFromCentroid's own note). Falls back to the
+                    // centroid with no eye to read (the desktop scene).
+                    Vector3 spreadOrigin = flockCentroid;
+                    if (_eye != null)
+                    {
+                        spreadOrigin = _eye.transform.position;
+                        spreadOrigin.y = flockCentroid.y;
+                    }
                     StartCoroutine(SpreadFishFromCentroid(
-                        fish.transform, egg.position, flockCentroid, trigger.SpreadMultiplier, trigger.SpreadDurationSeconds));
+                        fish.transform, egg.position, spreadOrigin, headDirection, trigger.SpreadMultiplier, trigger.SpreadDurationSeconds));
+                }
 
                 // Registered under this Hatch beat's own id — a later ReactFlock/SwimToEye beat
                 // targets it by that id, the same way this beat targeted Spawn's.
@@ -2228,16 +2491,23 @@ namespace ShoalingUpstream.Simulation
             // FishPrefab is wired in.
         }
 
-        /// <summary>Eases fish's swim offset from 0 out to (spawnPosition - flockCentroid) *
-        /// (multiplier - 1) — additive, same as every other scripted move here, so it composes
-        /// with FishDrift's own wobble instead of fighting it. A member right on the centroid
-        /// barely moves; one already out at the flock's own edge moves the most, so the whole
-        /// flock reads as expanding uniformly from its own middle rather than each fish drifting
-        /// a fixed distance.</summary>
+        /// <summary>Eases fish's swim offset from 0 out to a point fanned out from origin —
+        /// additive, same as every other scripted move here, so it composes with FishDrift's own
+        /// wobble instead of fighting it. The component of spawnPosition's own offset from origin
+        /// along headDirection (this fish's own actual facing, set once in HatchOne — see its own
+        /// note) is clamped to stay positive before scaling by multiplier, so the flock fans out
+        /// in front of origin — head-first, per feedback ("头朝前尾朝后") — rather than exploding
+        /// radially, backward included, around wherever each egg happened to scatter. The
+        /// sideways component is scaled the same way multiplier always worked, so the flock still
+        /// spreads apart from each other instead of collapsing onto a single line.</summary>
         private IEnumerator SpreadFishFromCentroid(
-            Transform fish, Vector3 spawnPosition, Vector3 flockCentroid, float multiplier, float durationSeconds)
+            Transform fish, Vector3 spawnPosition, Vector3 origin, Vector3 headDirection, float multiplier, float durationSeconds)
         {
-            Vector3 endOffset = (spawnPosition - flockCentroid) * (multiplier - 1f);
+            Vector3 fromOrigin = spawnPosition - origin;
+            float headDistance = Vector3.Dot(fromOrigin, headDirection);
+            Vector3 lateral = fromOrigin - headDirection * headDistance;
+            float newHeadDistance = Mathf.Max(headDistance, 0.1f) * multiplier;
+            Vector3 endOffset = (headDirection * newHeadDistance + lateral * multiplier) - fromOrigin;
             float duration = Mathf.Max(0.01f, durationSeconds);
             float t = 0f;
             int gen = _skipGeneration;
@@ -2309,27 +2579,44 @@ namespace ShoalingUpstream.Simulation
                 _flocks[trigger.BeatId] = arrived;
             }
 
-            // A fixed world direction, not -_eye.transform.right: every fish spawns at identity
-            // rotation and is built to visually face world Vector3.left (see HatchOne's own
-            // comment), a fact that never changes as the device turns. Using the eye's own
-            // "right" instead only matched that fixed heading by coincidence on the desk, where
-            // the camera itself never turns — confirmed on a device: as soon as the operator
-            // aimed the iPad anywhere other than its spawn-time heading, "screen left" stopped
-            // lining up with which way the fish actually faced, and it read as swimming backward
-            // (tail-first) rather than toward its own head.
-            Vector3 towardHead = Vector3.left;
+            // Not a shared fixed direction: each fish's OWN current rotation now bakes in
+            // whichever way it was actually facing when it hatched (see HatchOne's own note),
+            // since that can differ fish to fish and beat to beat as the operator moves between
+            // presses. TransformDirection(Vector3.left) reads that back out per fish rather than
+            // assuming they all still face whatever a single shared constant once meant —
+            // confirmed on a device this matters: assuming a shared facing read as swimming
+            // backward (tail-first) the moment a fish's actual facing did not match it.
+            //
             // A fixed nudge rather than a fraction of the fish's own measured size: the Swim
             // animation is playing, and a skinned mesh's bounds while animating reflect whatever
             // pose it happens to be in when sampled — a fin flung wide reads as a much bigger
-            // fish than it is, and the nudge grew along with it.
-            const float nudgeM = 1f;
+            // fish than it is, and the nudge grew along with it. Bumped by a further 1m per
+            // feedback ("swim的距离再增加1m").
+            const float nudgeM = 2f;
+            int gen = _skipGeneration;
 
             foreach (var target in targets)
             {
                 if (target == null) continue;
                 arrived.Add(target);
-                StartCoroutine(SwimOneToEye(target, towardHead * nudgeM, trigger.SwimDurationSeconds));
+                Vector3 towardHead = target.TransformDirection(Vector3.left);
+                StartCoroutine(SwimOneToEyeStaggered(target, towardHead * nudgeM, trigger.SwimDurationSeconds, gen));
             }
+        }
+
+        /// <summary>Delays SwimOneToEye by a random head start and randomises its own duration a
+        /// little, both seeded off the fish's own instance id (same fish, same stagger, every
+        /// time this beat fires) — per feedback ("所有alevin不要同时开始和结束向前移动，彼此随机
+        /// 错开一些时间"), so a whole flock reads as individually setting off rather than
+        /// marching forward and stopping in lockstep.</summary>
+        private IEnumerator SwimOneToEyeStaggered(Transform fish, Vector3 delta, float durationSeconds, int gen)
+        {
+            float seed = fish.GetInstanceID() * 0.031f;
+            float delaySeconds = Mathf.PerlinNoise(seed, 0f) * Mathf.Max(0f, durationSeconds) * 0.5f;
+            yield return WaitOrSkip(delaySeconds, gen);
+            if (fish == null) yield break;
+            float ownDuration = Mathf.Max(0.01f, durationSeconds) * Mathf.Lerp(0.7f, 1.3f, Mathf.PerlinNoise(seed, 10f));
+            yield return StartCoroutine(SwimOneToEye(fish, delta, ownDuration));
         }
 
         /// <summary>Eases the fish's swim offset by `delta` on top of whatever it already is —
@@ -2492,16 +2779,6 @@ namespace ShoalingUpstream.Simulation
             private readonly SimulationDriver _driver;
             public Effects(SimulationDriver driver) => _driver = driver;
 
-            /// <summary>The order "Skip forward" walks — 01-a through 07-c. Explicit rather than
-            /// trusting journey.beats' own array order: the journey document lists "beat-7" (03-b)
-            /// before "beat-6" (04-a), so iterating it directly would let a skip jump straight to
-            /// 03-b ahead of 04-a instead of respecting the numbered sequence.</summary>
-            private static readonly string[] AdvanceOrder =
-            {
-                "beat-1", "beat-2", "beat-3", "beat-4", "beat-5", "beat-7", "beat-6", "beat-8",
-                "beat-11", "beat-9", "beat-10", "beat-12", "beat-13", "beat-14", "beat-15",
-            };
-
             public bool FireBeat(string beatId)
             {
                 if (_driver._progression == null || string.IsNullOrEmpty(beatId)) return false;
@@ -2514,10 +2791,30 @@ namespace ShoalingUpstream.Simulation
                 return fired;
             }
 
+            /// <summary>Replays whatever beat is currently "current" from a clean rebuild of
+            /// everything up to and including it — not a bare re-fire, which used to just plant a
+            /// second copy of that beat's flock on top of the first (or, for a beat that consumes
+            /// another's flock, find that source already emptied by the first firing and silently
+            /// do nothing) — see RebuildJourneyUpTo.</summary>
             public bool ReplayCurrent()
             {
                 var current = _driver._progression?.Current;
-                return current != null && FireBeat(current.id);
+                if (current == null || _driver._rebuildInProgress) return false;
+                _driver.Note($"operator replayed {current.id}");
+                _driver.StartCoroutine(_driver.RebuildJourneyUpTo(current.id, includeTarget: true));
+                return true;
+            }
+
+            /// <summary>Rewinds to right after the PREVIOUS beat finished and before the current
+            /// one ever fired, via the same clean rebuild ReplayCurrent uses — see
+            /// RebuildJourneyUpTo.</summary>
+            public bool Resume()
+            {
+                var current = _driver._progression?.Current;
+                if (current == null || _driver._rebuildInProgress) return false;
+                _driver.Note($"operator resumed before {current.id}");
+                _driver.StartCoroutine(_driver.RebuildJourneyUpTo(current.id, includeTarget: false));
+                return true;
             }
 
             public bool Advance()
@@ -2562,10 +2859,9 @@ namespace ShoalingUpstream.Simulation
                 _driver.PlayScene(beatId);
             }
 
-            // Refused rather than faked. The audio engine has no mute, and an operator seeing a
-            // button confirmed when nothing happened is worse than seeing it refused.
+            // Refused rather than faked. The audio engine has no mute here, and an operator
+            // seeing a button confirmed when nothing happened is worse than seeing it refused.
             public bool Silence() => false;
-            public bool Resume() => false;
         }
 
         private sealed class Status : IControlStatusSource
