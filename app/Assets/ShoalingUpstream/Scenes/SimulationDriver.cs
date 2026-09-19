@@ -76,26 +76,12 @@ namespace ShoalingUpstream.Simulation
             [Tooltip("Turns the member this many degrees around world Y, instantly, right before "
                      + "this step's clip starts — for a clip whose own baked pose always resets "
                      + "facing to the same direction (e.g. a repeated clip that would otherwise "
-                     + "snap back to its first playthrough's facing). Only applied to a member "
-                     + "that actually has this step's clip. 0 leaves it untouched.")]
+                     + "snap back to its first playthrough's facing). Also switches to this clip "
+                     + "with a hard cut instead of a blend: blending the reset facing back in "
+                     + "would visibly spin the model round again while this turn is already "
+                     + "applied. Only applied to a member that actually has this step's clip. 0 "
+                     + "leaves it untouched.")]
             public float RotateYDegrees;
-
-            [Tooltip("Nudges the member this many metres toward screen-left, instantly, at the "
-                     + "same moment as RotateYDegrees — compensates for a turn's pivot not "
-                     + "sitting exactly on the model's feet, so its feet land back where the "
-                     + "previous clip actually left them instead of drifting sideways. Only "
-                     + "applied to a member that actually has this step's clip. 0 leaves it "
-                     + "untouched.")]
-            public float NudgeLeftM;
-
-            [Tooltip("Nudges the member this many metres toward screen-left, eased smoothly over "
-                     + "THIS step's own clip duration rather than snapped all at once — for a "
-                     + "clip whose own baked rotation (e.g. the heron's \"Turn\") doesn't pivot "
-                     + "exactly on the model's feet, so easing the correction in step with the "
-                     + "clip reads as turning in place instead of drifting sideways and then "
-                     + "snapping back once the NEXT step's own NudgeLeftM fires. Only applied to a "
-                     + "member that actually has this step's clip. 0 leaves it untouched.")]
-            public float NudgeLeftDuringM;
         }
 
         [Serializable]
@@ -169,6 +155,12 @@ namespace ShoalingUpstream.Simulation
                      + "that name; Rainbow Trout's own clip is \"Trout_Swim\".")]
             public string FishSwimClipName;
 
+            [Tooltip("ReactFlock only: the swapped-in model keeps the facing of the one it "
+                     + "replaces (a fish becoming a bigger fish in the same spot), instead of turning "
+                     + "to face wherever the device happens to be aimed now — which is right for "
+                     + "something hatching out of an egg, that has no facing of its own to keep.")]
+            public bool InheritFacing;
+
             [Tooltip("ReactFlock only: once FishPrefab exists, slowly eases it away from the "
                      + "whole flock's own centroid (its position right after hatching, before "
                      + "any spread) until its distance from that centroid is this many times what "
@@ -230,12 +222,11 @@ namespace ShoalingUpstream.Simulation
             public string AnchorBeatId;
 
             [Tooltip("Appear + AnchorBeatId only: offset from the anchor's own position — x "
-                     + "toward its head, y world-vertical, z toward its right side. Every fish "
-                     + "(and every Appear template) spawns at identity rotation and is built to "
-                     + "visually face world Vector3.left (see HatchOne's own comment on why "
-                     + "identity, not the anchor's actual rotation), so \"head\" and \"right\" "
-                     + "here are that same fixed pair of world directions, not read off the "
-                     + "anchor's Transform.")]
+                     + "toward its head, y world-vertical, z toward its right side. \"Head\" is the "
+                     + "direction the anchor flock's own members are facing (read off the fish "
+                     + "themselves, see FlockHeadDirection — they turn to face wherever the operator "
+                     + "was aiming when they hatched, so it is not a fixed world direction) and "
+                     + "\"right\" is that turned a quarter round from above.")]
             public Vector3 AnchorOffsetM;
 
             [Tooltip("Appear + AnchorBeatId only: the head-axis component of AnchorOffsetM is "
@@ -272,6 +263,14 @@ namespace ShoalingUpstream.Simulation
                      + "turning. Each step's DelaySeconds is a pause after the PREVIOUS step's own "
                      + "clip finishes (ignored on the first step) before that step starts.")]
             public ClipStep[] ClipSequence;
+
+            [Tooltip("PlayClip only: name of a child transform on the target, placed at the point that "
+                     + "should stay put — the middle of a model's feet — while ClipSequence plays "
+                     + "(see FeetLock). A clip's own baked turn pivots on the model's origin, which "
+                     + "is rarely where the feet are, so left alone the whole model slides round an "
+                     + "arc as it turns. Left empty, nothing is held. A target that doesn't carry it "
+                     + "(the nest sharing the heron's beat) is left alone.")]
+            public string LockFeetTransformName;
 
             [Tooltip("PlayClip only: an optional beat whose flock holds a single fish to feed to "
                      + "TargetBeatId's Animation-bearing member (the heron, not the nest) — it "
@@ -410,6 +409,14 @@ namespace ShoalingUpstream.Simulation
         public string ServiceHost = "127.0.0.1";
         public int ServicePort = 8710;
         public string Slug = "ucb-strawberry-creek-south";
+
+        [Tooltip("Never read at run time. Copies of the rainbow trout's own materials with the "
+                 + "alpha-blend keyword already switched on — held here only so the player build "
+                 + "keeps that shader variant. glTFast's shader declares it with shader_feature, so a "
+                 + "variant no material in the build uses is stripped, and switching a fade on at run "
+                 + "time (see FadeAndDestroy) then silently does nothing: the fish just vanish at the "
+                 + "end instead of fading. Filled in by SimulationSceneBuilder.")]
+        public Material[] FadeVariantMaterials;
 
         [Header("View")]
         [Tooltip("Raise the camera above the centreline. Zero because the centreline is authored "
@@ -925,6 +932,40 @@ namespace ShoalingUpstream.Simulation
 
         private void StartDrift(Transform fish) => StartCoroutine(FishDrift(fish));
 
+        /// <summary>The horizontal direction a model's head points. Every model here is built so its
+        /// root's own local left (-X) is its head at identity rotation — see HatchOne — so the root's
+        /// rotation carries whichever way it was actually turned (toward wherever the operator was
+        /// aiming when it hatched, then any later turn), rather than a fixed world direction.</summary>
+        private static Vector3 HeadDirection(Transform model)
+        {
+            Vector3 head = model.TransformDirection(Vector3.left);
+            head.y = 0f;
+            return head.sqrMagnitude < 0.0001f ? Vector3.left : head.normalized;
+        }
+
+        /// <summary>The way a flock as a whole is heading — its members' own head directions
+        /// averaged, so a beat placing something "in front of the fish" or "to their right" reads
+        /// it off the fish themselves instead of assuming a fixed world direction.</summary>
+        private static Vector3 FlockHeadDirection(List<Transform> flock)
+        {
+            Vector3 sum = Vector3.zero;
+            foreach (var member in flock)
+            {
+                if (member != null) sum += HeadDirection(member);
+            }
+            sum.y = 0f;
+            return sum.sqrMagnitude < 0.0001f ? Vector3.left : sum.normalized;
+        }
+
+        /// <summary>The rotation, about world Y only, that turns a model built to face Vector3.left
+        /// at identity round to face `head` — built from a signed yaw angle rather than
+        /// Quaternion.FromToRotation, which for exactly opposite vectors picks an arbitrary axis and
+        /// can hand back a rotation that turns the model upside down instead.</summary>
+        private static Quaternion YawFromLeftTo(Vector3 head)
+        {
+            return Quaternion.Euler(0f, Vector3.SignedAngle(Vector3.left, head, Vector3.up), 0f);
+        }
+
         /// <summary>Play whatever a beat is wired to. Spawn plants its own flock on top of
         /// whatever earlier presses left standing — nothing is torn down first, so a flurry of
         /// button presses reads as a flurry of eggs, not a replacement of one. ReactFlock instead
@@ -1193,7 +1234,7 @@ namespace ShoalingUpstream.Simulation
         /// Fade/Transparent modes use. Still HasProperty-guarded in case a future model imports
         /// through a different shader (glTFUnlit, or a non-glTFast source) that does not have
         /// them.</summary>
-        private static void PrepareMaterialForFade(Material material)
+        public static void PrepareMaterialForFade(Material material)
         {
             if (material.HasProperty("_Mode")) material.SetFloat("_Mode", 3f);
             if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
@@ -1329,15 +1370,19 @@ namespace ShoalingUpstream.Simulation
             member.rotation = startRotation;
         }
 
-        /// <summary>Eases member down to just above the real floor directly beneath it (raycast
-        /// against detected AR planes, same technique the egg drop uses), or a fixed fallback
-        /// distance below its current height if no plane is found there — never leaves it
-        /// hanging at whatever mid-water height it happened to be swimming at.</summary>
+        /// <summary>Eases member down to just above the real floor beneath it (raycast against
+        /// detected AR planes, same technique the egg drop uses), or a fixed fallback distance below
+        /// its current height if no plane is found there — never leaves it hanging at whatever
+        /// mid-water height it happened to be swimming at — while carrying it a little way forward
+        /// along its own head as it descends.</summary>
         private IEnumerator SwimDownToGround(Transform member, float durationSeconds, int gen)
         {
             if (member == null) yield break;
             const float clearanceM = 0.5f;
             const float lastResortFallM = 1.2f;
+            // Per feedback ("两条鱼下降的同时向前游一点"): it does not drop straight down but
+            // carries on a little way along its own head as it goes.
+            const float forwardWhileDescendingM = 1f;
             float targetY = member.position.y - lastResortFallM;
             if (_raycastManager != null)
             {
@@ -1349,7 +1394,8 @@ namespace ShoalingUpstream.Simulation
                     targetY = hits[0].pose.position.y + clearanceM;
                 }
             }
-            Vector3 targetPos = new Vector3(member.position.x, targetY, member.position.z);
+            Vector3 targetPos = member.position + HeadDirection(member) * forwardWhileDescendingM;
+            targetPos.y = targetY;
             yield return SwimOneToward(member, targetPos, durationSeconds);
         }
 
@@ -1448,7 +1494,10 @@ namespace ShoalingUpstream.Simulation
         {
             duration = Mathf.Max(0.01f, duration);
             _swimOffsets.TryGetValue(member, out var baseOffset);
-            Vector3 forwardDelta = member.forward * distance;
+            // Along the model's own head direction, not member.forward: every model is built with
+            // its head along local left, so its local +Z is the direction of its side and "forward"
+            // swam it sideways.
+            Vector3 forwardDelta = HeadDirection(member) * distance;
             float t = 0f;
             while (t < duration)
             {
@@ -1733,6 +1782,15 @@ namespace ShoalingUpstream.Simulation
             // reference the pivot compensation below measures against.
             Vector3 tailWorldOffset = startRotation * tailLocalOffset;
 
+            // The fish's own head direction, read once: the jump travels along it, and the nose-up /
+            // nose-down pitch turns about the horizontal axis square across it — the fish's own side
+            // to side axis. The pitch used to turn about world Z, which was square across the head
+            // only while every fish faced world -X/+X; once fish face wherever the operator was aimed
+            // it was a roll instead — the fish flipped onto its side and back, per feedback ("不要左
+            // 右翻动，而应前后翻动"). Positive angle about cross(head, up) lifts the nose.
+            Vector3 heading = HeadDirection(member);
+            Vector3 pitchAxis = Vector3.Cross(heading, Vector3.up);
+
             _swimOffsets.TryGetValue(member, out var baseOffset);
             float t = 0f;
             while (t < duration)
@@ -1754,22 +1812,23 @@ namespace ShoalingUpstream.Simulation
                     ? Mathf.Sin(p / 0.5f * Mathf.PI) * trigger.JumpPitchDegrees
                     : -Mathf.Sin((p - 0.5f) / 0.5f * Mathf.PI) * trigger.JumpPitchDegrees;
 
-                // Around world Z, and around the tail rather than the body's own origin: the
-                // amount the tilt alone would have moved the tail is subtracted back out, so the
-                // tail stays put and the rest of the body swings around it instead.
-                Quaternion tilt = Quaternion.AngleAxis(pitchDegrees, Vector3.forward);
+                // About the fish's own side-to-side axis, and around the tail rather than the
+                // body's own origin: the amount the tilt alone would have moved the tail is
+                // subtracted back out, so the tail stays put and the rest of the body swings
+                // around it instead.
+                Quaternion tilt = Quaternion.AngleAxis(pitchDegrees, pitchAxis);
                 Vector3 pivotCompensation = tailWorldOffset - tilt * tailWorldOffset;
 
                 _swimOffsets[member] = baseOffset
                     + new Vector3(0f, y, 0f)
-                    + new Vector3(p * trigger.JumpForwardM, 0f, 0f)
+                    + heading * (p * trigger.JumpForwardM)
                     + pivotCompensation;
                 member.rotation = tilt * startRotation;
                 yield return null;
             }
             if (member != null)
             {
-                _swimOffsets[member] = baseOffset + new Vector3(trigger.JumpForwardM, 0f, 0f);
+                _swimOffsets[member] = baseOffset + heading * trigger.JumpForwardM;
                 member.rotation = startRotation;
             }
         }
@@ -1793,13 +1852,16 @@ namespace ShoalingUpstream.Simulation
 
             if (eatenTarget != null)
             {
-                // Only a member to the strider's own right is a candidate at all — closest
-                // overall is not enough on its own.
+                // Only a member behind the strider — on the tail side of it, along the way the
+                // flock itself is heading — is a candidate at all; closest overall is not enough
+                // on its own. Read off the flock's own facing, not world X, which stopped meaning
+                // "behind it" once fish began facing wherever the operator was aimed.
+                Vector3 flockHead = FlockHeadDirection(flock);
                 Transform closest = null;
                 float closestDist = float.MaxValue;
                 foreach (var member in flock)
                 {
-                    if (member == null || member.position.x <= eatenTarget.position.x) continue;
+                    if (member == null || Vector3.Dot(member.position - eatenTarget.position, flockHead) >= 0f) continue;
                     float dist = Vector3.Distance(member.position, eatenTarget.position);
                     if (dist < closestDist)
                     {
@@ -1933,14 +1995,18 @@ namespace ShoalingUpstream.Simulation
                     if (validCount > 0)
                     {
                         centroid /= validCount;
-                        // Every fish (and this template) spawns at identity rotation and is built
-                        // to visually face world Vector3.left — see HatchOne's own comment — so
-                        // "toward its head" and "toward its right side" are this fixed pair of
-                        // world directions, not something read off any member's own Transform.
-                        // The three form an orthonormal basis, so centroid decomposes cleanly onto
-                        // them below rather than needing centroid added back in wholesale.
-                        Vector3 anchorHead = Vector3.left;
-                        Vector3 anchorRight = Vector3.forward;
+                        // "In front of" and "to the right of" the fish, read off the fish themselves:
+                        // every model is built to face Vector3.left at identity rotation and then
+                        // turned to face wherever the operator was aiming when it hatched (see
+                        // HatchOne), so a fixed world direction lands "in front of them" on the
+                        // wrong side as soon as the operator was not facing the way the session
+                        // started. Right is the head direction turned a quarter round from above.
+                        // head, right and up form an orthonormal basis, so centroid decomposes
+                        // cleanly onto them below rather than needing centroid added back in wholesale.
+                        Vector3 anchorHead = FlockHeadDirection(anchorFlock);
+                        Vector3 anchorRight = Vector3.Cross(Vector3.up, anchorHead);
+                        // The template faces the same way the fish do, as it always has.
+                        facing = YawFromLeftTo(anchorHead);
 
                         float headAxis = Vector3.Dot(centroid, anchorHead);
                         if (trigger.AnchorToFrontmost)
@@ -1962,8 +2028,16 @@ namespace ShoalingUpstream.Simulation
 
                         if (trigger.AnchorOnGround)
                         {
-                            const float lastResortFallM = 1.2f;
-                            float groundY = anchorPos.y - lastResortFallM;
+                            // No detected floor to stand on (or none scanned there yet): fall back to
+                            // the lowest fish's own height rather than some fixed drop below the
+                            // anchor — the fish hatched on the floor and only float a little above
+                            // it, so they are the best stand-in for where it is.
+                            float groundY = float.MaxValue;
+                            foreach (var member in anchorFlock)
+                            {
+                                if (member != null) groundY = Mathf.Min(groundY, member.position.y);
+                            }
+                            if (groundY == float.MaxValue) groundY = anchorPos.y;
                             if (_raycastManager != null)
                             {
                                 var groundHits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
@@ -2138,8 +2212,11 @@ namespace ShoalingUpstream.Simulation
                 yield return null;
             }
 
-            // Arrived: "head up", as if the heron is holding it vertically before swallowing.
-            if (fish != null) fish.Rotate(0f, 0f, -90f, Space.World);
+            // Arrived: "head up", as if the heron is holding it vertically before swallowing. Nose
+            // up by a quarter turn about the fish's own side-to-side axis (see JumpOne) — a fixed
+            // world Z only lifted the nose while the fish happened to face world -X, and otherwise
+            // just rolled it onto its side.
+            if (fish != null) fish.Rotate(Vector3.Cross(HeadDirection(fish), Vector3.up), 90f, Space.World);
 
             float untilSecondClip = Mathf.Max(0f, trigger.FishDisappearAfterSeconds - swimDuration);
             float t3 = 0f;
@@ -2154,8 +2231,9 @@ namespace ShoalingUpstream.Simulation
                 yield return null;
             }
 
-            // The 0.3s CrossFade into the second clip can wobble the beak's height briefly while
-            // it blends — settled through here rather than mistaken for the clip's own real dip.
+            // Switching into the second clip (a hard cut now, see PlayClipSequence) can jolt the
+            // beak's height for a frame or two — settled through here rather than mistaken for the
+            // clip's own real dip.
             // Skipped outright along with the wait above: both exist purely to pace this against
             // the heron's own animation, which a skip has already jumped past.
             float settle = _skipGeneration != gen ? 0f : 0.4f;
@@ -2208,91 +2286,51 @@ namespace ShoalingUpstream.Simulation
         private IEnumerator PlayClipSequence(Transform member, SceneTrigger trigger)
         {
             int gen = _skipGeneration;
+
+            // Keeps the model's feet planted for the whole sequence — see FeetLock. Only on a member
+            // that actually carries the named point (the heron, not the nest sharing its beat).
+            FeetLock feetLock = null;
+            if (!string.IsNullOrEmpty(trigger.LockFeetTransformName))
+            {
+                foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
+                {
+                    if (t0.name != trigger.LockFeetTransformName) continue;
+                    feetLock = FeetLock.Attach(member, t0);
+                    break;
+                }
+            }
+
+            float lastDuration = 0f;
             for (int i = 0; i < trigger.ClipSequence.Length; i++)
             {
                 if (member == null) yield break;
 
                 var step = trigger.ClipSequence[i];
                 if (i > 0 && step.DelaySeconds > 0f) yield return WaitOrSkip(step.DelaySeconds, gen);
+                if (member == null) yield break;
 
                 // Instant, and only on a member that actually has this clip — otherwise a mixed
-                // flock (the heron plus the nest, both under "beat-6") would spin (or nudge) the
-                // nest too.
-                bool matchesHere = (step.RotateYDegrees != 0f || step.NudgeLeftM != 0f)
-                    && HasNamedClip(member, step.ClipName);
-                if (matchesHere && step.RotateYDegrees != 0f)
-                {
-                    // Rotating member's own transform in place (Transform.Rotate) pivots on its
-                    // build-time bounds centre (see BuildHeronTemplate) — the geometric middle of
-                    // the WHOLE bird, neck and beak included, not its feet. Per feedback ("以脚
-                    // 为轴原地旋转，现在旋转时X方向产生了位移，不要位移"), pivoting there still
-                    // swings the visible bird sideways as it turns, since the feet sweep an arc
-                    // around a point that is not where they actually are. "Bone" (no numeric
-                    // suffix) is Blender's own default name for the FIRST bone added to an
-                    // armature — almost always the root/hip a rig is built outward from, and a
-                    // plausible sibling of "Bone.007" (already used elsewhere here as "a first
-                    // guess at the beak-tip bone", i.e. numbered further down the same chain) — a
-                    // far better stand-in for "the feet" than the whole mesh's own bounds centre.
-                    // First guess, not measured: check by eye and swap the name below if it turns
-                    // out to be some other bone, or falls back to the bounds centre it's replacing.
-                    Transform pivotBone = null;
-                    foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
-                    {
-                        if (t0.name == "Bone") { pivotBone = t0; break; }
-                    }
-                    Vector3 pivot;
-                    if (pivotBone != null)
-                    {
-                        pivot = pivotBone.position;
-                    }
-                    else
-                    {
-                        pivot = member.position;
-                        var renderers = member.GetComponentsInChildren<Renderer>();
-                        if (renderers.Length > 0)
-                        {
-                            var bounds = renderers[0].bounds;
-                            for (int r = 1; r < renderers.Length; r++) bounds.Encapsulate(renderers[r].bounds);
-                            pivot = bounds.center;
-                        }
-                    }
-                    member.RotateAround(pivot, Vector3.up, step.RotateYDegrees);
-                }
-                if (matchesHere && step.NudgeLeftM != 0f && _eye != null)
-                    member.position -= _eye.transform.right * step.NudgeLeftM;
+                // flock (the heron plus the nest, both under "beat-6") would spin the nest too. A
+                // plain turn about the root: the FeetLock above re-plants the feet the same frame,
+                // so it reads as spinning on the spot rather than swinging round some other point.
+                bool matchesHere = step.RotateYDegrees != 0f && HasNamedClip(member, step.ClipName);
+                if (matchesHere) member.Rotate(0f, step.RotateYDegrees, 0f, Space.World);
 
-                float duration = PlayNamedClip(member, step.ClipName, trigger.AppearClipSpeed);
-
-                if (step.NudgeLeftDuringM != 0f && _eye != null && HasNamedClip(member, step.ClipName))
-                    StartCoroutine(NudgeLeftDuringClip(member, step.NudgeLeftDuringM, duration, gen));
+                // A hard cut, not a blend, into a clip that resets the facing the turn above has
+                // already re-applied: a blend would interpolate the model's own baked facing back
+                // through the half-turn while the root is already turned, visibly spinning it
+                // round again.
+                lastDuration = PlayNamedClip(member, step.ClipName, trigger.AppearClipSpeed, matchesHere ? 0f : 0.3f);
 
                 bool isLast = i == trigger.ClipSequence.Length - 1;
-                if (!isLast) yield return WaitOrSkip(duration, gen);
+                if (!isLast) yield return WaitOrSkip(lastDuration, gen);
             }
-        }
 
-        /// <summary>Eases member toward screen-left by totalNudgeM over durationSeconds, run
-        /// alongside a clip whose own baked rotation doesn't pivot exactly on the model's feet —
-        /// see ClipStep.NudgeLeftDuringM. The eye's own right, read once at the start rather than
-        /// every frame, same as NudgeLeftM's own instant version — this only runs a few seconds
-        /// at most, not long enough for the operator's own aim to meaningfully drift mid-clip.
-        /// </summary>
-        private IEnumerator NudgeLeftDuringClip(Transform member, float totalNudgeM, float durationSeconds, int gen)
-        {
-            if (member == null || _eye == null) yield break;
-            Vector3 start = member.position;
-            Vector3 end = start - _eye.transform.right * totalNudgeM;
-            float duration = Mathf.Max(0.01f, durationSeconds);
-            float t = 0f;
-            while (t < duration)
+            if (feetLock != null)
             {
-                if (member == null) yield break;
-                t += Time.deltaTime;
-                if (_skipGeneration != gen) t = duration;
-                member.position = Vector3.Lerp(start, end, Mathf.Clamp01(t / duration));
-                yield return null;
+                yield return WaitOrSkip(lastDuration + 0.5f, gen);
+                if (feetLock != null) Destroy(feetLock);
             }
-            if (member != null) member.position = end;
         }
 
         /// <summary>Whether member carries clipName as a Legacy Animation clip or an Animator
@@ -2318,7 +2356,7 @@ namespace ShoalingUpstream.Simulation
         /// no-oping quietly the way Legacy's Play does. Returns how long the slowest Legacy match
         /// takes at the given speed, so a caller can wait for it before chaining a follow-up clip
         /// — 0 if nothing on member carries clipName.</summary>
-        private static float PlayNamedClip(Transform member, string clipName, float speed)
+        private static float PlayNamedClip(Transform member, string clipName, float speed, float crossFadeSeconds = 0.3f)
         {
             float duration = 0f;
             foreach (var animation in member.GetComponentsInChildren<Animation>())
@@ -2327,8 +2365,10 @@ namespace ShoalingUpstream.Simulation
                 animation.wrapMode = WrapMode.Once;
                 // CrossFade, not Play: two clips authored independently rarely share a starting
                 // pose, so a hard cut reads as a sudden extra snap on top of whatever the clip
-                // itself animates. Blending hides that seam.
-                animation.CrossFade(clipName, 0.3f);
+                // itself animates. Blending hides that seam — except where a caller asks for a
+                // hard cut on purpose (crossFadeSeconds 0), see PlayClipSequence.
+                if (crossFadeSeconds > 0f) animation.CrossFade(clipName, crossFadeSeconds);
+                else animation.Play(clipName);
                 var state = animation[clipName];
                 if (state == null) continue;
                 if (speed > 0f) state.speed = speed;
@@ -2432,17 +2472,23 @@ namespace ShoalingUpstream.Simulation
                 // direction, per feedback ("每个egg生成的alevin (相对于user) 头朝前，尾朝后").
                 // Read fresh per fish rather than shared for the whole flock: HatchOne's own
                 // stagger spreads hatching across several seconds, and each fish should face
-                // however the device happened to be aimed at ITS OWN moment. Quaternion.identity
-                // (i.e. headDirection left at Vector3.left) is still what a desktop scene with no
-                // eye gets — the same "correction baked into the prefab" facing this always used.
+                // however the device happened to be aimed at ITS OWN moment. A desktop scene with
+                // no eye keeps the fixed Vector3.left every model is built to face at identity.
+                // A fish swapped for a bigger fish in the same spot (InheritFacing) keeps the
+                // facing of the one it replaces instead — turning it to wherever the device points
+                // NOW would spin it on the spot if the operator had walked round since.
                 Vector3 headDirection = Vector3.left;
-                if (_eye != null)
+                if (trigger.InheritFacing)
+                {
+                    headDirection = HeadDirection(egg);
+                }
+                else if (_eye != null)
                 {
                     Vector3 f = _eye.transform.forward;
                     f.y = 0f;
                     if (f.sqrMagnitude > 0.0001f) headDirection = f.normalized;
                 }
-                var fish = Instantiate(trigger.FishPrefab, egg.position, Quaternion.FromToRotation(Vector3.left, headDirection));
+                var fish = Instantiate(trigger.FishPrefab, egg.position, YawFromLeftTo(headDirection));
                 // Legacy import (see ALEVIN FISH.glb.meta): an Animation component that plays a
                 // clip by name directly. Mecanim was tried first and needs an AnimatorController
                 // asset glTFast does not generate, so nothing was ever wired to the Animator.
@@ -2536,22 +2582,21 @@ namespace ShoalingUpstream.Simulation
                 for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
                 bodyLength = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
             }
-            // All three axes, 0 to 0.4 body-lengths. Capped in absolute metres, not just
-            // body-lengths: rainbow trout at their 100x scale otherwise compute an amplitude
-            // upward of 5 m, dwarfing any deliberate move (Stunt's own pivot tuning proved
-            // unnoticeable at every value tried, up to and including near-zero, because this
-            // wobble was masking it entirely) and turning "idle sway" into a wobble bigger than
-            // the fish itself.
-            float amplitude = Mathf.Min(bodyLength * 0.4f, 0.0375f);
+            // All three axes, 0 to 0.4 body-lengths, capped at 0.2 m. The cap is in absolute metres
+            // so a big model does not sway further than a small one needs to for it to read as
+            // suspended in water. It used to be 0.0375 m — 3.75 cm either side of where the fish
+            // sat, at a pace slow enough that nobody could see it move at all, which is what "现在
+            // 并没有浮动" was reporting.
+            float amplitude = Mathf.Min(bodyLength * 0.4f, 0.2f);
             float seed = fish.GetInstanceID() * 0.031f;
             Vector3 basePosition = fish.position;
 
             while (fish != null)
             {
                 Vector3 wobble = new Vector3(
-                    (Mathf.PerlinNoise(Time.time * 0.15f + seed, 0f) - 0.5f) * (2f * amplitude),
-                    (Mathf.PerlinNoise(Time.time * 0.12f + seed, 10f) - 0.5f) * (2f * amplitude),
-                    (Mathf.PerlinNoise(Time.time * 0.13f + seed, 20f) - 0.5f) * (2f * amplitude));
+                    (Mathf.PerlinNoise(Time.time * 0.22f + seed, 0f) - 0.5f) * (2f * amplitude),
+                    (Mathf.PerlinNoise(Time.time * 0.18f + seed, 10f) - 0.5f) * (2f * amplitude),
+                    (Mathf.PerlinNoise(Time.time * 0.2f + seed, 20f) - 0.5f) * (2f * amplitude));
                 _swimOffsets.TryGetValue(fish, out var swimOffset);
                 fish.position = basePosition + wobble + swimOffset;
                 yield return null;

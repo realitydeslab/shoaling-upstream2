@@ -36,7 +36,7 @@ namespace ShoalingUpstream.EditorTools
         // build time because there is nowhere on-device yet to type it in instead, so this is
         // the one line to change (and rebuild AR.unity, and re-export to Xcode) whenever that
         // network changes.
-        private const string ArServiceHost = "192.168.1.127";
+        private const string ArServiceHost = "192.168.8.125";
 
         private const string OrangeEggPath =
             "Assets/ShoalingUpstream/Models/New Born/ORANGE EGG.glb";
@@ -287,6 +287,49 @@ namespace ShoalingUpstream.EditorTools
             driver.SceneTriggers.Add(BuildRebirthLocateTrigger());
             driver.SceneTriggers.Add(BuildRebirthSpawnTrigger());
             driver.SceneTriggers.Add(BuildRebirthFadeTrigger());
+            driver.FadeVariantMaterials = BuildFadeVariantMaterials();
+        }
+
+        private const string FadeVariantFolder = "Assets/ShoalingUpstream/Materials/FadeVariants";
+
+        /// <summary>Alpha-blend twins of the rainbow trout's own materials, saved as assets and
+        /// referenced from SimulationDriver only so the player build keeps the shader variant they
+        /// use. glTFast's shader declares its blend mode with shader_feature (_ALPHABLEND_ON), and a
+        /// variant that no material in the build uses is stripped — so FadeAndDestroy switching the
+        /// keyword on at run time found nothing to switch to on the iPad, and the fish just vanished
+        /// at the end of the fade instead of fading (fine in the editor, which never strips). Only
+        /// the trout ever fades (07-a's cull and 07-c's finale), so only its materials are needed.
+        /// Each twin is the original plus exactly what FadeAndDestroy does at run time, so the
+        /// keyword set is the same one the fading fish will ask for.</summary>
+        private static Material[] BuildFadeVariantMaterials()
+        {
+            var trout = AssetDatabase.LoadAssetAtPath<GameObject>(RainbowTroutPrefabPath);
+            if (trout == null) return new Material[0];
+
+            if (!AssetDatabase.IsValidFolder("Assets/ShoalingUpstream/Materials"))
+                AssetDatabase.CreateFolder("Assets/ShoalingUpstream", "Materials");
+            if (!AssetDatabase.IsValidFolder(FadeVariantFolder))
+                AssetDatabase.CreateFolder("Assets/ShoalingUpstream/Materials", "FadeVariants");
+
+            var twins = new List<Material>();
+            var seen = new HashSet<Material>();
+            foreach (var renderer in trout.GetComponentsInChildren<Renderer>(true))
+            {
+                foreach (var source in renderer.sharedMaterials)
+                {
+                    if (source == null || !seen.Add(source)) continue;
+                    var twin = new Material(source) { name = $"{source.name} (fade variant)" };
+                    SimulationDriver.PrepareMaterialForFade(twin);
+
+                    string fileName = twins.Count + " " + source.name;
+                    foreach (char bad in Path.GetInvalidFileNameChars()) fileName = fileName.Replace(bad, '_');
+                    string path = $"{FadeVariantFolder}/{fileName}.mat";
+                    AssetDatabase.DeleteAsset(path);
+                    AssetDatabase.CreateAsset(twin, path);
+                    twins.Add(twin);
+                }
+            }
+            return twins.ToArray();
         }
 
         /// <summary>Shared by BuildFishEggTrigger's fall-in egg mesh (01-a) and
@@ -406,7 +449,10 @@ namespace ShoalingUpstream.EditorTools
             BeatId = "beat-3",
             Kind = SimulationDriver.SceneTriggerKind.SwimToEye,
             TargetBeatId = "beat-2",
-            SwimDurationSeconds = 3f,
+            // Twice the previous 3 s over the same 2 m, per feedback that the swim should be half
+            // as fast ("swim的速度改为当前速度的1/2"). Each fish then adds its own random start
+            // delay and 0.7–1.3x on top of this (see SwimOneToEyeStaggered).
+            SwimDurationSeconds = 6f,
             SwimDestinationDistanceM = 9f,
             SwimScatterRadiusM = 4f,
         };
@@ -465,6 +511,7 @@ namespace ShoalingUpstream.EditorTools
             BeatId = "beat-4",
             Kind = SimulationDriver.SceneTriggerKind.ReactFlock,
             TargetBeatId = "beat-3",
+            InheritFacing = true,
             HatchDurationSeconds = 5f,
             GrowMultiplier = 0f,
             ShakeAmplitudeM = 0f,
@@ -523,6 +570,7 @@ namespace ShoalingUpstream.EditorTools
             BeatId = "beat-9",
             Kind = SimulationDriver.SceneTriggerKind.ReactFlock,
             TargetBeatId = "beat-7",
+            InheritFacing = true,
             HatchDurationSeconds = 5f,
             GrowMultiplier = 0f,
             ShakeAmplitudeM = 0f,
@@ -576,7 +624,7 @@ namespace ShoalingUpstream.EditorTools
         }
 
         /// <summary>"03-a Strider - Show" (beat id "beat-5"): a single strider appears 2 m in
-        /// front of the fry's own head, level with them — not a fixed world position, and not
+        /// front of the frontmost fry's own head, level with them — not a fixed world position, and not
         /// camera-relative either, since this needs to read as "right where the fry already
         /// are" regardless of where the operator is standing when this fires — and loops
         /// "Idle_A" at half speed. "beat-4" still holds the fry at this point in the beat order
@@ -590,6 +638,10 @@ namespace ShoalingUpstream.EditorTools
             Template = BuildStriderTemplate(),
             Count = 1,
             AnchorBeatId = "beat-4",
+            // Ahead of the frontmost fry, not of the flock's average — per feedback ("Strider需在
+            // 所有鱼的正前方生成"): a flock that has spread out has its centroid well behind the
+            // leader, so 2 m in front of the centroid can land among the fish.
+            AnchorToFrontmost = true,
             AnchorOffsetM = new Vector3(2f, 0f, 0f),
             AppearClipName = "Idle_A",
             AppearClipSpeed = 0.5f,
@@ -705,22 +757,81 @@ namespace ShoalingUpstream.EditorTools
                 foreach (var kv in LoadClipsPreferringMostCurves(HeronPath)) animation.AddClip(kv.Value, kv.Key);
             }
 
-            var renderers = mesh.GetComponentsInChildren<Renderer>();
-            if (renderers.Length > 0)
-            {
-                var bounds = renderers[0].bounds;
-                for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
-                mesh.transform.localPosition -= bounds.center;
-            }
+            // Stood on its feet, not centred on its bounds: the root's origin is the middle of the
+            // feet on the ground, so putting the root on the floor puts the bird's feet on the
+            // floor, and any turn of the root spins it about its feet. It used to be centred on the
+            // bounds of the whole body — neck and beak included, 9 cm of model space in front of the
+            // feet — which planted the bird half sunk into the floor and swung its feet round an
+            // arc whenever it turned. Its own "Turn" clip rotates the Armature about the model's
+            // origin, which is another point again (46% of the way up, 4 cm behind the feet, measured
+            // off HERON.glb); FeetLock holds the feet still through that at run time, via the marker
+            // placed under the Armature below.
+            Vector3 feet = FindFeetPoint(mesh);
+            mesh.transform.localPosition -= feet;
 
-            // Applied last, after the bounds-centring above (which reads world-space Renderer
-            // bounds and folds them straight into a local offset) — doing this any earlier would
-            // scale that offset along with everything else and throw the centring off by 30x.
+            Transform armature = null;
+            foreach (var t in mesh.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "Armature") { armature = t; break; }
+            }
+            var feetMarker = new GameObject(HeronFeetMarkerName).transform;
+            feetMarker.SetParent(armature != null ? armature : mesh.transform, false);
+            // The feet are at the world origin now (root sits there at build time, unscaled).
+            feetMarker.position = root.transform.position;
+
+            // Applied last, after the centring above (which reads world-space positions and folds
+            // them straight into a local offset) — doing this any earlier would scale that offset
+            // along with everything else and throw the centring off by 30x.
             // 1/10 per feedback in AR, where every model besides the egg still read too large.
             root.transform.localScale = Vector3.one * 3f;
 
             root.SetActive(false);
             return root;
+        }
+
+        /// <summary>Name of the empty marker BuildHeronTemplate parks under the heron's Armature, at
+        /// the middle of its feet; the feed beat's LockFeetTransformName looks it up by this.</summary>
+        private const string HeronFeetMarkerName = "FeetPivot";
+
+        /// <summary>Where a model stands, in world space: the middle of its feet in X and Z and its
+        /// lowest point in Y. Feet are taken as the lowest 5% of the skinned mesh's own vertices in
+        /// its bind pose — the heron's legs are rigid parts of the mesh, not bones, so there is no
+        /// foot bone to ask — falling back to the middle of the bind-pose bounds' floor if the mesh
+        /// is not readable.</summary>
+        private static Vector3 FindFeetPoint(GameObject model)
+        {
+            var skinned = model.GetComponentInChildren<SkinnedMeshRenderer>();
+            if (skinned != null && skinned.sharedMesh != null && skinned.sharedMesh.isReadable)
+            {
+                var local = skinned.sharedMesh.vertices;
+                if (local.Length > 0)
+                {
+                    var world = new Vector3[local.Length];
+                    float minY = float.MaxValue;
+                    float maxY = float.MinValue;
+                    for (int i = 0; i < local.Length; i++)
+                    {
+                        world[i] = skinned.transform.TransformPoint(local[i]);
+                        minY = Mathf.Min(minY, world[i].y);
+                        maxY = Mathf.Max(maxY, world[i].y);
+                    }
+                    float soleTop = minY + (maxY - minY) * 0.05f;
+                    Vector3 sum = Vector3.zero;
+                    int count = 0;
+                    for (int i = 0; i < world.Length; i++)
+                    {
+                        if (world[i].y > soleTop) continue;
+                        sum += world[i];
+                        count++;
+                    }
+                    return new Vector3(sum.x / count, minY, sum.z / count);
+                }
+            }
+
+            var renderers = model.GetComponentsInChildren<Renderer>();
+            var bounds = WorldSkinnedBounds(renderers[0]);
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(WorldSkinnedBounds(renderers[i]));
+            return new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
         }
 
         /// <summary>Every AnimationClip sub-asset at path, keyed by name — when two share a name
@@ -848,13 +959,13 @@ namespace ShoalingUpstream.EditorTools
         /// heron and nest planted by 04-a) and runs "Lower Head" → (1s pause) → "Turn" → (1s
         /// pause) → "Lower Head" again, this last one preceded by an instant 180° turn — "Lower
         /// Head" resets to the same baked facing every time it plays, so without this the second
-        /// playthrough would snap straight back to the original side — plus a small nudge toward
-        /// screen-left, since the turn's pivot is not exactly on the heron's feet and would
-        /// otherwise leave them drifted from wherever "Turn" actually planted them. None of the
+        /// playthrough would snap straight back to the original side. The heron's feet are held
+        /// in place throughout (LockFeetTransformName), since "Turn" pivots on the model's own
+        /// origin, not on the feet, and would otherwise slide it round an arc. None of the
         /// three loop, since these are gestures, not an idle. Only the heron's own Legacy
         /// Animation actually has clips by these names; the nest and babies have no match, so
         /// <see cref="SimulationDriver.PlayClipOnFlock"/> finding nothing there — and not turning
-        /// or nudging — is expected, not an error.
+        /// or holding anything — is expected, not an error.
         ///
         /// Also pulls one fish out of "beat-7" (whatever survived the strider-eats-fry beat) and
         /// feeds it to the heron: it swims to "Bone.007" — a first guess at the beak-tip bone,
@@ -872,11 +983,11 @@ namespace ShoalingUpstream.EditorTools
             var sequence = new[]
             {
                 new SimulationDriver.ClipStep { ClipName = "Lower Head" },
-                // NudgeLeftDuringM, not a NudgeLeftM on the step after: eased smoothly across
-                // "Turn"'s own duration instead of snapped the instant it ends, so the heron
-                // reads as turning in place on its own feet rather than visibly drifting sideways
-                // through the whole turn and then snapping back once "Lower Head" starts.
-                new SimulationDriver.ClipStep { ClipName = "Turn", DelaySeconds = 1f, NudgeLeftDuringM = -4f },
+                // The turn itself needs no correction here: LockFeetTransformName below holds the feet
+                // in place while it plays, so it reads as turning on the spot. (It used to carry a
+                // hand-tuned 4 m sideways nudge, measured when the heron was ten times the size it
+                // is now — at today's size that alone slid the bird several metres across the floor.)
+                new SimulationDriver.ClipStep { ClipName = "Turn", DelaySeconds = 1f },
                 new SimulationDriver.ClipStep
                 {
                     ClipName = "Lower Head", DelaySeconds = 1f, RotateYDegrees = 180f,
@@ -893,6 +1004,7 @@ namespace ShoalingUpstream.EditorTools
                 Kind = SimulationDriver.SceneTriggerKind.PlayClip,
                 TargetBeatId = "beat-6",
                 ClipSequence = sequence,
+                LockFeetTransformName = HeronFeetMarkerName,
                 FishSourceBeatId = "beat-7",
                 FishFollowBoneName = "Bone.007",
                 // First guess: Bone.007 itself reads closer to the eye than the beak tip, so
@@ -1049,9 +1161,10 @@ namespace ShoalingUpstream.EditorTools
             mesh.transform.SetParent(root.transform, false);
             // Started out matching BuildFishEggTrigger's own egg mesh (01-a) exactly, per earlier
             // feedback that the two should be the same size; now a further 10x on top of that per
-            // feedback specific to this finale ("egg scale改为现在的10倍") — the two have
-            // deliberately diverged again since.
-            mesh.transform.localScale = Vector3.one * ComputeEggMeshLocalScale() * 10f;
+            // feedback specific to this finale ("egg scale改为现在的10倍"), then halved again to 5x
+            // per the next round ("产生的egg scale 改为当前的1/2") — the two have deliberately
+            // diverged since.
+            mesh.transform.localScale = Vector3.one * ComputeEggMeshLocalScale() * 5f;
             mesh.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
 
             var renderers = mesh.GetComponentsInChildren<Renderer>();
