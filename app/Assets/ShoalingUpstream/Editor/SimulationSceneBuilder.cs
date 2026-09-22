@@ -279,6 +279,7 @@ namespace ShoalingUpstream.EditorTools
             driver.SceneTriggers.Add(BuildHeronTrigger());
             driver.SceneTriggers.Add(BuildNestTrigger());
             driver.SceneTriggers.Add(BuildHeronFeedTrigger());
+            driver.SceneTriggers.Add(BuildFrySwimTrigger());
             driver.SceneTriggers.Add(BuildFryToRainbowTroutTrigger());
             driver.SceneTriggers.Add(BuildHeronHideTrigger());
             driver.SceneTriggers.Add(BuildTroutReturnTrigger());
@@ -436,8 +437,14 @@ namespace ShoalingUpstream.EditorTools
             FishPrefab = BuildFishPrefab(),
             // Per feedback: once hatched, the whole clutch should slowly spread out to 5x its
             // post-hatch (egg-cluster) spacing rather than staying bunched exactly where the eggs
-            // landed.
+            // landed, rising to roughly eye height over that same spread as it does — first a
+            // fixed 0.5 m ("散开的过程中同时缓慢升高0.5m"), then to the operator's own eye height
+            // instead ("升高到大概iPad所在的高度，让用户...有种在Alevin鱼群中的感觉，而不是...俯
+            // 视鱼群") once a fixed 0.5 m still left them well below eye level. SpreadRiseM is the
+            // desktop-only fallback SpreadRiseToEyeHeight uses when there is no eye to read.
             SpreadMultiplier = 5f,
+            SpreadRiseM = 1.4f,
+            SpreadRiseToEyeHeight = true,
             SpreadDurationSeconds = 10f,
         };
 
@@ -561,10 +568,27 @@ namespace ShoalingUpstream.EditorTools
             return asset;
         }
 
-        /// <summary>"05-a Fry to Rainbow Trout" (beat id "beat-9"): swaps whatever "beat-7" is
-        /// still carrying (the grown fry) for a Rainbow Trout, in place — no shake, no growth,
-        /// just the model and its own "Trout_Swim" clip (a different name from every other fish's
-        /// "Swim", hence FishSwimClipName).</summary>
+        /// <summary>"05-a: Fry - Swim" (beat id "beat-17"): every fry from "beat-7" eases a short
+        /// distance forward along its own current facing, independently staggered in when it
+        /// starts — the same in-place, no-reregistration move as "06-b: Return Home - Swim"
+        /// (BuildTroutSwimTrigger), with a shorter distance ("先后向前游动一小段距离") — inserted
+        /// ahead of what was "05-a: Fry to Rainbow Trout", relabelled 05-b below to make room.
+        /// </summary>
+        private static SimulationDriver.SceneTrigger BuildFrySwimTrigger() => new()
+        {
+            BeatId = "beat-17",
+            Kind = SimulationDriver.SceneTriggerKind.SwimFlock,
+            TargetBeatId = "beat-7",
+            SwimForwardDistanceM = 1f,
+            SwimForwardDurationSeconds = 1.5f,
+            RotateStaggerMaxSeconds = 1.5f,
+        };
+
+        /// <summary>"05-b: Fry - Become Rainbow Trout" (beat id "beat-9"; labelled 05-a until the
+        /// new 05-a Swim above was inserted ahead of it): swaps whatever "beat-7" is still
+        /// carrying (the grown fry) for a Rainbow Trout, in place — no shake, no growth, just the
+        /// model and its own "Trout_Swim" clip (a different name from every other fish's "Swim",
+        /// hence FishSwimClipName).</summary>
         private static SimulationDriver.SceneTrigger BuildFryToRainbowTroutTrigger() => new()
         {
             BeatId = "beat-9",
@@ -623,14 +647,15 @@ namespace ShoalingUpstream.EditorTools
             return asset;
         }
 
-        /// <summary>"03-a Strider - Show" (beat id "beat-5"): a single strider appears 2 m in
-        /// front of the frontmost fry's own head, level with them — not a fixed world position, and not
-        /// camera-relative either, since this needs to read as "right where the fry already
-        /// are" regardless of where the operator is standing when this fires — and loops
-        /// "Idle_A" at half speed. "beat-4" still holds the fry at this point in the beat order
-        /// (03-a fires before 03-b's EatAndGrow reaches into it), so that is the flock this
-        /// anchors to. See PlayAppear's own retry loop for why this used to render nowhere near
-        /// the fry when beat-4 was still mid-hatch.</summary>
+        /// <summary>"03-a Strider - Show" (beat id "beat-5"): a single strider appears 2 m directly
+        /// ahead of the frontmost fry, as the operator is currently aiming the device (not a fixed
+        /// world position, and not the fry's own facing either — see AnchorForwardFromEye; their
+        /// own facing can differ from the operator's current aim by enough to read as "off to the
+        /// side" rather than "dead ahead" for an offset this small, per feedback "现在仍然在右前
+        /// 方") — and loops "Idle_A" at half speed. "beat-4" still holds the fry at this point in
+        /// the beat order (03-a fires before 03-b's EatAndGrow reaches into it), so that is the
+        /// flock this anchors to. See PlayAppear's own retry loop for why this used to render
+        /// nowhere near the fry when beat-4 was still mid-hatch.</summary>
         private static SimulationDriver.SceneTrigger BuildStriderTrigger() => new()
         {
             BeatId = "beat-5",
@@ -642,6 +667,7 @@ namespace ShoalingUpstream.EditorTools
             // 所有鱼的正前方生成"): a flock that has spread out has its centroid well behind the
             // leader, so 2 m in front of the centroid can land among the fish.
             AnchorToFrontmost = true,
+            AnchorForwardFromEye = true,
             AnchorOffsetM = new Vector3(2f, 0f, 0f),
             AppearClipName = "Idle_A",
             AppearClipSpeed = 0.5f,
@@ -719,11 +745,15 @@ namespace ShoalingUpstream.EditorTools
             AnchorBeatId = "beat-7",
             // Per feedback: X (head axis) now tracks whichever fry is furthest ahead rather than
             // the flock's own average, Y is pinned to the real floor rather than floating at the
-            // fry's own (mid-water) height, and Z (how far to the fry's right) is 1.5x the
-            // previous 6 m.
+            // fry's own (mid-water) height, and Z (how far to the fry's right) went 9 -> 1 m
+            // (still read as floating at 9 m — likely the real floor there, well to the side of
+            // wherever the fish are, was less likely to have been scanned yet than a spot only
+            // 1 m away, so AnchorOnGround's own retry more often ran out its window and fell back
+            // to the fish's own mid-water height instead of a real floor reading), then +2 m and
+            // +1 m more across two more rounds of "整套模型再往右侧平移" to 4 m.
             AnchorToFrontmost = true,
             AnchorOnGround = true,
-            AnchorOffsetM = new Vector3(0f, 0f, 9f),
+            AnchorOffsetM = new Vector3(0f, 0f, 4f),
             AppearClipName = "Idle",
         };
 
@@ -901,10 +931,14 @@ namespace ShoalingUpstream.EditorTools
             Template = BuildNestTemplate(),
             Count = 1,
             AnchorBeatId = "beat-7",
-            // Same X/Y treatment as BuildHeronTrigger, for the same reason — see its own comment.
+            // Same X/Y/Z treatment as BuildHeronTrigger, for the same reason — see its own comment
+            // (Z: 9 -> 1 -> 3 -> 4 m). X is unchanged: -2.8 m keeps the nest offset from the
+            // heron along the fry's own head/tail axis exactly as before, so the two still sit
+            // side by side rather than on top of each other regardless of how far out Z pushes
+            // the pair.
             AnchorToFrontmost = true,
             AnchorOnGround = true,
-            AnchorOffsetM = new Vector3(-2.8f, 0f, 9f),
+            AnchorOffsetM = new Vector3(-2.8f, 0f, 4f),
             AppearClipName = "Idle A",
             AppearClipSpeed = 0.5f,
         };
@@ -935,6 +969,7 @@ namespace ShoalingUpstream.EditorTools
                 (name: "Baby Bird 2", pos: new Vector3(0.048f, -0.37f, -0.1f), rot: new Vector3(0f, -150.1f, 0f)),
                 (name: "Baby Bird 3", pos: new Vector3(-0.049f, -0.37f, 0.006f), rot: new Vector3(0f, -179f, 0f)),
             };
+            var babyObjects = new List<Transform>();
             foreach (var (name, pos, rot) in babies)
             {
                 var baby = (GameObject)PrefabUtility.InstantiatePrefab(babySource);
@@ -943,7 +978,20 @@ namespace ShoalingUpstream.EditorTools
                 baby.transform.localPosition = pos;
                 baby.transform.localRotation = Quaternion.Euler(rot);
                 baby.transform.localScale = Vector3.one * 0.125f;
+                babyObjects.Add(baby.transform);
             }
+
+            // Stood on its own base, not left at the hand-tuned pivot above — the nest's own
+            // lowest point (FindFeetPoint, the same "stand it on the ground" measure
+            // BuildHeronTemplate uses) is pulled back to the root's own origin, and the three
+            // babies — siblings of the nest under this same root, not its children — are shifted
+            // by the same amount so their hand-tuned positions relative to the nest are
+            // unchanged. Needed so AnchorOnGround (see BuildNestTrigger) lands the nest's own
+            // base on the real floor, per feedback ("nest的底端都在地上"), rather than wherever
+            // this hand-tuned offset happened to leave it relative to the root.
+            Vector3 nestBase = FindFeetPoint(nest);
+            nest.transform.localPosition -= nestBase;
+            foreach (var baby in babyObjects) baby.localPosition -= nestBase;
 
             // 1/10 per feedback in AR, where every model besides the egg still read too large.
             // Scales the nest and all three babies uniformly, since it sits above them in the
@@ -1042,16 +1090,17 @@ namespace ShoalingUpstream.EditorTools
         };
 
         /// <summary>"06-b: Return Home - Swim" (beat id "beat-16"): every rainbow trout from
-        /// "beat-9" eases 1 m forward along its own current facing, independently staggered in
-        /// when it starts, per feedback ("所有 Rainbow tout 陆续向头的方向移动1m") — a new beat
-        /// inserted between the existing 06-a Return (turn around) and what was "06-b: Return
-        /// Home - Jump", relabelled 06-c below to make room for this one.</summary>
+        /// "beat-9" eases forward along its own current facing, independently staggered in when
+        /// it starts, per feedback ("所有 Rainbow tout 陆续向头的方向移动1m") — a new beat inserted
+        /// between the existing 06-a Return (turn around) and what was "06-b: Return Home -
+        /// Jump", relabelled 06-c below to make room for this one. Distance doubled to 2 m per
+        /// feedback ("Swim的距离再远1倍").</summary>
         private static SimulationDriver.SceneTrigger BuildTroutSwimTrigger() => new()
         {
             BeatId = "beat-16",
             Kind = SimulationDriver.SceneTriggerKind.SwimFlock,
             TargetBeatId = "beat-9",
-            SwimForwardDistanceM = 1f,
+            SwimForwardDistanceM = 2f,
             SwimForwardDurationSeconds = 1.5f,
             RotateStaggerMaxSeconds = 1.5f,
         };
@@ -1119,11 +1168,15 @@ namespace ShoalingUpstream.EditorTools
             StuntSpeedMultiplier = 3f,
             StuntSpeedDurationSeconds = 4f,
             // The finale: once the fish settles back down, 20 eggs release from its tail over
-            // 3 seconds, each jittered slightly so they don't all fall from the same point.
+            // 3 seconds, each jittered slightly so they don't all fall from the same point. 1.5 m
+            // was tuned against the egg's own old, much larger scale (see BuildFishEggMeshPrefab)
+            // — now that it matches 01-a's own tiny egg exactly, that same radius scattered them
+            // across an area many times the egg's own size, per feedback ("egg散的太开了，让所有
+            // egg都从rainbow trout A的尾部附近产生").
             EggPrefab = BuildFishEggMeshPrefab(),
             EggCount = 20,
             EggDropWindowSeconds = 3f,
-            EggJitterRadiusM = 1.5f,
+            EggJitterRadiusM = 0.15f,
             EggFallDistanceM = 4f,
             EggFallDurationSeconds = 1f,
         };
@@ -1159,12 +1212,11 @@ namespace ShoalingUpstream.EditorTools
             var mesh = (GameObject)PrefabUtility.InstantiatePrefab(source);
             mesh.name = "Mesh";
             mesh.transform.SetParent(root.transform, false);
-            // Started out matching BuildFishEggTrigger's own egg mesh (01-a) exactly, per earlier
-            // feedback that the two should be the same size; now a further 10x on top of that per
-            // feedback specific to this finale ("egg scale改为现在的10倍"), then halved again to 5x
-            // per the next round ("产生的egg scale 改为当前的1/2") — the two have deliberately
-            // diverged since.
-            mesh.transform.localScale = Vector3.one * ComputeEggMeshLocalScale() * 5f;
+            // Matches BuildFishEggTrigger's own egg mesh (01-a) exactly again, per feedback
+            // ("现在的egg太大了，保持和01-a里的egg一样大") — this had drifted through several
+            // rounds of its own independent tuning (10x, then halved twice to 2.5x, then 4x back
+            // up to 10x) since it last matched 01-a.
+            mesh.transform.localScale = Vector3.one * ComputeEggMeshLocalScale();
             mesh.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
 
             var renderers = mesh.GetComponentsInChildren<Renderer>();

@@ -173,6 +173,20 @@ namespace ShoalingUpstream.Simulation
             [Tooltip("ReactFlock + SpreadMultiplier only: how long the slow spread-apart takes.")]
             public float SpreadDurationSeconds;
 
+            [Tooltip("ReactFlock + SpreadMultiplier only: eases the member up by this many metres "
+                     + "over the same SpreadDurationSeconds the spread-apart itself takes, so it "
+                     + "rises while it spreads rather than only drifting outward. Ignored (and the "
+                     + "rise computed instead from the operator's own eye height) when "
+                     + "SpreadRiseToEyeHeight is set. 0 leaves height untouched.")]
+            public float SpreadRiseM;
+
+            [Tooltip("ReactFlock + SpreadMultiplier only: rises to approximately the operator's own "
+                     + "eye height instead of SpreadRiseM's fixed distance — so by the time the "
+                     + "spread finishes, the operator is looking out at the shoal roughly level "
+                     + "with them, rather than down on top of it. Falls back to SpreadRiseM with no "
+                     + "eye to read (the desktop scene).")]
+            public bool SpreadRiseToEyeHeight;
+
             [Tooltip("SwimToEye: how long the journey to the eye takes, start to arrival. "
                      + "EatAndGrow: how long the closest member of TargetBeatId's flock takes to "
                      + "swim toward ConsumeTargetBeatId's own member before it is eaten.")]
@@ -235,6 +249,14 @@ namespace ShoalingUpstream.Simulation
                      + "(see SpreadMultiplier), the centroid trails behind whoever is actually "
                      + "leading. Off by default (centroid, matching every other axis).")]
             public bool AnchorToFrontmost;
+
+            [Tooltip("Appear + AnchorBeatId only: the \"head\"/\"right\" axes AnchorOffsetM is "
+                     + "measured along come from the operator's own current aim (leveled), not the "
+                     + "anchor flock's average facing — for a placement judged by \"directly ahead "
+                     + "of them, from where I'm standing now\" rather than \"off to the side of "
+                     + "them, however they happen to be facing\". Falls back to the flock's own "
+                     + "facing with no eye to read (the desktop scene).")]
+            public bool AnchorForwardFromEye;
 
             [Tooltip("Appear + AnchorBeatId only: overrides the computed anchor's Y with a real "
                      + "floor height, raycast straight down against detected AR planes (falls back "
@@ -470,6 +492,17 @@ namespace ShoalingUpstream.Simulation
         private List<UnityEngine.XR.ARSubsystems.XRPlaneSubsystem> _planeSubsystemsScratch;
         private UnityEngine.XR.ARFoundation.ARPlaneManager _planeManager;
         private string _lastEggDropDiag = "(no egg dropped yet)";
+
+        /// <summary>The real floor height, in world Y, the first time 01-a's own egg-drop
+        /// (SnapEggAnchorToFloorWhenSettled) actually finds one — reused by any later beat that
+        /// needs to stand something on the ground (PlayAppear's AnchorOnGround) instead of each
+        /// one raycasting for itself. Per feedback ("整套模型有时不显示，有时突然显示两个"): a
+        /// live raycast retry could run for the ground/nest at 04-a for up to its own several-
+        /// second window before anything appeared, which read as the button not working and
+        /// invited a second press — spawning a second copy once both eventually resolved. The
+        /// room's floor does not move between 01-a and 04-a, so reusing the height already
+        /// confirmed there resolves instantly instead.</summary>
+        private float? _knownFloorY;
         private string _lastStableTrackingDiag = "(no spawn beat fired yet)";
         private string _lastDraftFetchDiag = "(not attempted yet)";
         private Camera _overview;
@@ -999,7 +1032,7 @@ namespace ShoalingUpstream.Simulation
         private static readonly string[] AdvanceOrder =
         {
             "beat-1", "beat-2", "beat-3", "beat-4", "beat-5", "beat-7", "beat-6", "beat-8",
-            "beat-11", "beat-9", "beat-10", "beat-16", "beat-12", "beat-13", "beat-14", "beat-15",
+            "beat-11", "beat-17", "beat-9", "beat-10", "beat-16", "beat-12", "beat-13", "beat-14", "beat-15",
         };
 
         /// <summary>Tears down every currently-spawned flock and replays the whole journey from
@@ -1588,6 +1621,7 @@ namespace ShoalingUpstream.Simulation
                                                               | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated);
                 if (hitFloor)
                 {
+                    _knownFloorY = hits[0].pose.position.y;
                     Vector3 targetWorldPos = new Vector3(anchorStartPos.x, hits[0].pose.position.y, anchorStartPos.z);
                     Vector3 anchorTarget = anchor.position + (targetWorldPos - fallMember.position);
                     yield return StartCoroutine(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
@@ -1612,6 +1646,7 @@ namespace ShoalingUpstream.Simulation
                 // egg that never lands.
                 const float lastResortFallM = 1.2f;
                 float targetY = fallbackFloorY ?? (anchorStartPos.y - lastResortFallM);
+                if (fallbackFloorY.HasValue) _knownFloorY = fallbackFloorY.Value;
                 Vector3 targetWorldPos = new Vector3(anchorStartPos.x, targetY, anchorStartPos.z);
                 Vector3 anchorTarget = anchor.position + (targetWorldPos - fallMember.position);
                 yield return StartCoroutine(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
@@ -1626,8 +1661,15 @@ namespace ShoalingUpstream.Simulation
         /// <summary>Falls to the real floor when a raycast against detected AR planes finds one
         /// (LiDAR-assisted plane detection on a supporting device) — straight down from the
         /// egg's own spawn point, since that is directly below wherever the fish actually is.
-        /// Falls back to the fixed distance/duration below when there's no ARRaycastManager
-        /// (the desktop scene) or nothing detected yet (floor not scanned at that spot).</summary>
+        /// Falls back to the fixed distance/duration below when there's no ARRaycastManager (the
+        /// desktop scene) or nothing detected yet (floor not scanned at that spot). A single,
+        /// immediate check, not a retry: each egg starts falling the instant it spawns, per
+        /// feedback ("egg出现后就掉落到地上，不要等所有egg都生成以后才一起掉落") — a retry here
+        /// once delayed the start of the fall itself while it waited on a floor, and since every
+        /// egg in the batch tends to fail its very first check at the same moment (the floor
+        /// nearby not scanned yet) and then all succeed within the same 0.5 s retry tick once it
+        /// is, the whole batch read as holding position and then dropping together instead of
+        /// each one falling as it appeared.</summary>
         private IEnumerator FallEgg(Transform egg, float distance, float duration, int gen)
         {
             if (egg == null) yield break;
@@ -2003,11 +2045,32 @@ namespace ShoalingUpstream.Simulation
                         // started. Right is the head direction turned a quarter round from above.
                         // head, right and up form an orthonormal basis, so centroid decomposes
                         // cleanly onto them below rather than needing centroid added back in wholesale.
+                        //
+                        // AnchorForwardFromEye swaps that average for the operator's own current
+                        // aim instead — for a placement judged by "directly ahead of the fish, from
+                        // where I am standing right now" (the strider) rather than "off to the side
+                        // of them, however they happen to be facing" (the heron, which stayed
+                        // correctly placed on the fish's own average facing — only the strider's
+                        // small, dead-ahead offset made a several-degree mismatch between the two
+                        // visible as "off to the side" rather than "basically ahead").
                         Vector3 anchorHead = FlockHeadDirection(anchorFlock);
+                        if (trigger.AnchorForwardFromEye && _eye != null)
+                        {
+                            Vector3 f = _eye.transform.forward;
+                            f.y = 0f;
+                            if (f.sqrMagnitude > 0.0001f) anchorHead = f.normalized;
+                        }
                         Vector3 anchorRight = Vector3.Cross(Vector3.up, anchorHead);
                         // The template faces the same way the fish do, as it always has.
                         facing = YawFromLeftTo(anchorHead);
 
+                        // AnchorToFrontmost only ever adjusts this one scalar — how far along
+                        // anchorHead the group's own leading edge reaches — never the axis itself:
+                        // an earlier version re-aimed anchorHead at whichever member came out
+                        // frontmost, which let one outlier fish that had also drifted sideways
+                        // (SpreadMultiplier's own scatter, FishDrift's wobble) rotate the WHOLE
+                        // reference frame, including the heron's own "to the right" offset — the
+                        // actual cause of it landing behind the fry instead of level with them.
                         float headAxis = Vector3.Dot(centroid, anchorHead);
                         if (trigger.AnchorToFrontmost)
                         {
@@ -2028,24 +2091,49 @@ namespace ShoalingUpstream.Simulation
 
                         if (trigger.AnchorOnGround)
                         {
-                            // No detected floor to stand on (or none scanned there yet): fall back to
-                            // the lowest fish's own height rather than some fixed drop below the
-                            // anchor — the fish hatched on the floor and only float a little above
-                            // it, so they are the best stand-in for where it is.
-                            float groundY = float.MaxValue;
-                            foreach (var member in anchorFlock)
+                            // Reuses the floor height 01-a's own egg-drop already confirmed
+                            // (_knownFloorY), instead of raycasting again right here, per feedback
+                            // ("不要此时读取地面高度，而是存储01-a 所在高度，以此作为地面高度") —
+                            // the room's own floor has not moved between beats. A live retry loop
+                            // here used to run for several seconds with nothing yet visible before
+                            // it resolved, which read as the button not working and invited a
+                            // second press once the operator gave up waiting and tried again —
+                            // spawning a second copy once both eventually finished ("有时不显示，
+                            // 有时突然显示两个"). This resolves instantly instead, whether or not
+                            // 01-a has fired yet.
+                            float groundY;
+                            if (_knownFloorY.HasValue)
                             {
-                                if (member != null) groundY = Mathf.Min(groundY, member.position.y);
+                                groundY = _knownFloorY.Value;
                             }
-                            if (groundY == float.MaxValue) groundY = anchorPos.y;
-                            if (_raycastManager != null)
+                            else
                             {
-                                var groundHits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
-                                var groundRay = new Ray(anchorPos + Vector3.up * 0.1f, Vector3.down);
-                                if (_raycastManager.Raycast(groundRay, groundHits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
-                                                                                   | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated))
+                                // 01-a has not confirmed a floor yet (fired out of the usual
+                                // order, or never found one) — a single immediate probe under the
+                                // operator's own feet, the same fallback PlaySceneFlock's own
+                                // sharedFallbackFloorY uses, rather than a retry loop.
+                                groundY = anchorPos.y;
+                                if (_eye != null && _raycastManager != null)
                                 {
-                                    groundY = groundHits[0].pose.position.y;
+                                    var eyeHits = new List<UnityEngine.XR.ARFoundation.ARRaycastHit>();
+                                    var eyeRay = new Ray(_eye.transform.position, Vector3.down);
+                                    if (_raycastManager.Raycast(eyeRay, eyeHits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon
+                                                                                 | UnityEngine.XR.ARSubsystems.TrackableType.PlaneEstimated))
+                                    {
+                                        groundY = eyeHits[0].pose.position.y;
+                                    }
+                                    else
+                                    {
+                                        // Nothing scanned anywhere useful yet: the lowest fish's
+                                        // own height — they hatched on the floor and only float a
+                                        // little above it, so they are the best stand-in left.
+                                        float lowestFish = float.MaxValue;
+                                        foreach (var member in anchorFlock)
+                                        {
+                                            if (member != null) lowestFish = Mathf.Min(lowestFish, member.position.y);
+                                        }
+                                        if (lowestFish != float.MaxValue) groundY = lowestFish;
+                                    }
                                 }
                             }
                             anchorPos.y = groundY;
@@ -2518,8 +2606,15 @@ namespace ShoalingUpstream.Simulation
                         spreadOrigin = _eye.transform.position;
                         spreadOrigin.y = flockCentroid.y;
                     }
+                    // Rises to roughly the operator's own eye height instead of a fixed distance,
+                    // per feedback ("缓慢升高到大概iPad所在的高度，让用户从iPad看出去有种在Alevin
+                    // 鱼群中的感觉，而不是现在的俯视鱼群") — the fish hatch down at floor height,
+                    // so a fixed 0.5 m still left them well below eye level, read from above.
+                    float riseM = trigger.SpreadRiseM;
+                    if (trigger.SpreadRiseToEyeHeight && _eye != null)
+                        riseM = Mathf.Max(0f, _eye.transform.position.y - egg.position.y);
                     StartCoroutine(SpreadFishFromCentroid(
-                        fish.transform, egg.position, spreadOrigin, headDirection, trigger.SpreadMultiplier, trigger.SpreadDurationSeconds));
+                        fish.transform, egg.position, spreadOrigin, headDirection, trigger.SpreadMultiplier, riseM, trigger.SpreadDurationSeconds));
                 }
 
                 // Registered under this Hatch beat's own id — a later ReactFlock/SwimToEye beat
@@ -2545,15 +2640,28 @@ namespace ShoalingUpstream.Simulation
         /// in front of origin — head-first, per feedback ("头朝前尾朝后") — rather than exploding
         /// radially, backward included, around wherever each egg happened to scatter. The
         /// sideways component is scaled the same way multiplier always worked, so the flock still
-        /// spreads apart from each other instead of collapsing onto a single line.</summary>
+        /// spreads apart from each other instead of collapsing onto a single line. riseM adds a
+        /// straight vertical climb over the same duration, per feedback ("散开的过程中同时缓慢升
+        /// 高0.5m") — a fish rising while it spreads rather than only fanning outward level.
+        /// </summary>
         private IEnumerator SpreadFishFromCentroid(
-            Transform fish, Vector3 spawnPosition, Vector3 origin, Vector3 headDirection, float multiplier, float durationSeconds)
+            Transform fish, Vector3 spawnPosition, Vector3 origin, Vector3 headDirection, float multiplier, float riseM, float durationSeconds)
         {
             Vector3 fromOrigin = spawnPosition - origin;
             float headDistance = Vector3.Dot(fromOrigin, headDirection);
             Vector3 lateral = fromOrigin - headDirection * headDistance;
-            float newHeadDistance = Mathf.Max(headDistance, 0.1f) * multiplier;
-            Vector3 endOffset = (headDirection * newHeadDistance + lateral * multiplier) - fromOrigin;
+            // The 0.1 floor guards against an egg that scattered slightly behind origin spreading
+            // backward past it — it is meant to be a small nudge, not a deliberate glide. Clamping
+            // headDistance itself, before scaling by multiplier, instead floored the SCALED result
+            // at 0.1 * multiplier: eggs spawn directly under the eye (SpawnUnderEye), so headDistance
+            // starts at or near zero for nearly all of them, and at multiplier 5 the floor alone
+            // was already a uniform 0.5 m glide forward for the whole clutch — read, per feedback,
+            // as "还是向前游0.5m" once SpreadRiseM's own 0.5 m climb was added alongside it and
+            // expected to read as the dominant motion instead.
+            const float minForwardM = 0.1f;
+            float newHeadDistance = Mathf.Max(headDistance * multiplier, minForwardM);
+            Vector3 endOffset = (headDirection * newHeadDistance + lateral * multiplier) - fromOrigin
+                               + Vector3.up * riseM;
             float duration = Mathf.Max(0.01f, durationSeconds);
             float t = 0f;
             int gen = _skipGeneration;

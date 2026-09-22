@@ -119,1590 +119,13 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &145381001
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 145381002}
-  m_Layer: 0
-  m_Name: HERON
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &145381002
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 145381001}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 3, y: 3, z: 3}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 575721222}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &471035915
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 471035916}
-  m_Layer: 0
-  m_Name: Fish Egg
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &471035916
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 471035915}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1069753501}
-  m_Father: {fileID: 1188526151}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &494703663
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 494703664}
-  - component: {fileID: 494703669}
-  - component: {fileID: 494703668}
-  - component: {fileID: 494703667}
-  - component: {fileID: 494703666}
-  - component: {fileID: 494703665}
-  m_Layer: 0
-  m_Name: AR Camera
-  m_TagString: MainCamera
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &494703664
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 494703663}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1239617182}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &494703665
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 494703663}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e3c44306fb1e439a9f18b2212b8ab70, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARPoseDriver
---- !u!114 &494703666
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 494703663}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 816b289ef451e094f9ae174fb4cf8db0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARCameraBackground
-  m_UseCustomMaterial: 0
-  m_CustomMaterial: {fileID: 0}
---- !u!114 &494703667
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 494703663}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4966719baa26e4b0e8231a24d9bd491a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARCameraManager
-  m_FocusMode: 1
-  m_LightEstimationMode: 0
-  m_AutoFocus: 1
-  m_ImageStabilization: 0
-  m_LightEstimation: 0
-  m_FacingDirection: 1
-  m_RenderMode: 0
---- !u!81 &494703668
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 494703663}
-  m_Enabled: 1
---- !u!20 &494703669
-Camera:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 494703663}
-  m_Enabled: 1
-  serializedVersion: 2
-  m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.09, g: 0.12, b: 0.15, a: 1}
-  m_projectionMatrixMode: 1
-  m_GateFitMode: 2
-  m_FOVAxisMode: 0
-  m_Iso: 200
-  m_ShutterSpeed: 0.005
-  m_Aperture: 16
-  m_FocusDistance: 10
-  m_FocalLength: 50
-  m_BladeCount: 5
-  m_Curvature: {x: 2, y: 11}
-  m_BarrelClipping: 0.25
-  m_Anamorphism: 0
-  m_SensorSize: {x: 36, y: 24}
-  m_LensShift: {x: 0, y: 0}
-  m_NormalizedViewPortRect:
-    serializedVersion: 2
-    x: 0
-    y: 0
-    width: 1
-    height: 1
-  near clip plane: 0.05
-  far clip plane: 1000
-  field of view: 60
-  orthographic: 0
-  orthographic size: 5
-  m_Depth: 0
-  m_CullingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_RenderingPath: -1
-  m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 0
-  m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
-  m_AllowDynamicResolution: 0
-  m_ForceIntoRT: 0
-  m_OcclusionCulling: 1
-  m_StereoConvergence: 10
-  m_StereoSeparation: 0.022
---- !u!1 &520710230
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 520710234}
-  - component: {fileID: 520710233}
-  - component: {fileID: 520710232}
-  - component: {fileID: 520710231}
-  m_Layer: 0
-  m_Name: Shoaling Upstream
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &520710231
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 520710230}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ac0268f4f73854190bf2362c5985b08a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ShoalingUpstream.Simulation::ShoalingUpstream.Simulation.SimulationDriver
-  ServiceHost: 192.168.8.125
-  ServicePort: 8710
-  Slug: ucb-strawberry-creek-south
-  FadeVariantMaterials:
-  - {fileID: 2100000, guid: a689e2d324df74076b28db0d8d097e27, type: 2}
-  EyeOffsetM: 0
-  ShowOverview: 0
-  ShowDebugMarkers: 0
-  SceneTriggers:
-  - BeatId: beat-1
-    Kind: 0
-    FallTemplate: {fileID: 471035916}
-    FollowCameraPitch: 0
-    Count: 20
-    StaggerSeconds: 0.05
-    ScatterRadiusM: 0.25
-    SpawnUnderEye: 1
-    SpawnFallDurationSeconds: 1.5
-    TargetBeatId: 
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-2
-    Kind: 1
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-1
-    HatchDurationSeconds: 20
-    GrowMultiplier: 0.5
-    ShakeAmplitudeM: 0.03
-    FishPrefab: {fileID: 6054301507514741768, guid: c8ff5afe55da74e609cb57718848f593, type: 3}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 5
-    SpreadDurationSeconds: 10
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-3
-    Kind: 2
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-2
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 6
-    SwimDestinationDistanceM: 9
-    SwimScatterRadiusM: 4
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-4
-    Kind: 1
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-3
-    HatchDurationSeconds: 5
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 5684745583366882118, guid: b57edbc187f344579aaf352c3a468148, type: 3}
-    FishSwimClipName: 
-    InheritFacing: 1
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-5
-    Kind: 3
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 1
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: 
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 1577997964}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: beat-4
-    AnchorOffsetM: {x: 2, y: 0, z: 0}
-    AnchorToFrontmost: 1
-    AnchorOnGround: 0
-    AppearClipName: Idle_A
-    AppearClipSpeed: 0.5
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-7
-    Kind: 4
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-4
-    HatchDurationSeconds: 1
-    GrowMultiplier: 0.3
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 1
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: beat-5
-    EatDelaySeconds: 1
-    GrowDelaySeconds: 2
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-6
-    Kind: 3
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 1
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: 
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 145381001}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: beat-7
-    AnchorOffsetM: {x: 0, y: 0, z: 9}
-    AnchorToFrontmost: 1
-    AnchorOnGround: 1
-    AppearClipName: Idle
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-6
-    Kind: 3
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 1
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: 
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 740728047}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: beat-7
-    AnchorOffsetM: {x: -2.8, y: 0, z: 9}
-    AnchorToFrontmost: 1
-    AnchorOnGround: 1
-    AppearClipName: Idle A
-    AppearClipSpeed: 0.5
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-8
-    Kind: 5
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-6
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence:
-    - ClipName: Lower Head
-      DelaySeconds: 0
-      RotateYDegrees: 0
-    - ClipName: Turn
-      DelaySeconds: 1
-      RotateYDegrees: 0
-    - ClipName: Lower Head
-      DelaySeconds: 1
-      RotateYDegrees: 180
-    LockFeetTransformName: FeetPivot
-    FishSourceBeatId: beat-7
-    FishFollowBoneName: Bone.007
-    FishFollowLocalOffset: {x: 0, y: 0.15, z: 0}
-    FishSwimDurationSeconds: 1
-    FishDisappearAfterSeconds: 6.791667
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-9
-    Kind: 1
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-7
-    HatchDurationSeconds: 5
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 4363413206115416874, guid: 5f7943e285f4e44a0add28dfa6dbcd68, type: 3}
-    FishSwimClipName: Trout_Swim
-    InheritFacing: 1
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-11
-    Kind: 6
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-6
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-10
-    Kind: 7
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-9
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 180
-    RotateDurationSeconds: 1
-    RotateStaggerMaxSeconds: 3
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-16
-    Kind: 12
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-9
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 1.5
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 1
-    SwimForwardDurationSeconds: 1.5
-    LieDownHoldSeconds: 0
-  - BeatId: beat-12
-    Kind: 8
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-9
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 2.24
-    JumpDurationSeconds: 1.5
-    JumpStaggerMaxSeconds: 1.5
-    JumpForwardM: 0.14
-    JumpPitchDegrees: 60
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-13
-    Kind: 9
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-9
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 0
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 2
-    CullDurationSeconds: 6
-    StuntRotationXTarget: 0
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-14
-    Kind: 10
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-13
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 1
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 0
-    StuntRotationXTarget: -89
-    StuntSpeedMultiplier: 3
-    StuntSpeedDurationSeconds: 4
-    EggPrefab: {fileID: 3945176435576494264, guid: e306697e2c21c40aabb48138c28698a7, type: 3}
-    EggCount: 20
-    EggDropWindowSeconds: 3
-    EggJitterRadiusM: 1.5
-    EggFallDistanceM: 4
-    EggFallDurationSeconds: 1
-    SwimForwardDistanceM: 0
-    SwimForwardDurationSeconds: 0
-    LieDownHoldSeconds: 0
-  - BeatId: beat-15
-    Kind: 11
-    FallTemplate: {fileID: 0}
-    FollowCameraPitch: 0
-    Count: 0
-    StaggerSeconds: 0
-    ScatterRadiusM: 0
-    SpawnUnderEye: 0
-    SpawnFallDurationSeconds: 0
-    TargetBeatId: beat-14
-    HatchDurationSeconds: 0
-    GrowMultiplier: 0
-    ShakeAmplitudeM: 0
-    FishPrefab: {fileID: 0}
-    FishSwimClipName: 
-    InheritFacing: 0
-    SpreadMultiplier: 0
-    SpreadDurationSeconds: 0
-    SwimDurationSeconds: 0
-    SwimDestinationDistanceM: 0
-    SwimScatterRadiusM: 0
-    Template: {fileID: 0}
-    AppearOffsetM: {x: 0, y: 0}
-    UseWorldPosition: 0
-    WorldPosition: {x: 0, y: 0, z: 0}
-    AnchorBeatId: 
-    AnchorOffsetM: {x: 0, y: 0, z: 0}
-    AnchorToFrontmost: 0
-    AnchorOnGround: 0
-    AppearClipName: 
-    AppearClipSpeed: 0
-    ClipSequence: []
-    LockFeetTransformName: 
-    FishSourceBeatId: 
-    FishFollowBoneName: 
-    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
-    FishSwimDurationSeconds: 0
-    FishDisappearAfterSeconds: 0
-    ConsumeTargetBeatId: 
-    EatDelaySeconds: 0
-    GrowDelaySeconds: 0
-    RotateYDegrees: 0
-    RotateDurationSeconds: 1
-    RotateStaggerMaxSeconds: 0
-    JumpHeightM: 0
-    JumpDurationSeconds: 0
-    JumpStaggerMaxSeconds: 0
-    JumpForwardM: 0
-    JumpPitchDegrees: 0
-    KeepCount: 0
-    CullDurationSeconds: 6
-    StuntRotationXTarget: -89
-    StuntSpeedMultiplier: 0
-    StuntSpeedDurationSeconds: 0
-    EggPrefab: {fileID: 0}
-    EggCount: 0
-    EggDropWindowSeconds: 0
-    EggJitterRadiusM: 0
-    EggFallDistanceM: 0
-    EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 1
-    SwimForwardDurationSeconds: 1
-    LieDownHoldSeconds: 3
-  SceneTriggerDistanceM: 1.5
---- !u!114 &520710232
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 520710230}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 58ab8cc4f54f2431f9658a3bb4affe63, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ShoalingUpstream.Runtime::ShoalingUpstream.Audio.JourneyAudioRunner
-  listener: {fileID: 0}
-  forceSimulation: 0
---- !u!114 &520710233
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 520710230}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1a8ded8f1a584b2dabb6463abbfd971, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ShoalingUpstream.Runtime::ShoalingUpstream.Control.ControlLink
-  Host: 192.168.8.125
-  Port: 8710
-  ConnectOnStart: 1
-  Mode: 0
-  BuildName: unity-ar
---- !u!4 &520710234
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 520710230}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &575721221
+--- !u!1001 &90548911
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 145381002}
-    m_Modifications:
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0.041497074
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.54377
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: -0.000045563076
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: -2272193907538426981, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: 'm_Animations.Array.data[1]'
-      value: 
-      objectReference: {fileID: 1057998347480581781, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-    - target: {fileID: 8771091787928289351, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects:
-    - targetCorrespondingSourceObject: {fileID: 2157912320994383490, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2026863310}
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: -4161369568681901532, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
---- !u!4 &575721222 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-  m_PrefabInstance: {fileID: 575721221}
-  m_PrefabAsset: {fileID: 0}
---- !u!4 &575721223 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2157912320994383490, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
-  m_PrefabInstance: {fileID: 575721221}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &740728047
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 740728048}
-  m_Layer: 0
-  m_Name: BIRD NEST
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &740728048
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 740728047}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 3, y: 3, z: 3}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1362647491}
-  - {fileID: 1655166291}
-  - {fileID: 2135414943}
-  - {fileID: 1457827832}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &866121485
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 866121487}
-  - component: {fileID: 866121486}
-  m_Layer: 0
-  m_Name: Directional Light
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!108 &866121486
-Light:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 866121485}
-  m_Enabled: 1
-  serializedVersion: 12
-  m_Type: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1.1
-  m_Range: 10
-  m_SpotAngle: 30
-  m_InnerSpotAngle: 21.80208
-  m_CookieSize2D: {x: 0.5, y: 0.5}
-  m_Shadows:
-    m_Type: 0
-    m_Resolution: -1
-    m_CustomResolution: -1
-    m_Strength: 1
-    m_Bias: 0.05
-    m_NormalBias: 0.4
-    m_NearPlane: 0.2
-    m_CullingMatrixOverride:
-      e00: 1
-      e01: 0
-      e02: 0
-      e03: 0
-      e10: 0
-      e11: 1
-      e12: 0
-      e13: 0
-      e20: 0
-      e21: 0
-      e22: 1
-      e23: 0
-      e30: 0
-      e31: 0
-      e32: 0
-      e33: 1
-    m_UseCullingMatrixOverride: 0
-  m_Cookie: {fileID: 0}
-  m_DrawHalo: 0
-  m_Flare: {fileID: 0}
-  m_RenderMode: 0
-  m_CullingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_RenderingLayerMask: 1
-  m_Lightmapping: 4
-  m_LightShadowCasterMode: 0
-  m_AreaSize: {x: 1, y: 1}
-  m_BounceIntensity: 1
-  m_ColorTemperature: 6570
-  m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
-  m_UseBoundingSphereOverride: 0
-  m_UseViewFrustumForShadowCasterCull: 1
-  m_ForceVisible: 0
-  m_ShadowRadius: 0
-  m_ShadowAngle: 0
-  m_LightUnit: 1
-  m_LuxAtDistance: 1
-  m_EnableSpotReflector: 1
---- !u!4 &866121487
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 866121485}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.105271205, y: 0.88241714, z: -0.39287746, w: 0.236443}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1069753500
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 471035916}
+    m_TransformParent: {fileID: 660450903}
     m_Modifications:
     - target: {fileID: 211280466716591218, guid: 2d4d0e40ab96042aba4ca9c0d449b9f0, type: 3}
       propertyPath: m_Name
@@ -1765,12 +188,12 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: -4161369568681901532, guid: 2d4d0e40ab96042aba4ca9c0d449b9f0, type: 3}
---- !u!4 &1069753501 stripped
+--- !u!4 &90548912 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 462322728475301653, guid: 2d4d0e40ab96042aba4ca9c0d449b9f0, type: 3}
-  m_PrefabInstance: {fileID: 1069753500}
+  m_PrefabInstance: {fileID: 90548911}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1188526150
+--- !u!1 &110836631
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1778,343 +201,139 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1188526151}
+  - component: {fileID: 110836632}
+  - component: {fileID: 110836637}
+  - component: {fileID: 110836636}
+  - component: {fileID: 110836635}
+  - component: {fileID: 110836634}
+  - component: {fileID: 110836633}
   m_Layer: 0
-  m_Name: Fish Egg Anchor
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1188526151
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1188526150}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 471035916}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1239617181
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1239617182}
-  m_Layer: 0
-  m_Name: Camera Offset
-  m_TagString: Untagged
+  m_Name: AR Camera
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1239617182
+--- !u!4 &110836632
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1239617181}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 494703664}
-  m_Father: {fileID: 1316469876}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1316469872
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1316469876}
-  - component: {fileID: 1316469875}
-  - component: {fileID: 1316469874}
-  - component: {fileID: 1316469873}
-  m_Layer: 0
-  m_Name: XR Origin
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1316469873
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1316469872}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa17d122634046b4a8e23048891fafc5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARRaycastManager
-  <trackablesChanged>k__BackingField:
-    m_PersistentCalls:
-      m_Calls: []
-  m_RaycastPrefab: {fileID: 0}
---- !u!114 &1316469874
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1316469872}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e1760703bbd54c04488a8d10600262ab, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARPlaneManager
-  <trackablesChanged>k__BackingField:
-    m_PersistentCalls:
-      m_Calls: []
-  m_PlanePrefab: {fileID: 0}
-  m_DetectionMode: -1
---- !u!114 &1316469875
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1316469872}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e0cb9aa70a22847b5925ee5f067c10a9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.CoreUtils::Unity.XR.CoreUtils.XROrigin
-  m_Camera: {fileID: 494703669}
-  m_OriginBaseGameObject: {fileID: 1316469872}
-  m_CameraFloorOffsetObject: {fileID: 1239617181}
-  m_RequestedTrackingOriginMode: 0
-  m_CameraYOffset: 1.1176
---- !u!4 &1316469876
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1316469872}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1239617182}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1360477970
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1360477972}
-  - component: {fileID: 1360477971}
-  m_Layer: 0
-  m_Name: AR Session
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1360477971
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1360477970}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3859a92a05d4f5d418cb6ca605290e74, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARSession
-  m_AttemptUpdate: 1
-  m_MatchFrameRate: 1
-  m_TrackingMode: 2
---- !u!4 &1360477972
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1360477970}
+  m_GameObject: {fileID: 110836631}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1932837535}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1362647490
-PrefabInstance:
+--- !u!114 &110836633
+MonoBehaviour:
   m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 740728048}
-    m_Modifications:
-    - target: {fileID: 211280466716591218, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_Name
-      value: Mesh
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 0.005
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 0.005
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 0.005
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0.0119476
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -0.46
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0.0473462
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: -0.000000030908623
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0.000000030908623
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0.7071068
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: -4161369568681901532, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
---- !u!4 &1362647491 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
-  m_PrefabInstance: {fileID: 1362647490}
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1457827831
-PrefabInstance:
+  m_GameObject: {fileID: 110836631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e3c44306fb1e439a9f18b2212b8ab70, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARPoseDriver
+--- !u!114 &110836634
+MonoBehaviour:
   m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 740728048}
-    m_Modifications:
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalScale.x
-      value: 0.125
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 0.125
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalScale.z
-      value: 0.125
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: -0.049
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: -0.37
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0.006
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 0.008726561
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0.9999619
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7313885832517878107, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-      propertyPath: m_Name
-      value: Baby Bird 3
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
---- !u!4 &1457827832 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-  m_PrefabInstance: {fileID: 1457827831}
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1577997964
+  m_GameObject: {fileID: 110836631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 816b289ef451e094f9ae174fb4cf8db0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARCameraBackground
+  m_UseCustomMaterial: 0
+  m_CustomMaterial: {fileID: 0}
+--- !u!114 &110836635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 110836631}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4966719baa26e4b0e8231a24d9bd491a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARCameraManager
+  m_FocusMode: 1
+  m_LightEstimationMode: 0
+  m_AutoFocus: 1
+  m_ImageStabilization: 0
+  m_LightEstimation: 0
+  m_FacingDirection: 1
+  m_RenderMode: 0
+--- !u!81 &110836636
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 110836631}
+  m_Enabled: 1
+--- !u!20 &110836637
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 110836631}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.09, g: 0.12, b: 0.15, a: 1}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.05
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!1 &660450902
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2122,37 +341,37 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1577997965}
+  - component: {fileID: 660450903}
   m_Layer: 0
-  m_Name: STRIDER
+  m_Name: Fish Egg
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!4 &1577997965
+  m_IsActive: 1
+--- !u!4 &660450903
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1577997964}
+  m_GameObject: {fileID: 660450902}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1670537466}
-  m_Father: {fileID: 0}
+  - {fileID: 90548912}
+  m_Father: {fileID: 1704103815}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &1655166290
+--- !u!1001 &718709225
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 740728048}
+    m_TransformParent: {fileID: 1496083740}
     m_Modifications:
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalScale.x
@@ -2168,19 +387,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -0.154
+      value: 0.04799997
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.37
+      value: 0.14918184
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.112
+      value: -0.09999997
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.18995228
+      value: 0.25797597
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.x
@@ -2188,7 +407,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.98179334
+      value: -0.96615136
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.z
@@ -2208,25 +427,25 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517878107, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_Name
-      value: Baby Bird 1
+      value: Baby Bird 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
---- !u!4 &1655166291 stripped
+--- !u!4 &718709226 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-  m_PrefabInstance: {fileID: 1655166290}
+  m_PrefabInstance: {fileID: 718709225}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1670537465
+--- !u!1001 &796686700
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1577997965}
+    m_TransformParent: {fileID: 1609332182}
     m_Modifications:
     - target: {fileID: 2714116952215727184, guid: 7de20a63b14ec93489fd2c789a5ee002, type: 3}
       propertyPath: m_LocalPosition.x
@@ -2277,12 +496,86 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 7de20a63b14ec93489fd2c789a5ee002, type: 3}
---- !u!4 &1670537466 stripped
+--- !u!4 &796686701 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2714116952215727184, guid: 7de20a63b14ec93489fd2c789a5ee002, type: 3}
-  m_PrefabInstance: {fileID: 1670537465}
+  m_PrefabInstance: {fileID: 796686700}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &2026863309
+--- !u!1001 &809127787
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 999239747}
+    m_Modifications:
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.041497074
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.54377
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.000045563076
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -2272193907538426981, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: 'm_Animations.Array.data[1]'
+      value: 
+      objectReference: {fileID: 1057998347480581781, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+    - target: {fileID: 8771091787928289351, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      propertyPath: m_Name
+      value: Mesh
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 2157912320994383490, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2004126023}
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: -4161369568681901532, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+--- !u!4 &809127788 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -3910990755373119420, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+  m_PrefabInstance: {fileID: 809127787}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &809127789 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2157912320994383490, guid: 942dfb402a545444dba1e8675aef015a, type: 3}
+  m_PrefabInstance: {fileID: 809127787}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &961672444
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -2290,36 +583,169 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2026863310}
+  - component: {fileID: 961672448}
+  - component: {fileID: 961672447}
+  - component: {fileID: 961672446}
+  - component: {fileID: 961672445}
   m_Layer: 0
-  m_Name: FeetPivot
+  m_Name: XR Origin
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2026863310
+--- !u!114 &961672445
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 961672444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa17d122634046b4a8e23048891fafc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARRaycastManager
+  <trackablesChanged>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  m_RaycastPrefab: {fileID: 0}
+--- !u!114 &961672446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 961672444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1760703bbd54c04488a8d10600262ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARPlaneManager
+  <trackablesChanged>k__BackingField:
+    m_PersistentCalls:
+      m_Calls: []
+  m_PlanePrefab: {fileID: 0}
+  m_DetectionMode: -1
+--- !u!114 &961672447
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 961672444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0cb9aa70a22847b5925ee5f067c10a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.CoreUtils::Unity.XR.CoreUtils.XROrigin
+  m_Camera: {fileID: 110836637}
+  m_OriginBaseGameObject: {fileID: 961672444}
+  m_CameraFloorOffsetObject: {fileID: 1932837534}
+  m_RequestedTrackingOriginMode: 0
+  m_CameraYOffset: 1.1176
+--- !u!4 &961672448
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2026863309}
+  m_GameObject: {fileID: 961672444}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.000045566805, y: -0.54377, z: 0.041497078}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1932837535}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &999182164
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 999182166}
+  - component: {fileID: 999182165}
+  m_Layer: 0
+  m_Name: AR Session
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &999182165
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 999182164}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3859a92a05d4f5d418cb6ca605290e74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.XR.ARFoundation::UnityEngine.XR.ARFoundation.ARSession
+  m_AttemptUpdate: 1
+  m_MatchFrameRate: 1
+  m_TrackingMode: 2
+--- !u!4 &999182166
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 999182164}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 575721223}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &2135414942
+--- !u!1 &999239746
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 999239747}
+  m_Layer: 0
+  m_Name: HERON
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &999239747
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 999239746}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 3, y: 3, z: 3}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 809127788}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1053672477
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 740728048}
+    m_TransformParent: {fileID: 1496083740}
     m_Modifications:
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalScale.x
@@ -2335,19 +761,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.048
+      value: -0.04900003
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.37
+      value: 0.14918184
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.1
+      value: 0.00600003
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.25797597
+      value: 0.008726561
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.x
@@ -2355,7 +781,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0.96615136
+      value: -0.9999619
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_LocalRotation.z
@@ -2375,27 +801,1718 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7313885832517878107, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
       propertyPath: m_Name
-      value: Baby Bird 2
+      value: Baby Bird 3
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
---- !u!4 &2135414943 stripped
+--- !u!4 &1053672478 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
-  m_PrefabInstance: {fileID: 2135414942}
+  m_PrefabInstance: {fileID: 1053672477}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1138572761
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1496083740}
+    m_Modifications:
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.125
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.125
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.125
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.15400003
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.14918184
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.11199997
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.18995228
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.98179334
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7313885832517878107, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+      propertyPath: m_Name
+      value: Baby Bird 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+--- !u!4 &1138572762 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7313885832517655931, guid: c7ab4ed8df92dfe49b55b92577fb83a8, type: 3}
+  m_PrefabInstance: {fileID: 1138572761}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1213119692
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1213119694}
+  - component: {fileID: 1213119693}
+  m_Layer: 0
+  m_Name: Directional Light
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!108 &1213119693
+Light:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1213119692}
+  m_Enabled: 1
+  serializedVersion: 12
+  m_Type: 1
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Intensity: 1.1
+  m_Range: 10
+  m_SpotAngle: 30
+  m_InnerSpotAngle: 21.80208
+  m_CookieSize2D: {x: 0.5, y: 0.5}
+  m_Shadows:
+    m_Type: 0
+    m_Resolution: -1
+    m_CustomResolution: -1
+    m_Strength: 1
+    m_Bias: 0.05
+    m_NormalBias: 0.4
+    m_NearPlane: 0.2
+    m_CullingMatrixOverride:
+      e00: 1
+      e01: 0
+      e02: 0
+      e03: 0
+      e10: 0
+      e11: 1
+      e12: 0
+      e13: 0
+      e20: 0
+      e21: 0
+      e22: 1
+      e23: 0
+      e30: 0
+      e31: 0
+      e32: 0
+      e33: 1
+    m_UseCullingMatrixOverride: 0
+  m_Cookie: {fileID: 0}
+  m_DrawHalo: 0
+  m_Flare: {fileID: 0}
+  m_RenderMode: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingLayerMask: 1
+  m_Lightmapping: 4
+  m_LightShadowCasterMode: 0
+  m_AreaSize: {x: 1, y: 1}
+  m_BounceIntensity: 1
+  m_ColorTemperature: 6570
+  m_UseColorTemperature: 0
+  m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_UseBoundingSphereOverride: 0
+  m_UseViewFrustumForShadowCasterCull: 1
+  m_ForceVisible: 0
+  m_ShadowRadius: 0
+  m_ShadowAngle: 0
+  m_LightUnit: 1
+  m_LuxAtDistance: 1
+  m_EnableSpotReflector: 1
+--- !u!4 &1213119694
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1213119692}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.105271205, y: 0.88241714, z: -0.39287746, w: 0.236443}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1496083739
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1496083740}
+  m_Layer: 0
+  m_Name: BIRD NEST
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1496083740
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1496083739}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 3, y: 3, z: 3}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1611108955}
+  - {fileID: 1138572762}
+  - {fileID: 718709226}
+  - {fileID: 1053672478}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1609332181
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1609332182}
+  m_Layer: 0
+  m_Name: STRIDER
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1609332182
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1609332181}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 796686701}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1611108954
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1496083740}
+    m_Modifications:
+    - target: {fileID: 211280466716591218, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_Name
+      value: Mesh
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.01194763
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.05918184
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.04734623
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.000000030908623
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.000000030908623
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: -4161369568681901532, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+--- !u!4 &1611108955 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 462322728475301653, guid: 47e2514fedd3d44d8803b4b30a0ce345, type: 3}
+  m_PrefabInstance: {fileID: 1611108954}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1704103814
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1704103815}
+  m_Layer: 0
+  m_Name: Fish Egg Anchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1704103815
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1704103814}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 660450903}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1932837534
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1932837535}
+  m_Layer: 0
+  m_Name: Camera Offset
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1932837535
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1932837534}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 110836632}
+  m_Father: {fileID: 961672448}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1949318466
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1949318470}
+  - component: {fileID: 1949318469}
+  - component: {fileID: 1949318468}
+  - component: {fileID: 1949318467}
+  m_Layer: 0
+  m_Name: Shoaling Upstream
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1949318467
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949318466}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac0268f4f73854190bf2362c5985b08a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ShoalingUpstream.Simulation::ShoalingUpstream.Simulation.SimulationDriver
+  ServiceHost: 192.168.8.125
+  ServicePort: 8710
+  Slug: ucb-strawberry-creek-south
+  FadeVariantMaterials:
+  - {fileID: 2100000, guid: a689e2d324df74076b28db0d8d097e27, type: 2}
+  EyeOffsetM: 0
+  ShowOverview: 0
+  ShowDebugMarkers: 0
+  SceneTriggers:
+  - BeatId: beat-1
+    Kind: 0
+    FallTemplate: {fileID: 660450903}
+    FollowCameraPitch: 0
+    Count: 20
+    StaggerSeconds: 0.05
+    ScatterRadiusM: 0.25
+    SpawnUnderEye: 1
+    SpawnFallDurationSeconds: 1.5
+    TargetBeatId: 
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-2
+    Kind: 1
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-1
+    HatchDurationSeconds: 20
+    GrowMultiplier: 0.5
+    ShakeAmplitudeM: 0.03
+    FishPrefab: {fileID: 6054301507514741768, guid: c8ff5afe55da74e609cb57718848f593, type: 3}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 5
+    SpreadDurationSeconds: 10
+    SpreadRiseM: 1.4
+    SpreadRiseToEyeHeight: 1
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-3
+    Kind: 2
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-2
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 6
+    SwimDestinationDistanceM: 9
+    SwimScatterRadiusM: 4
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-4
+    Kind: 1
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-3
+    HatchDurationSeconds: 5
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 5684745583366882118, guid: b57edbc187f344579aaf352c3a468148, type: 3}
+    FishSwimClipName: 
+    InheritFacing: 1
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-5
+    Kind: 3
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 1
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: 
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 1609332181}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: beat-4
+    AnchorOffsetM: {x: 2, y: 0, z: 0}
+    AnchorToFrontmost: 1
+    AnchorForwardFromEye: 1
+    AnchorOnGround: 0
+    AppearClipName: Idle_A
+    AppearClipSpeed: 0.5
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-7
+    Kind: 4
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-4
+    HatchDurationSeconds: 1
+    GrowMultiplier: 0.3
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 1
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: beat-5
+    EatDelaySeconds: 1
+    GrowDelaySeconds: 2
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-6
+    Kind: 3
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 1
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: 
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 999239746}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: beat-7
+    AnchorOffsetM: {x: 0, y: 0, z: 4}
+    AnchorToFrontmost: 1
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 1
+    AppearClipName: Idle
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-6
+    Kind: 3
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 1
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: 
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 1496083739}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: beat-7
+    AnchorOffsetM: {x: -2.8, y: 0, z: 4}
+    AnchorToFrontmost: 1
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 1
+    AppearClipName: Idle A
+    AppearClipSpeed: 0.5
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-8
+    Kind: 5
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-6
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence:
+    - ClipName: Lower Head
+      DelaySeconds: 0
+      RotateYDegrees: 0
+    - ClipName: Turn
+      DelaySeconds: 1
+      RotateYDegrees: 0
+    - ClipName: Lower Head
+      DelaySeconds: 1
+      RotateYDegrees: 180
+    LockFeetTransformName: FeetPivot
+    FishSourceBeatId: beat-7
+    FishFollowBoneName: Bone.007
+    FishFollowLocalOffset: {x: 0, y: 0.15, z: 0}
+    FishSwimDurationSeconds: 1
+    FishDisappearAfterSeconds: 6.791667
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-17
+    Kind: 12
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-7
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 1.5
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 1
+    SwimForwardDurationSeconds: 1.5
+    LieDownHoldSeconds: 0
+  - BeatId: beat-9
+    Kind: 1
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-7
+    HatchDurationSeconds: 5
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 4363413206115416874, guid: 5f7943e285f4e44a0add28dfa6dbcd68, type: 3}
+    FishSwimClipName: Trout_Swim
+    InheritFacing: 1
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-11
+    Kind: 6
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-6
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-10
+    Kind: 7
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-9
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 180
+    RotateDurationSeconds: 1
+    RotateStaggerMaxSeconds: 3
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-16
+    Kind: 12
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-9
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 1.5
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 2
+    SwimForwardDurationSeconds: 1.5
+    LieDownHoldSeconds: 0
+  - BeatId: beat-12
+    Kind: 8
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-9
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 2.24
+    JumpDurationSeconds: 1.5
+    JumpStaggerMaxSeconds: 1.5
+    JumpForwardM: 0.14
+    JumpPitchDegrees: 60
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-13
+    Kind: 9
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-9
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 0
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 2
+    CullDurationSeconds: 6
+    StuntRotationXTarget: 0
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-14
+    Kind: 10
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-13
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 1
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 0
+    StuntRotationXTarget: -89
+    StuntSpeedMultiplier: 3
+    StuntSpeedDurationSeconds: 4
+    EggPrefab: {fileID: 3945176435576494264, guid: e306697e2c21c40aabb48138c28698a7, type: 3}
+    EggCount: 20
+    EggDropWindowSeconds: 3
+    EggJitterRadiusM: 0.15
+    EggFallDistanceM: 4
+    EggFallDurationSeconds: 1
+    SwimForwardDistanceM: 0
+    SwimForwardDurationSeconds: 0
+    LieDownHoldSeconds: 0
+  - BeatId: beat-15
+    Kind: 11
+    FallTemplate: {fileID: 0}
+    FollowCameraPitch: 0
+    Count: 0
+    StaggerSeconds: 0
+    ScatterRadiusM: 0
+    SpawnUnderEye: 0
+    SpawnFallDurationSeconds: 0
+    TargetBeatId: beat-14
+    HatchDurationSeconds: 0
+    GrowMultiplier: 0
+    ShakeAmplitudeM: 0
+    FishPrefab: {fileID: 0}
+    FishSwimClipName: 
+    InheritFacing: 0
+    SpreadMultiplier: 0
+    SpreadDurationSeconds: 0
+    SpreadRiseM: 0
+    SpreadRiseToEyeHeight: 0
+    SwimDurationSeconds: 0
+    SwimDestinationDistanceM: 0
+    SwimScatterRadiusM: 0
+    Template: {fileID: 0}
+    AppearOffsetM: {x: 0, y: 0}
+    UseWorldPosition: 0
+    WorldPosition: {x: 0, y: 0, z: 0}
+    AnchorBeatId: 
+    AnchorOffsetM: {x: 0, y: 0, z: 0}
+    AnchorToFrontmost: 0
+    AnchorForwardFromEye: 0
+    AnchorOnGround: 0
+    AppearClipName: 
+    AppearClipSpeed: 0
+    ClipSequence: []
+    LockFeetTransformName: 
+    FishSourceBeatId: 
+    FishFollowBoneName: 
+    FishFollowLocalOffset: {x: 0, y: 0, z: 0}
+    FishSwimDurationSeconds: 0
+    FishDisappearAfterSeconds: 0
+    ConsumeTargetBeatId: 
+    EatDelaySeconds: 0
+    GrowDelaySeconds: 0
+    RotateYDegrees: 0
+    RotateDurationSeconds: 1
+    RotateStaggerMaxSeconds: 0
+    JumpHeightM: 0
+    JumpDurationSeconds: 0
+    JumpStaggerMaxSeconds: 0
+    JumpForwardM: 0
+    JumpPitchDegrees: 0
+    KeepCount: 0
+    CullDurationSeconds: 6
+    StuntRotationXTarget: -89
+    StuntSpeedMultiplier: 0
+    StuntSpeedDurationSeconds: 0
+    EggPrefab: {fileID: 0}
+    EggCount: 0
+    EggDropWindowSeconds: 0
+    EggJitterRadiusM: 0
+    EggFallDistanceM: 0
+    EggFallDurationSeconds: 0
+    SwimForwardDistanceM: 1
+    SwimForwardDurationSeconds: 1
+    LieDownHoldSeconds: 3
+  SceneTriggerDistanceM: 1.5
+--- !u!114 &1949318468
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949318466}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58ab8cc4f54f2431f9658a3bb4affe63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ShoalingUpstream.Runtime::ShoalingUpstream.Audio.JourneyAudioRunner
+  listener: {fileID: 0}
+  forceSimulation: 0
+--- !u!114 &1949318469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949318466}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1a8ded8f1a584b2dabb6463abbfd971, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ShoalingUpstream.Runtime::ShoalingUpstream.Control.ControlLink
+  Host: 192.168.8.125
+  Port: 8710
+  ConnectOnStart: 1
+  Mode: 0
+  BuildName: unity-ar
+--- !u!4 &1949318470
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1949318466}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2004126022
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2004126023}
+  m_Layer: 0
+  m_Name: FeetPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2004126023
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2004126022}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.000045566805, y: -0.54377, z: 0.041497078}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 809127789}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1360477972}
-  - {fileID: 1316469876}
-  - {fileID: 866121487}
-  - {fileID: 520710234}
-  - {fileID: 1188526151}
-  - {fileID: 1577997965}
-  - {fileID: 145381002}
-  - {fileID: 740728048}
+  - {fileID: 999182166}
+  - {fileID: 961672448}
+  - {fileID: 1213119694}
+  - {fileID: 1949318470}
+  - {fileID: 1704103815}
+  - {fileID: 1609332182}
+  - {fileID: 999239747}
+  - {fileID: 1496083740}
