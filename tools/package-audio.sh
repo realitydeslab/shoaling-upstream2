@@ -34,12 +34,12 @@ mkdir -p "$OUT"
 # Source file -> clip id. Anything not listed is ignored, so dropping a stray file into
 # data/audio/source/ cannot silently change what the journey plays.
 declare -a MAP=(
-  "0_Opening.mp3|opening"
-  "1_New Life.mp3|chapter-1-new-life"
-  "2_Growing.mp3|chapter-2-growing"
-  "3_Journey to the ocean.mp3|chapter-3-journey-to-the-ocean"
-  "4_Returning Home.mp3|chapter-4-returning-home"
-  "5_Rebirth.mp3|chapter-5-rebirth"
+  "00 Opening.mp3|opening"
+  "01 New Life.mp3|chapter-1-new-life"
+  "02 Growing.mp3|chapter-2-growing"
+  "03 Journey to the Ocean.mp3|chapter-3-journey-to-the-ocean"
+  "04 Returning Home.mp3|chapter-4-returning-home"
+  "05 Rebirth.mp3|chapter-5-rebirth"
   "Heron.wav|heron"
   "Strider.wav|strider"
   "Eat strider.wav|eat-strider"

@@ -8,23 +8,27 @@ from file size at the measured 135 kbps and marked ~. WAV durations assume 44.1 
 stereo and are therefore **upper bounds** — at 48 kHz / 24-bit they are ~0.6× these figures.
 Confirm on download.
 
-## Narration spine — six MP3s, ~3 min 50 s total
+## Narration spine — six MP3s, 4 min 0 s total
 
-| Title | Drive ID | Bytes | Duration |
+Revised takes from 2026-09-23 replaced the August files and were renamed from `0_Opening.mp3`
+to `00 Opening.mp3` and so on. Durations are measured with `afinfo`; all six are mono 44.1 kHz.
+The Drive IDs below belong to the August takes; the revised takes are not yet catalogued there.
+
+| Title | Drive ID (August take) | Bytes | Duration |
 |---|---|---:|---:|
-| `0_Opening.mp3` | `1c1uFlHtfHBVkJ5FQRRw1X5V_6txddQTz` | 677,551 | 40.1 s |
-| `1_New Life.mp3` | `1GL6QUn3w1LGkqhIgBquz0SuGQsKi-Yzc` | 527,944 | 30.8 s |
-| `2_Growing.mp3` | `1IFR4mt3L16QrQauUi6U8KBt5gIy_lycT` | 635,755 | 37.5 s |
-| `3_Journey to the ocean.mp3` | `15OiMrx6nVuGCIgriwjPDoKwkwbNa3D94` | 993,110 | ~58.8 s |
-| `4_Returning Home.mp3` | `1WIG29pjaJavT_GkwR8nnUrxbHWpvxmPq` | 496,180 | ~29.4 s |
-| `5_Rebirth.mp3` | `1aoKP0Gnj9SfzCYyYeUIh_tvUkP0Yp2F5` | 561,358 | ~33.2 s |
+| `00 Opening.mp3` | `1c1uFlHtfHBVkJ5FQRRw1X5V_6txddQTz` | 674,933 | 41.1 s |
+| `01 New Life.mp3` | `1GL6QUn3w1LGkqhIgBquz0SuGQsKi-Yzc` | 598,447 | 36.4 s |
+| `02 Growing.mp3` | `1IFR4mt3L16QrQauUi6U8KBt5gIy_lycT` | 655,707 | 39.9 s |
+| `03 Journey to the Ocean.mp3` | `15OiMrx6nVuGCIgriwjPDoKwkwbNa3D94` | 960,817 | 59.0 s |
+| `04 Returning Home.mp3` | `1WIG29pjaJavT_GkwR8nnUrxbHWpvxmPq` | 518,199 | 31.3 s |
+| `05 Rebirth.mp3` | `1aoKP0Gnj9SfzCYyYeUIh_tvUkP0Yp2F5` | 538,679 | 32.6 s |
 
 ## Ambience — two long WAVs
 
 | Title | Drive ID | Bytes | Duration |
 |---|---|---:|---:|
-| `Tree creek waterplants 1.wav` | `1el86qXmsON7Tp8e9XPLtWzQxQpeb2EbV` | 11,007,438 | ≤62 s |
-| `Tree creek waterplants 2.wav` | `1Jdb9ez4C8rfQFCqOGdS23JwwrqUeyj6m` | 13,873,690 | ≤79 s |
+| `Tree creek waterplants 1.wav` | `1el86qXmsON7Tp8e9XPLtWzQxQpeb2EbV` | 11,007,438 | 31.2 s |
+| `Tree creek waterplants 2.wav` | `1Jdb9ez4C8rfQFCqOGdS23JwwrqUeyj6m` | 13,873,690 | 71.7 s |
 
 ## Creatures and actions — five WAVs
 
