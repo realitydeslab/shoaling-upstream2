@@ -6,11 +6,8 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/ShoalingUpstream/Scenes/AR.unity
-    guid: 1481300f34ca3455394ca66ab9959ea0
-  - enabled: 1
-    path: Assets/ShoalingUpstream/Scenes/Simulation.unity
-    guid: f3a7cbc9cbfb34278a31250cc250d13a
+    path: Assets/ShoalingUpstream/Scenes/StandaloneAR.unity
+    guid: 417e9abe22c9f41068ae1d6f4c4e06ee
   m_configObjects:
     NianticSpatial.NSDK.AR.AuthBuildSettings: {fileID: 11400000, guid: 69a3ffa4b64b34fca90b2a6916efec2d, type: 2}
     NianticSpatial.NSDK.AR.NsdkSettings: {fileID: 11400000, guid: 8d4f4a2a2d22d47b285808d1799214a6, type: 2}

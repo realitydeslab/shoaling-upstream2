@@ -33,3 +33,11 @@ app/Recordings/
 *.sln
 *.unityproj
 app/Assets/**/*.pdb
+
+# Local standalone exports, audits and Unity recovery files
+builds/
+validation/
+standalone-source.patch
+app/Assets/_Recovery/
+app/Assets/_Recovery.meta
+app/mono_crash*

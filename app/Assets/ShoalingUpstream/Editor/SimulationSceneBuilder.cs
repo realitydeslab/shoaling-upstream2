@@ -136,6 +136,58 @@ namespace ShoalingUpstream.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(0);
         }
 
+        public const string StandaloneScenePath = "Assets/ShoalingUpstream/Scenes/StandaloneAR.unity";
+
+        [MenuItem("Shoaling Upstream/Rebuild Standalone AR Scene")]
+        public static void BuildStandaloneAr()
+        {
+            BuildAr();
+            var driver = Object.FindFirstObjectByType<SimulationDriver>();
+            driver.LocalOnly = true;
+            driver.LocalModelScale = 1f / 3f;
+            driver.ShowDiagnostics = false;
+            driver.LocalJourney = AssetDatabase.LoadAssetAtPath<TextAsset>("Assets/ShoalingUpstream/Standalone/Journey.json");
+            driver.GetComponent<ControlLink>().ConnectOnStart = false;
+            driver.gameObject.AddComponent<GuidedJourneyPlayer>();
+            for (int i = 0; i < driver.SceneTriggers.Count; i++)
+            {
+                var trigger = driver.SceneTriggers[i];
+                if (trigger.BeatId == "beat-1") trigger.Count = 40;
+                if (trigger.BeatId == "beat-5") trigger.Count = 3;
+                if (trigger.BeatId == "beat-4") trigger.HatchDurationSeconds = 8.4f;
+                if (trigger.BeatId == "beat-8") trigger.FishSwimDurationSeconds *= 3f;
+                if (trigger.BeatId == "beat-12") trigger.JumpHeightM *= .25f;
+                if (trigger.BeatId == "beat-3") { trigger.SwimDurationSeconds = 5f; trigger.SwimScatterRadiusM = .6f; }
+                if (trigger.BeatId == "beat-17") { trigger.SwimForwardDistanceM = 6f; trigger.SwimForwardDurationSeconds = 5f; }
+                if (trigger.BeatId == "beat-15") trigger.SwimForwardDistanceM = 3f;
+                driver.SceneTriggers[i] = trigger;
+            }
+            var player = driver.gameObject.AddComponent<StandalonePlayer>();
+            // Calibrated against the user-selected 01 New Life recording (2026-10-04).
+            player.SearchStartSeconds = 6.5f;
+            player.SearchEndSeconds = 16.65f;
+            player.SpawnPromptEndSeconds = 33.5f;
+            string[] files = { "00 Opening", "01 New Life", "02 Growing", "03 Journey to the Ocean", "04 Returning Home", "05 Rebirth" };
+            player.Narration = new AudioClip[files.Length];
+            for (int i = 0; i < files.Length; i++)
+            {
+                player.Narration[i] = AssetDatabase.LoadAssetAtPath<AudioClip>(
+                    "Assets/ShoalingUpstream/Standalone/Narration/" + files[i] + ".mp3");
+                if (player.Narration[i] == null) throw new System.InvalidOperationException("Missing narration: " + files[i]);
+            }
+            if (driver.LocalJourney == null) throw new System.InvalidOperationException("Missing local journey");
+            EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene(), StandaloneScenePath);
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(StandaloneScenePath, true) };
+            AssetDatabase.SaveAssets();
+            Debug.Log("[standalone] local AR scene ready");
+        }
+
+        public static void BuildStandaloneFromCommandLine()
+        {
+            BuildStandaloneAr();
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+
         // ------------------------------------------------------------------ pieces
 
         /// <summary>

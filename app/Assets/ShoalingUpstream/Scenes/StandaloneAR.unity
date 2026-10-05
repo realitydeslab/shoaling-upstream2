@@ -1061,6 +1061,8 @@ GameObject:
   - component: {fileID: 1943503920}
   - component: {fileID: 1943503919}
   - component: {fileID: 1943503918}
+  - component: {fileID: 1943503923}
+  - component: {fileID: 1943503922}
   m_Layer: 0
   m_Name: Shoaling Upstream
   m_TagString: Untagged
@@ -1080,11 +1082,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac0268f4f73854190bf2362c5985b08a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ShoalingUpstream.Simulation::ShoalingUpstream.Simulation.SimulationDriver
-  LocalOnly: 0
+  LocalOnly: 1
   LocalModelScale: 0.33333334
   AlignLocalFish: 1
-  LocalJourney: {fileID: 0}
-  ShowDiagnostics: 1
+  LocalJourney: {fileID: 4900000, guid: 313ba20af7e974b6daa8061c946c991a, type: 3}
+  ShowDiagnostics: 0
   ServiceHost: 192.168.8.125
   ServicePort: 8710
   Slug: ucb-strawberry-creek-south
@@ -1098,7 +1100,7 @@ MonoBehaviour:
     Kind: 0
     FallTemplate: {fileID: 1402594213}
     FollowCameraPitch: 0
-    Count: 20
+    Count: 40
     StaggerSeconds: 0.05
     ScatterRadiusM: 0.25
     SpawnUnderEye: 1
@@ -1246,9 +1248,9 @@ MonoBehaviour:
     SpreadDurationSeconds: 0
     SpreadRiseM: 0
     SpreadRiseToEyeHeight: 0
-    SwimDurationSeconds: 6
+    SwimDurationSeconds: 5
     SwimDestinationDistanceM: 9
-    SwimScatterRadiusM: 4
+    SwimScatterRadiusM: 0.6
     Template: {fileID: 0}
     AppearOffsetM: {x: 0, y: 0}
     UseWorldPosition: 0
@@ -1302,7 +1304,7 @@ MonoBehaviour:
     SpawnUnderEye: 0
     SpawnFallDurationSeconds: 0
     TargetBeatId: beat-3
-    HatchDurationSeconds: 5
+    HatchDurationSeconds: 8.4
     GrowMultiplier: 0
     ShakeAmplitudeM: 0
     FishPrefab: {fileID: 5684745583366882118, guid: b57edbc187f344579aaf352c3a468148, type: 3}
@@ -1362,7 +1364,7 @@ MonoBehaviour:
     Kind: 3
     FallTemplate: {fileID: 0}
     FollowCameraPitch: 0
-    Count: 1
+    Count: 3
     StaggerSeconds: 0
     ScatterRadiusM: 0
     SpawnUnderEye: 0
@@ -1670,7 +1672,7 @@ MonoBehaviour:
     FishSourceBeatId: beat-7
     FishFollowBoneName: Bone.007
     FishFollowLocalOffset: {x: 0, y: 0.15, z: 0}
-    FishSwimDurationSeconds: 1
+    FishSwimDurationSeconds: 3
     FishDisappearAfterSeconds: 6.791667
     ConsumeTargetBeatId: 
     EatDelaySeconds: 0
@@ -1760,8 +1762,8 @@ MonoBehaviour:
     EggJitterRadiusM: 0
     EggFallDistanceM: 0
     EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 1
-    SwimForwardDurationSeconds: 1.5
+    SwimForwardDistanceM: 6
+    SwimForwardDurationSeconds: 5
     LieDownHoldSeconds: 0
   - BeatId: beat-9
     Kind: 1
@@ -2074,7 +2076,7 @@ MonoBehaviour:
     RotateYDegrees: 0
     RotateDurationSeconds: 0
     RotateStaggerMaxSeconds: 0
-    JumpHeightM: 2.24
+    JumpHeightM: 0.56
     JumpDurationSeconds: 1.5
     JumpStaggerMaxSeconds: 1.5
     JumpForwardM: 0.14
@@ -2288,7 +2290,7 @@ MonoBehaviour:
     EggJitterRadiusM: 0
     EggFallDistanceM: 0
     EggFallDurationSeconds: 0
-    SwimForwardDistanceM: 1
+    SwimForwardDistanceM: 3
     SwimForwardDurationSeconds: 1
     LieDownHoldSeconds: 3
   SceneTriggerDistanceM: 1.5
@@ -2320,7 +2322,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: ShoalingUpstream.Runtime::ShoalingUpstream.Control.ControlLink
   Host: 192.168.8.125
   Port: 8710
-  ConnectOnStart: 1
+  ConnectOnStart: 0
   Mode: 0
   BuildName: unity-ar
 --- !u!4 &1943503921
@@ -2338,6 +2340,61 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1943503922
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1943503917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 932f7a3566e184472bef9e64d92fe041, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ShoalingUpstream.Simulation::ShoalingUpstream.Simulation.StandalonePlayer
+  Narration:
+  - {fileID: 8300000, guid: 8bd1da986868442898702c88244e320b, type: 3}
+  - {fileID: 8300000, guid: abc50126c374d4961bc2abe991779362, type: 3}
+  - {fileID: 8300000, guid: e74677eed48c34496ac96eb18bae250d, type: 3}
+  - {fileID: 8300000, guid: 638e673835beb4946944557c6887e508, type: 3}
+  - {fileID: 8300000, guid: 0b54eb620167d4f9992e2c244b889bd2, type: 3}
+  - {fileID: 8300000, guid: 5a6db0a5d7aed4d4488883d6f42473f3, type: 3}
+  SearchStartSeconds: 6.5
+  SearchEndSeconds: 16.65
+  SpawnPromptEndSeconds: 33.5
+--- !u!114 &1943503923
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1943503917}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6351d5208c01c4e3d887b789518cb8fe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ShoalingUpstream.Simulation::ShoalingUpstream.Simulation.GuidedJourneyPlayer
+  Cues:
+    GrowingSearchStart: 9.2
+    GrowingSearchEnd: 18.3
+    GrowingPoolEnd: 27.4
+    GrowingPatienceEnd: 30.7
+    OceanMoveStart: 8.5
+    OceanMeetEnd: 12.8
+    OceanCreekEnd: 15.35
+    OceanReceiveEnd: 18.95
+    OceanGiftEnd: 22.1
+    OceanDownstreamEnd: 23.65
+    OceanHeronLookEnd: 25.95
+    OceanOfferEnd: 29.7
+    OceanOfferInstructionEnd: 36.5
+    OceanContinueEnd: 40.95
+    OceanCreekAgainEnd: 43.65
+    OceanRainbowEnd: 55.25
+    ReturningInstructionStart: 14.25
+    RebirthInstructionStart: 5.8
+    RebirthHomeEnd: 22.15
+    RebirthGravelEnd: 25.6
 --- !u!1001 &1955287909
 PrefabInstance:
   m_ObjectHideFlags: 0

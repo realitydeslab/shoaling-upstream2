@@ -1,3 +1,4 @@
+using ShoalingUpstream.Experience;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ namespace ShoalingUpstream.Simulation
     /// sphere at every beat.
     /// </summary>
     [AddComponentMenu("Shoaling Upstream/Simulation Driver")]
-    public sealed class SimulationDriver : MonoBehaviour
+    public sealed partial class SimulationDriver : MonoBehaviour
     {
         /// <summary>Spawn: plants copies of a Timeline-driven object and plays them. ReactFlock:
         /// reaches into whatever an earlier Spawn beat left standing and animates it in place —
@@ -426,6 +427,67 @@ namespace ShoalingUpstream.Simulation
             public float LieDownHoldSeconds;
         }
 
+        [Header("Standalone")]
+        public bool LocalOnly;
+        public float LocalModelScale = 1f / 3f;
+        public bool AlignLocalFish = true;
+        private readonly PlanarTravelReference _travel = new();
+        private readonly HashSet<Transform> _localFacingExempt = new();
+        private readonly HashSet<Transform> _localDetached = new();
+        private Vector3? _stableDevicePosition;
+        private Vector3 _followVelocity;
+        private int _walkSamples;
+        public const float LocalFishSpeedScale = .8f;
+        public const float LocalCruiseSpeed = .36f;
+        private float _walkingSpeed;
+        private readonly Dictionary<Transform, Vector3> _settlingHeadings = new();
+        public int LocalSettlingCount => _settlingHeadings.Count;
+        private readonly Dictionary<Transform, float> _cruiseSpeeds = new();
+        private readonly HashSet<Transform> _localMotionControlled = new();
+        private readonly Dictionary<Transform, Vector3> _localSwimTargets = new();
+        public string LocalMotionReport()
+        {
+            var text = new System.Text.StringBuilder();
+            text.Append($"busy={_sceneActionCount} moving={_localMotionControlled.Count} dt={Time.deltaTime} eye={_eye.transform.position} ground={LocalGroundY}");
+            int shown = 0;
+            foreach (var pair in _localSwimTargets)
+            {
+                if (pair.Key == null) continue;
+                var position = pair.Key.position;
+                text.Append($"\nfish={position:F4} target={pair.Value:F4} distance={Vector3.Distance(position,pair.Value):F4} head={HeadDirection(pair.Key):F4} finalangle={Vector3.Angle(HeadDirection(pair.Key),_travel.Forward)}");
+                if (++shown == 8) break;
+            }
+            return text.ToString();
+        }
+        private readonly HashSet<Transform> _poolFish = new();
+        private readonly Dictionary<Transform, Vector4> _naturalSlots = new();
+        private Vector3 _formationHeading = Vector3.forward, _poolCentre;
+        private bool _followRequested;
+        private readonly HashSet<Transform> _localAlevins = new();
+        private float _lastLocalStriderEatTime = float.NegativeInfinity;
+        public bool LocalPoolSwimming => _poolFish.Count > 0;
+        private readonly DevicePostureReference _posture = new();
+        private UnityEngine.InputSystem.GravitySensor _gravitySensor;
+        private bool _enabledGravitySensor, _gravityPutDown;
+        public bool DevicePutDown => _gravityPutDown || (_eye != null && Vector3.Dot(_eye.transform.up, Vector3.up) < .15f);
+        public float LocalGroundY => _knownFloorY ?? (_eye != null ? _eye.transform.position.y - 1.2f : 0f);
+        public int LocalDetachedCount => _localDetached.Count;
+        private bool _localNearGround;
+        private Vector3? _movementSample;
+        private Vector3 _walkingHeading;
+        private float _lastWalkAt = float.NegativeInfinity;
+        public Vector3 LocalTravelHeading => _travel.Forward;
+        public IReadOnlyList<Transform> LocalFlock(string beatId)
+            => _flocks.TryGetValue(beatId, out var flock) ? flock.AsReadOnly() : (IReadOnlyList<Transform>)Array.Empty<Transform>();
+        public TextAsset LocalJourney;
+        public bool ShowDiagnostics = true;
+        private int _sceneActionCount;
+        private string _localError;
+        private Vector3? _localTarget;
+        private Vector3? _followOffset;
+        public bool LocalSceneBusy => _sceneActionCount > 0 || _rebuildInProgress;
+        public string LocalError => _localError;
+
         [Header("Service")]
         [Tooltip("The laptop running service/src/server.mjs. It prints this address on startup.")]
         public string ServiceHost = "127.0.0.1";
@@ -537,6 +599,7 @@ namespace ShoalingUpstream.Simulation
 #endif
             _link.Host = ServiceHost;
             _link.Port = ServicePort;
+            if (LocalOnly) _link.ConnectOnStart = false;
 
             _eye = Camera.main;
             // Null on the desktop scene, which has no XR Origin — FallEgg falls back to its
@@ -621,6 +684,21 @@ namespace ShoalingUpstream.Simulation
         /// </summary>
         private IEnumerator LoadJourney()
         {
+            if (LocalOnly)
+            {
+                var local = JourneyResolver.Resolve(
+                    new[] { new JourneyCandidate(JourneySourceKind.Bundled, LocalJourney != null ? LocalJourney.text : null) },
+                    JourneyEnvironment.Simulation, Slug);
+                if (!local.HasJourney)
+                {
+                    _localError = "The local journey could not be loaded: " + string.Join("; ", local.Notes);
+                    Debug.LogError(_localError);
+                    yield break;
+                }
+                _journey = local.Document;
+                _journeyNote = $"bundled local journey r{_journey.revision}";
+                yield break;
+            }
             string url = $"http://{ServiceHost}:{ServicePort}/api/sites/{Slug}/draft";
             using (var request = UnityWebRequest.Get(url))
             {
@@ -718,7 +796,7 @@ namespace ShoalingUpstream.Simulation
             // device it was actually built for). Overwriting it here unconditionally used to
             // force every build onto the desk renderer, AR included.
             _audio.listener = _eye != null ? _eye.transform : transform;
-            _audio.Begin(_journey, new StreamingAssetsClipResolver());
+            if (!LocalOnly) _audio.Begin(_journey, new StreamingAssetsClipResolver());
             _audioNote = _audio.Engine != null
                 ? $"{_audio.Engine.BackendDescription}"
                   + (_audio.Engine.MissingClips.Count > 0
@@ -734,6 +812,7 @@ namespace ShoalingUpstream.Simulation
 
         private void Update()
         {
+            if (LocalOnly) ObserveDevicePosture();
             // Confirmed on a real device (via a diagnostic HUD line): ARSession.state reads
             // SessionTracking, but SubsystemManager reports the XRInputSubsystem registered and
             // NOT running — nothing feeds any pose-consumption API (TrackedPoseDriver,
@@ -769,14 +848,15 @@ namespace ShoalingUpstream.Simulation
             // Whichever source is live. At a desk that is always the browser's scrubber; on the
             // creek it would be VPS, and nothing below can tell the difference — which is the
             // whole point of the seam.
-            bool moving = _link.Poses.TryGetPose(_link.NowMs, out var pose);
+            bool moving = !LocalOnly && _link.Poses.TryGetPose(_link.NowMs, out _);
+            _link.Poses.TryGetPose(_link.NowMs, out var pose);
             if (moving)
             {
                 _progression.Tick(pose.AnchorLocalPosition, pose.Quality, Time.deltaTime);
                 PlaceWalker(pose);
             }
 #if NSDK_PRESENT
-            else if (_vps != null && _vps.Localizer != null)
+            else if (!LocalOnly && _vps != null && _vps.Localizer != null)
             {
                 var fix = _vps.Localizer.Fix;
                 if (fix.Quality != LocalizationQuality.Unavailable)
@@ -963,7 +1043,12 @@ namespace ShoalingUpstream.Simulation
         /// bad instant in forever; falls back to 0 if nothing plausible has been seen yet.</summary>
         private float SaneAnchorY(float y) => Mathf.Abs(y) < 5f ? y : (_lastKnownGoodEyeY ?? 0f);
 
-        private void StartDrift(Transform fish) => StartCoroutine(FishDrift(fish));
+        private void StartDrift(Transform fish)
+        {
+            if (!_swimOffsets.ContainsKey(fish)) _swimOffsets[fish] = Vector3.zero;
+            if (LocalOnly) SetPlaybackSpeed(fish, 1f);
+            StartCoroutine(FishDrift(fish));
+        }
 
         /// <summary>The horizontal direction a model's head points. Every model here is built so its
         /// root's own local left (-X) is its head at identity rotation — see HatchOne — so the root's
@@ -996,7 +1081,9 @@ namespace ShoalingUpstream.Simulation
         /// can hand back a rotation that turns the model upside down instead.</summary>
         private static Quaternion YawFromLeftTo(Vector3 head)
         {
-            return Quaternion.Euler(0f, Vector3.SignedAngle(Vector3.left, head, Vector3.up), 0f);
+            head = Vector3.ProjectOnPlane(head, Vector3.up);
+            if (head.sqrMagnitude < .0001f) head = Vector3.left;
+            return Quaternion.Euler(0f, NaturalFishMotion.YawDelta(Vector3.left, head.normalized), 0f);
         }
 
         /// <summary>Play whatever a beat is wired to. Spawn plants its own flock on top of
@@ -1008,19 +1095,19 @@ namespace ShoalingUpstream.Simulation
             foreach (var trigger in SceneTriggers)
             {
                 if (trigger.BeatId != beatId) continue;
-                if (trigger.Kind == SceneTriggerKind.ReactFlock) StartCoroutine(PlayHatchReaction(trigger));
-                else if (trigger.Kind == SceneTriggerKind.SwimToEye) StartCoroutine(PlaySwimToEye(trigger));
-                else if (trigger.Kind == SceneTriggerKind.Appear) StartCoroutine(PlayAppear(trigger));
-                else if (trigger.Kind == SceneTriggerKind.EatAndGrow) StartCoroutine(PlayEatAndGrow(trigger));
-                else if (trigger.Kind == SceneTriggerKind.PlayClip) StartCoroutine(PlayClipOnFlock(trigger));
+                if (trigger.Kind == SceneTriggerKind.ReactFlock) StartSceneAction(PlayHatchReaction(trigger));
+                else if (trigger.Kind == SceneTriggerKind.SwimToEye) StartSceneAction(PlaySwimToEye(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Appear) StartSceneAction(PlayAppear(trigger));
+                else if (trigger.Kind == SceneTriggerKind.EatAndGrow) StartSceneAction(PlayEatAndGrow(trigger));
+                else if (trigger.Kind == SceneTriggerKind.PlayClip) StartSceneAction(PlayClipOnFlock(trigger));
                 else if (trigger.Kind == SceneTriggerKind.Despawn) PlayDespawn(trigger);
-                else if (trigger.Kind == SceneTriggerKind.Rotate) StartCoroutine(PlayRotateFlock(trigger));
-                else if (trigger.Kind == SceneTriggerKind.SwimFlock) StartCoroutine(PlaySwimFlock(trigger));
-                else if (trigger.Kind == SceneTriggerKind.Jump) StartCoroutine(PlayJump(trigger));
-                else if (trigger.Kind == SceneTriggerKind.Cull) StartCoroutine(PlayCull(trigger));
-                else if (trigger.Kind == SceneTriggerKind.Stunt) StartCoroutine(PlayStunt(trigger));
-                else if (trigger.Kind == SceneTriggerKind.LieDownFade) StartCoroutine(PlayLieDownFade(trigger));
-                else if (trigger.FallTemplate != null) StartCoroutine(PlaySceneFlock(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Rotate) StartSceneAction(PlayRotateFlock(trigger));
+                else if (trigger.Kind == SceneTriggerKind.SwimFlock) StartSceneAction(PlaySwimFlock(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Jump) StartSceneAction(PlayJump(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Cull) StartSceneAction(PlayCull(trigger));
+                else if (trigger.Kind == SceneTriggerKind.Stunt) StartSceneAction(PlayStunt(trigger));
+                else if (trigger.Kind == SceneTriggerKind.LieDownFade) StartSceneAction(PlayLieDownFade(trigger));
+                else if (trigger.FallTemplate != null) StartSceneAction(PlaySceneFlock(trigger));
             }
         }
 
@@ -1054,6 +1141,9 @@ namespace ShoalingUpstream.Simulation
                 foreach (var member in flock)
                     if (member != null) Destroy(member.root.gameObject);
             _flocks.Clear();
+            foreach (var fish in _localDetached) if (fish != null) Destroy(fish.gameObject);
+            _localDetached.Clear(); _localFacingExempt.Clear();
+            _stableDevicePosition = null; _followVelocity = Vector3.zero;
             _swimOffsets.Clear();
             _progression?.ResetAll();
             RequestSkipCurrentToEnd();
@@ -1123,7 +1213,14 @@ namespace ShoalingUpstream.Simulation
                 anchorPos.y = SaneAnchorY(anchorPos.y);
             }
 
-            float? sharedFallbackFloorY = null;
+            // Standalone Chapter 1 places the clutch at the gravel selected through the view.
+            bool selectedGravel = LocalOnly && trigger.BeatId == "beat-1" && _localTarget.HasValue;
+            if (selectedGravel)
+            {
+                anchorPos.x = _localTarget.Value.x;
+                anchorPos.z = _localTarget.Value.z;
+            }
+            float? sharedFallbackFloorY = selectedGravel ? _localTarget.Value.y : (float?)null;
             if (hasEye && _raycastManager != null)
             {
                 // One probe straight down from the eye itself, taken once per beat fire, as a
@@ -1140,12 +1237,16 @@ namespace ShoalingUpstream.Simulation
             }
 
             int count = Mathf.Max(1, trigger.Count);
+            List<Vector2> eggLayout = null;
             for (int i = 0; i < count; i++)
             {
                 // Always a clone, template included: with earlier flocks left standing, reusing
                 // the template for the first egg of every press would teleport it out of the
                 // previous flock instead of leaving it behind like all the rest.
                 var clone = Instantiate(templateAnchor.gameObject, templateAnchor.parent);
+                ScaleLocalVisuals(clone);
+                if (LocalOnly && trigger.BeatId == "beat-6")
+                    EnlargeHeronVisuals(clone);
                 // The template is inactive — hidden until it is played, since it never is
                 // directly — and a clone of an inactive object starts inactive too.
                 clone.SetActive(true);
@@ -1160,12 +1261,28 @@ namespace ShoalingUpstream.Simulation
                     // across the screen regardless of which way the device is actually pointed.
                     Vector2 jitter = UnityEngine.Random.insideUnitCircle * trigger.ScatterRadiusM;
                     Vector3 spread = _eye.transform.right * jitter.x + _eye.transform.up * jitter.y;
+                    if (LocalOnly)
+                    {
+                        var renderer = clone.GetComponentInChildren<Renderer>();
+                        float diameter = renderer != null ? Mathf.Max(renderer.bounds.size.x, renderer.bounds.size.z) : .02f;
+                        eggLayout ??= OrganicEggLayout.Create(count, diameter, UnityEngine.Random.Range(1, int.MaxValue));
+                        Vector3 right = Vector3.Cross(Vector3.up, _travel.Forward);
+                        spread = right * eggLayout[i].x + _travel.Forward * eggLayout[i].y;
+                    }
                     spawnAnchor.position = anchorPos + spread;
                     spawnAnchor.rotation = facing;
+                    if (LocalOnly && trigger.BeatId == "beat-1")
+                        fallMember.localRotation = UnityEngine.Random.rotationUniform;
                 }
 
-                if (_raycastManager != null)
-                    StartCoroutine(SnapEggAnchorToFloorWhenSettled(
+                if (selectedGravel)
+                {
+                    Vector3 target = spawnAnchor.position;
+                    target.y += _localTarget.Value.y - fallMember.position.y;
+                    StartSceneAction(EaseAnchorDown(spawnAnchor, target, trigger.SpawnFallDurationSeconds, gen));
+                }
+                else if (_raycastManager != null)
+                    StartSceneAction(SnapEggAnchorToFloorWhenSettled(
                         spawnAnchor, fallMember, trigger.SpawnFallDurationSeconds, gen, sharedFallbackFloorY));
 
                 // Tracked by the object the fall actually drives (one level in from the anchor),
@@ -1188,7 +1305,12 @@ namespace ShoalingUpstream.Simulation
         private void PlayDespawn(SceneTrigger trigger)
         {
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) return;
-            foreach (var member in flock) if (member != null) Destroy(member.gameObject);
+            foreach (var member in flock)
+                if (member != null)
+                {
+                    if (LocalOnly && trigger.BeatId == "beat-11") StartSceneAction(FadeAndDestroy(member, 3f));
+                    else Destroy(member.gameObject);
+                }
             flock.Clear();
         }
 
@@ -1220,12 +1342,50 @@ namespace ShoalingUpstream.Simulation
                 if (members[i] != null) survivors.Add(members[i]);
             }
 
+            if (LocalOnly)
+            {
+                foreach (var fish in _localDetached) if (fish != null) members.Add(fish);
+                _localDetached.Clear();
+            }
             for (int i = keep; i < members.Count; i++)
             {
-                if (members[i] != null) StartCoroutine(FadeAndDestroy(members[i], trigger.CullDurationSeconds));
+                if (members[i] == null) continue;
+                if (LocalOnly) StartCoroutine(LeaveHomeView(members[i], i - keep, members.Count - keep));
+                else StartSceneAction(FadeAndDestroy(members[i], trigger.CullDurationSeconds));
             }
 
             flock.Clear();
+        }
+
+        public readonly List<Vector3> LocalDepartureHeadings = new();
+        public int LocalDepartingCount { get; private set; }
+        private IEnumerator LeaveHomeView(Transform fish, int index, int count)
+        {
+            _localFacingExempt.Add(fish); _poolFish.Remove(fish); _settlingHeadings.Remove(fish);
+            _cruiseSpeeds[fish] = 0f;
+            Vector3 direction = Quaternion.AngleAxis(index * 360f / Mathf.Max(1, count) + UnityEngine.Random.Range(-8f, 8f), Vector3.up) * _travel.Forward;
+            LocalDepartureHeadings.Add(direction);
+            LocalDepartingCount++;
+            try
+            {
+                while (fish != null && Vector3.Angle(HeadDirection(fish), direction) > .5f)
+                {
+                    Vector3 head = NaturalFishMotion.TurnHeading(HeadDirection(fish), direction, 20f * Time.deltaTime);
+                    fish.rotation = Quaternion.AngleAxis(NaturalFishMotion.YawDelta(HeadDirection(fish), head), Vector3.up) * fish.rotation;
+                    yield return null;
+                }
+                float elapsed = 0f;
+                bool fading = false;
+                while (fish != null)
+                {
+                    elapsed += Time.deltaTime;
+                    SteerLocalFish(fish, fish.position + direction * 2f, LocalCruiseSpeed);
+                    if (!fading && elapsed >= 3f)
+                    { fading = true; StartCoroutine(FadeAndDestroy(fish, 3f)); }
+                    yield return null;
+                }
+            }
+            finally { LocalDepartingCount--; }
         }
 
         /// <summary>Fades every renderer under target to fully transparent, then destroys it —
@@ -1269,6 +1429,11 @@ namespace ShoalingUpstream.Simulation
         /// them.</summary>
         public static void PrepareMaterialForFade(Material material)
         {
+            if (material.shader.name == "Toon/SoftSurface")
+            {
+                var transparent = Resources.Load<Shader>("SoftSurfaceFade");
+                if (transparent != null) material.shader = transparent;
+            }
             if (material.HasProperty("_Mode")) material.SetFloat("_Mode", 3f);
             if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
             if (material.HasProperty("_SrcBlend"))
@@ -1363,8 +1528,8 @@ namespace ShoalingUpstream.Simulation
             flock.Clear();
 
             const float swimToGroundSeconds = 2f;
-            var groundWait = StartCoroutine(SwimDownToGround(member, swimToGroundSeconds, gen));
-            if (other != null) StartCoroutine(SwimDownToGround(other, swimToGroundSeconds, gen));
+            var groundWait = StartSceneAction(SwimDownToGround(member, swimToGroundSeconds, gen));
+            if (other != null) StartSceneAction(SwimDownToGround(other, swimToGroundSeconds, gen));
             yield return groundWait;
             if (member == null) yield break;
 
@@ -1385,8 +1550,8 @@ namespace ShoalingUpstream.Simulation
                     if (t0.name == "TailFinLower_M_010") { tailBone = t0; break; }
                 }
                 Vector3 tailPos = tailBone != null ? tailBone.position : member.position;
-                StartCoroutine(DropEggsFromTail(tailPos, trigger, gen));
-                if (other != null) StartCoroutine(HoverOverEggs(other, tailPos, trigger, gen));
+                StartSceneAction(DropEggsFromTail(tailPos, trigger, gen));
+                if (other != null) StartSceneAction(HoverOverEggs(other, tailPos, trigger, gen));
             }
 
             yield return WaitOrSkip(trigger.StuntSpeedDurationSeconds, gen);
@@ -1428,6 +1593,11 @@ namespace ShoalingUpstream.Simulation
                 }
             }
             Vector3 targetPos = member.position + HeadDirection(member) * forwardWhileDescendingM;
+            if (LocalOnly && _localTarget.HasValue)
+            {
+                targetPos = member.position;
+                targetY = _localTarget.Value.y + .08f;
+            }
             targetPos.y = targetY;
             yield return SwimOneToward(member, targetPos, durationSeconds);
         }
@@ -1442,7 +1612,10 @@ namespace ShoalingUpstream.Simulation
             yield return WaitOrSkip(wait, gen);
             if (member == null) yield break;
             const float hoverHeightM = 1f;
-            yield return SwimOneToward(member, tailPos + Vector3.up * hoverHeightM, 2f);
+            Vector3 hover = tailPos + Vector3.up * hoverHeightM;
+            if (LocalOnly) hover.y = (_localTarget?.y ?? LocalGroundY) + .08f;
+            yield return SwimOneToward(member, hover, 2f);
+            if (LocalOnly) yield return WaitOrSkip(5f, gen);
         }
 
         /// <summary>Tilts member's Rotation X to targetXDegrees over duration, pivoting about its
@@ -1504,13 +1677,19 @@ namespace ShoalingUpstream.Simulation
             int gen = _skipGeneration;
             foreach (var member in new List<Transform>(flock))
             {
-                if (member != null) StartCoroutine(LieDownAndFade(member, trigger, gen));
+                if (member != null) StartSceneAction(LieDownAndFade(member, trigger, gen));
             }
             flock.Clear();
         }
 
         private IEnumerator LieDownAndFade(Transform member, SceneTrigger trigger, int gen)
         {
+            if (LocalOnly && member != null)
+            {
+                Vector3 nearGround = member.position;
+                nearGround.y = (_localTarget?.y ?? _knownFloorY ?? (member.position.y - 1f)) + .08f;
+                yield return SwimOneToward(member, nearGround, 1f);
+            }
             yield return SwimForward(member, trigger.SwimForwardDistanceM, trigger.SwimForwardDurationSeconds, gen);
             if (member == null) yield break;
             yield return TiltAroundBone(member, trigger.StuntRotationXTarget, trigger.RotateDurationSeconds, gen);
@@ -1525,6 +1704,11 @@ namespace ShoalingUpstream.Simulation
         /// with FishDrift's idle wobble instead of fighting it.</summary>
         private IEnumerator SwimForward(Transform member, float distance, float duration, int gen)
         {
+            if (LocalOnly)
+            {
+                yield return SwimOneToward(member, member.position + HeadDirection(member) * distance, duration);
+                yield break;
+            }
             duration = Mathf.Max(0.01f, duration);
             _swimOffsets.TryGetValue(member, out var baseOffset);
             // Along the model's own head direction, not member.forward: every model is built with
@@ -1556,7 +1740,9 @@ namespace ShoalingUpstream.Simulation
                 Vector2 jitter = UnityEngine.Random.insideUnitCircle * Mathf.Max(0f, trigger.EggJitterRadiusM);
                 Vector3 spawnPos = tailPos + new Vector3(jitter.x, 0f, jitter.y);
                 var egg = Instantiate(trigger.EggPrefab, spawnPos, Quaternion.identity);
-                StartCoroutine(FallEgg(egg.transform, trigger.EggFallDistanceM, trigger.EggFallDurationSeconds, gen));
+                ScaleLocalVisuals(egg);
+                float fall = LocalOnly && _localTarget.HasValue ? Mathf.Max(.05f, spawnPos.y - _localTarget.Value.y) : trigger.EggFallDistanceM;
+                StartSceneAction(FallEgg(egg.transform, fall, trigger.EggFallDurationSeconds, gen));
                 if (i < count - 1 && stagger > 0f)
                     yield return WaitOrSkip(stagger, gen);
             }
@@ -1624,7 +1810,7 @@ namespace ShoalingUpstream.Simulation
                     _knownFloorY = hits[0].pose.position.y;
                     Vector3 targetWorldPos = new Vector3(anchorStartPos.x, hits[0].pose.position.y, anchorStartPos.z);
                     Vector3 anchorTarget = anchor.position + (targetWorldPos - fallMember.position);
-                    yield return StartCoroutine(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
+                    yield return StartSceneAction(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
                 }
                 else
                 {
@@ -1649,7 +1835,7 @@ namespace ShoalingUpstream.Simulation
                 if (fallbackFloorY.HasValue) _knownFloorY = fallbackFloorY.Value;
                 Vector3 targetWorldPos = new Vector3(anchorStartPos.x, targetY, anchorStartPos.z);
                 Vector3 anchorTarget = anchor.position + (targetWorldPos - fallMember.position);
-                yield return StartCoroutine(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
+                yield return StartSceneAction(EaseAnchorDown(anchor, anchorTarget, fallDurationSeconds, gen));
                 usedFallback = true;
             }
 
@@ -1701,8 +1887,9 @@ namespace ShoalingUpstream.Simulation
             if (egg != null) egg.position = end;
         }
 
-        private static void SetPlaybackSpeed(Transform member, float speed)
+        private void SetPlaybackSpeed(Transform member, float speed)
         {
+            if (LocalOnly && _swimOffsets.ContainsKey(member)) speed *= LocalFishSpeedScale;
             foreach (var animation in member.GetComponentsInChildren<Animation>())
             {
                 foreach (AnimationState state in animation) state.speed = speed;
@@ -1718,7 +1905,7 @@ namespace ShoalingUpstream.Simulation
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
             foreach (var member in flock)
             {
-                if (member != null) StartCoroutine(RotateOne(member, trigger));
+                if (member != null) StartSceneAction(RotateOne(member, trigger));
             }
         }
 
@@ -1737,7 +1924,7 @@ namespace ShoalingUpstream.Simulation
 
             Quaternion start = member.rotation;
             Quaternion end = start * Quaternion.Euler(0f, trigger.RotateYDegrees, 0f);
-            float duration = Mathf.Max(0.01f, trigger.RotateDurationSeconds);
+            float duration = Mathf.Max(0.01f, trigger.RotateDurationSeconds) / (LocalOnly ? LocalFishSpeedScale : 1f);
             float t = 0f;
             while (t < duration)
             {
@@ -1759,7 +1946,7 @@ namespace ShoalingUpstream.Simulation
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
             foreach (var member in flock)
             {
-                if (member != null) StartCoroutine(SwimForwardStaggered(member, trigger));
+                if (member != null) StartSceneAction(SwimForwardStaggered(member, trigger));
             }
         }
 
@@ -1782,7 +1969,7 @@ namespace ShoalingUpstream.Simulation
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
             foreach (var member in flock)
             {
-                if (member != null) StartCoroutine(JumpOne(member, trigger));
+                if (member != null) StartSceneAction(JumpOne(member, trigger));
             }
         }
 
@@ -1801,7 +1988,7 @@ namespace ShoalingUpstream.Simulation
             if (member == null) yield break;
 
             float height = Mathf.Max(0.01f, trigger.JumpHeightM) * Mathf.Lerp(0.5f, 1f, Mathf.PerlinNoise(seed, 10f));
-            float duration = Mathf.Max(0.01f, trigger.JumpDurationSeconds);
+            float duration = Mathf.Max(0.01f, trigger.JumpDurationSeconds) / (LocalOnly ? LocalFishSpeedScale : 1f);
 
             Transform tail = null;
             foreach (var t0 in member.GetComponentsInChildren<Transform>(true))
@@ -1892,35 +2079,72 @@ namespace ShoalingUpstream.Simulation
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock) || flock.Count == 0)
                 yield break;
 
-            if (eatenTarget != null)
+            if (LocalOnly)
             {
-                // Only a member behind the strider — on the tail side of it, along the way the
-                // flock itself is heading — is a candidate at all; closest overall is not enough
-                // on its own. Read off the flock's own facing, not world X, which stopped meaning
-                // "behind it" once fish began facing wherever the operator was aimed.
-                Vector3 flockHead = FlockHeadDirection(flock);
-                Transform closest = null;
-                float closestDist = float.MaxValue;
-                foreach (var member in flock)
+                var available = new List<Transform>(flock);
+                var approaches = new List<Coroutine>();
+                _lastLocalStriderEatTime = float.NegativeInfinity;
+                int approachIndex = 0;
+                foreach (var strider in eaten)
                 {
-                    if (member == null || Vector3.Dot(member.position - eatenTarget.position, flockHead) >= 0f) continue;
-                    float dist = Vector3.Distance(member.position, eatenTarget.position);
-                    if (dist < closestDist)
+                    if (strider == null) continue;
+                    Transform closest = null;
+                    float distance = float.MaxValue;
+                    foreach (var fish in available)
                     {
-                        closestDist = dist;
-                        closest = member;
+                        if (fish == null) continue;
+                        float noseExtent = Vector3.Distance(LocalFishMouthPosition(fish), fish.position);
+                        float horizontal = Vector3.ProjectOnPlane(fish.position - strider.position, Vector3.up).magnitude;
+                        float candidate = Vector3.Distance(fish.position, strider.position);
+                        if (horizontal > noseExtent + .25f && candidate < distance)
+                        { closest = fish; distance = candidate; }
                     }
+                    if (closest == null)
+                        foreach (var fish in available)
+                            if (fish != null && (closest == null || Vector3.Distance(fish.position, strider.position) > distance))
+                            { closest = fish; distance = Vector3.Distance(fish.position, strider.position); }
+                    if (closest == null) continue;
+                    available.Remove(closest);
+                    approaches.Add(StartSceneAction(EatOneStrider(closest, strider, trigger.SwimDurationSeconds, approachIndex++ * 1.2f)));
                 }
-                if (closest != null)
-                    StartCoroutine(SwimOneToward(closest, eatenTarget.position, trigger.SwimDurationSeconds));
+                foreach (var approach in approaches) yield return approach;
+                eaten.Clear();
+                LocalStriderReturnsTime = Time.time;
+                LocalShoalGrowthStart = -1f;
+                yield return WaitOrSkip(3f, gen);
             }
+            else
+            {
+                if (eatenTarget != null)
+                {
+                    // Only a member behind the strider — on the tail side of it, along the way the
+                    // flock itself is heading — is a candidate at all; closest overall is not enough
+                    // on its own. Read off the flock's own facing, not world X, which stopped meaning
+                    // "behind it" once fish began facing wherever the operator was aimed.
+                    Vector3 flockHead = FlockHeadDirection(flock);
+                    Transform closest = null;
+                    float closestDist = float.MaxValue;
+                    foreach (var member in flock)
+                    {
+                        if (member == null || Vector3.Dot(member.position - eatenTarget.position, flockHead) >= 0f) continue;
+                        float dist = Vector3.Distance(member.position, eatenTarget.position);
+                        if (dist < closestDist)
+                        {
+                            closestDist = dist;
+                            closest = member;
+                        }
+                    }
+                    if (closest != null)
+                        StartSceneAction(SwimOneToward(closest, eatenTarget.position, trigger.SwimDurationSeconds));
+                }
 
-            yield return WaitOrSkip(trigger.EatDelaySeconds, gen);
+                yield return WaitOrSkip(trigger.EatDelaySeconds, gen);
 
-            foreach (var member in eaten) if (member != null) Destroy(member.gameObject);
-            eaten.Clear();
+                foreach (var member in eaten) if (member != null) Destroy(member.gameObject);
+                eaten.Clear();
 
-            yield return WaitOrSkip(trigger.GrowDelaySeconds, gen);
+                yield return WaitOrSkip(trigger.GrowDelaySeconds, gen);
+            }
 
             var targets = new List<Transform>(flock);
             flock.Clear();
@@ -1935,7 +2159,8 @@ namespace ShoalingUpstream.Simulation
             {
                 if (target == null) continue;
                 grown.Add(target);
-                StartCoroutine(GrowInPlace(target, trigger.GrowMultiplier, trigger.HatchDurationSeconds));
+                StartSceneAction(LocalOnly ? GrowShoalMember(target, trigger.GrowMultiplier)
+                    : GrowInPlace(target, trigger.GrowMultiplier, trigger.HatchDurationSeconds));
             }
         }
 
@@ -1945,6 +2170,11 @@ namespace ShoalingUpstream.Simulation
         /// this aims at an absolute point.</summary>
         private IEnumerator SwimOneToward(Transform fish, Vector3 targetPos, float durationSeconds)
         {
+            if (LocalOnly)
+            {
+                yield return SwimLocalFish(fish, targetPos, durationSeconds);
+                yield break;
+            }
             _swimOffsets.TryGetValue(fish, out var startOffset);
             float duration = Mathf.Max(0.01f, durationSeconds);
             float t = 0f;
@@ -1960,6 +2190,48 @@ namespace ShoalingUpstream.Simulation
                 _swimOffsets[fish] = Vector3.Lerp(startOffset, desiredOffset, Mathf.Clamp01(t / duration));
                 yield return null;
             }
+        }
+
+        private IEnumerator EatOneStrider(Transform fish, Transform strider, float seconds, float delay)
+        {
+            Vector3 returnPosition = fish.position;
+            bool wasPoolFish = _poolFish.Remove(fish);
+            yield return WaitOrSkip(delay, _skipGeneration);
+            if (fish == null || strider == null) yield break;
+            Vector3 approach = Vector3.ProjectOnPlane(strider.position - fish.position, Vector3.up).normalized;
+            _localMotionControlled.Add(fish);
+            while (Vector3.Angle(HeadDirection(fish), approach) > .5f)
+            {
+                Vector3 head = NaturalFishMotion.TurnHeading(HeadDirection(fish), approach, 20f * Time.deltaTime);
+                fish.rotation = Quaternion.AngleAxis(NaturalFishMotion.YawDelta(HeadDirection(fish), head), Vector3.up) * fish.rotation;
+                yield return null;
+            }
+            while (fish != null && strider != null && Vector3.Distance(LocalFishMouthPosition(fish), strider.position) > .15f)
+            {
+                Vector3 mouthOffset = LocalFishMouthPosition(fish) - fish.position;
+                Vector3 receivingDirection = Vector3.ProjectOnPlane(strider.position - fish.position, Vector3.up).normalized;
+                Vector3 target = strider.position - mouthOffset - receivingDirection * .1f;
+                SteerLocalFish(fish, target, LocalCruiseSpeed);
+                yield return null;
+            }
+            yield return WaitOrSkip(1f, _skipGeneration);
+            while (Time.time - _lastLocalStriderEatTime < 1.2f) yield return null;
+            if (strider != null && fish != null)
+            {
+                _lastLocalStriderEatTime = Time.time + .8f; // Reserve this slide before another fish can start.
+                Vector3 start = strider.position;
+                float elapsed = 0f;
+                while (elapsed < .8f && fish != null && strider != null)
+                {
+                    elapsed += Time.deltaTime;
+                    strider.position = Vector3.Lerp(start, LocalFishMouthPosition(fish), Mathf.SmoothStep(0f, 1f, elapsed / .8f));
+                    yield return null;
+                }
+                if (strider != null) Destroy(strider.gameObject);
+                _lastLocalStriderEatTime = Time.time;
+            }
+            yield return SwimOneToward(fish, returnPosition, Mathf.Max(2f, seconds));
+            if (wasPoolFish && fish != null) _poolFish.Add(fish);
         }
 
         private IEnumerator GrowInPlace(Transform target, float growMultiplier, float durationSeconds)
@@ -2159,10 +2431,33 @@ namespace ShoalingUpstream.Simulation
                 anchorPos.y = SaneAnchorY(anchorPos.y);
             }
 
+            if (LocalOnly && trigger.BeatId == "beat-6" && _eye != null)
+            {
+                ObserveParticipantDirection();
+                Vector3 forward = _travel.Forward;
+                Vector3 right = Vector3.Cross(Vector3.up, forward);
+                anchorPos = _eye.transform.position + (forward + right).normalized * 3.5f
+                    + forward * (trigger.AnchorOffsetM.x * LocalModelScale + .4666667f);
+                anchorPos.y = _knownFloorY ?? (_eye.transform.position.y - 1.2f);
+                facing = YawFromLeftTo(forward);
+            }
+
+            if (LocalOnly && trigger.BeatId == "beat-5" && _eye != null)
+            {
+                Vector3 forward = Vector3.ProjectOnPlane(_eye.transform.forward, Vector3.up).normalized;
+                if (forward.sqrMagnitude < .1f) forward = _travel.Forward;
+                anchorPos = _eye.transform.position + forward * 1.55f;
+                anchorPos.y = Mathf.Max(LocalGroundY + .2f, _eye.transform.position.y - .3f);
+                facing = YawFromLeftTo(forward);
+            }
+
             int count = Mathf.Max(1, trigger.Count);
             for (int i = 0; i < count; i++)
             {
                 var clone = Instantiate(trigger.Template);
+                ScaleLocalVisuals(clone);
+                if (LocalOnly && trigger.BeatId == "beat-6")
+                    EnlargeHeronVisuals(clone);
                 // The template is inactive — hidden until it is played — and a clone of an
                 // inactive object starts inactive too.
                 clone.SetActive(true);
@@ -2178,6 +2473,15 @@ namespace ShoalingUpstream.Simulation
                     Vector3 spread = _eye.transform.right * jitter.x + _eye.transform.up * jitter.y;
                     clone.transform.position = anchorPos + spread;
                     clone.transform.rotation = facing;
+                }
+
+                if (LocalOnly && trigger.BeatId == "beat-5")
+                {
+                    clone.transform.position = VisibleStriderPosition(i, anchorPos);
+                    clone.transform.rotation = Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f);
+                    foreach (var renderer in clone.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                    { renderer.enabled = true; renderer.updateWhenOffscreen = true; }
+                    foreach (var animator in clone.GetComponentsInChildren<Animator>(true)) animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
                 }
 
                 // Plural, not singular: a clone can carry more than one animated child (the
@@ -2222,6 +2526,8 @@ namespace ShoalingUpstream.Simulation
                 if (i < count - 1 && trigger.StaggerSeconds > 0f)
                     yield return WaitOrSkip(trigger.StaggerSeconds, gen);
             }
+            if (LocalOnly && (trigger.BeatId == "beat-6" || trigger.BeatId == "beat-5"))
+                yield return RevealHeronLocally();
         }
 
         /// <summary>Reaches into TargetBeatId's still-standing flock and plays ClipSequence on
@@ -2235,12 +2541,17 @@ namespace ShoalingUpstream.Simulation
             if (trigger.ClipSequence == null || trigger.ClipSequence.Length == 0) yield break;
             if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
 
+            if (LocalOnly && trigger.BeatId == "beat-8")
+            {
+                yield return FeedHeronLocally(trigger, flock);
+                yield break;
+            }
             foreach (var member in flock)
             {
-                if (member != null) StartCoroutine(PlayClipSequence(member, trigger));
+                if (member != null) StartSceneAction(PlayClipSequence(member, trigger));
             }
 
-            if (!string.IsNullOrEmpty(trigger.FishSourceBeatId)) StartCoroutine(FeedFishToTarget(trigger, flock));
+            if (!string.IsNullOrEmpty(trigger.FishSourceBeatId)) StartSceneAction(FeedFishToTarget(trigger, flock));
         }
 
         /// <summary>Pulls one fish out of FishSourceBeatId's flock — it is removed there, not
@@ -2273,6 +2584,7 @@ namespace ShoalingUpstream.Simulation
             Transform fish = fishFlock[0];
             fishFlock.RemoveAt(0);
             if (fish == null) yield break;
+            if (LocalOnly) _localFacingExempt.Add(fish);
 
             Transform beak = null;
             foreach (var t in target.GetComponentsInChildren<Transform>(true))
@@ -2500,7 +2812,7 @@ namespace ShoalingUpstream.Simulation
 
             foreach (var target in targets)
             {
-                if (target != null) StartCoroutine(HatchOne(target, trigger, centroid));
+                if (target != null) StartSceneAction(HatchOne(target, trigger, centroid));
             }
         }
 
@@ -2529,9 +2841,9 @@ namespace ShoalingUpstream.Simulation
                 // 0.5x per feedback that the pre-hatch shake read too fast — halves how quickly
                 // Time.time advances through the Perlin noise, not its amplitude.
                 Vector3 jitter = new Vector3(
-                    Mathf.PerlinNoise(Time.time * 8.5f + seed, 0f) - 0.5f,
-                    Mathf.PerlinNoise(Time.time * 6.5f + seed, 10f) - 0.5f,
-                    Mathf.PerlinNoise(Time.time * 9.5f + seed, 20f) - 0.5f) * trigger.ShakeAmplitudeM;
+                    Mathf.PerlinNoise(Time.time * 8.5f * (LocalOnly ? .7f : 1f) + seed, 0f) - 0.5f,
+                    Mathf.PerlinNoise(Time.time * 6.5f * (LocalOnly ? .7f : 1f) + seed, 10f) - 0.5f,
+                    Mathf.PerlinNoise(Time.time * 9.5f * (LocalOnly ? .7f : 1f) + seed, 20f) - 0.5f) * trigger.ShakeAmplitudeM * (LocalOnly ? .8f : 1f);
 
                 egg.position = basePosition + jitter;
                 egg.localScale = Vector3.Lerp(startScale, endScale, p);
@@ -2577,6 +2889,8 @@ namespace ShoalingUpstream.Simulation
                     if (f.sqrMagnitude > 0.0001f) headDirection = f.normalized;
                 }
                 var fish = Instantiate(trigger.FishPrefab, egg.position, YawFromLeftTo(headDirection));
+                ScaleLocalVisuals(fish);
+                if (LocalOnly && trigger.BeatId == "beat-2") _localAlevins.Add(fish.transform);
                 // Legacy import (see ALEVIN FISH.glb.meta): an Animation component that plays a
                 // clip by name directly. Mecanim was tried first and needs an AnimatorController
                 // asset glTFast does not generate, so nothing was ever wired to the Animator.
@@ -2612,8 +2926,8 @@ namespace ShoalingUpstream.Simulation
                     // so a fixed 0.5 m still left them well below eye level, read from above.
                     float riseM = trigger.SpreadRiseM;
                     if (trigger.SpreadRiseToEyeHeight && _eye != null)
-                        riseM = Mathf.Max(0f, _eye.transform.position.y - egg.position.y);
-                    StartCoroutine(SpreadFishFromCentroid(
+                        riseM = Mathf.Max(0f, _eye.transform.position.y - (LocalOnly ? .55f : 0f) - egg.position.y);
+                    StartSceneAction(SpreadFishFromCentroid(
                         fish.transform, egg.position, spreadOrigin, headDirection, trigger.SpreadMultiplier, riseM, trigger.SpreadDurationSeconds));
                 }
 
@@ -2626,7 +2940,9 @@ namespace ShoalingUpstream.Simulation
                 }
                 hatched.Add(fish.transform);
 
-                Destroy(egg.gameObject);
+                if (LocalOnly)
+                    yield return CrossfadeLifeStage(egg, fish.transform, trigger.InheritFacing);
+                else Destroy(egg.gameObject);
             }
             // else: no fish model yet — left grown and settled, a visible stand-in until
             // FishPrefab is wired in.
@@ -2662,6 +2978,15 @@ namespace ShoalingUpstream.Simulation
             float newHeadDistance = Mathf.Max(headDistance * multiplier, minForwardM);
             Vector3 endOffset = (headDirection * newHeadDistance + lateral * multiplier) - fromOrigin
                                + Vector3.up * riseM;
+            if (LocalOnly && _eye != null)
+            {
+                var slot = Slot(fish);
+                slot.y = UnityEngine.Random.Range(.5f, 1f);
+                slot.z = UnityEngine.Random.Range(.65f, .9f);
+                _naturalSlots[fish] = slot;
+                yield return SwimNewbornLocally(fish);
+                yield break;
+            }
             float duration = Mathf.Max(0.01f, durationSeconds);
             float t = 0f;
             int gen = _skipGeneration;
@@ -2695,7 +3020,8 @@ namespace ShoalingUpstream.Simulation
             // suspended in water. It used to be 0.0375 m — 3.75 cm either side of where the fish
             // sat, at a pace slow enough that nobody could see it move at all, which is what "现在
             // 并没有浮动" was reporting.
-            float amplitude = Mathf.Min(bodyLength * 0.4f, 0.2f);
+            // Preserve a small natural swim; do not amplify drift after reducing model size.
+            float amplitude = Mathf.Min(bodyLength * 0.4f, LocalOnly ? .035f : .2f);
             float seed = fish.GetInstanceID() * 0.031f;
             Vector3 basePosition = fish.position;
 
@@ -2705,11 +3031,25 @@ namespace ShoalingUpstream.Simulation
                     (Mathf.PerlinNoise(Time.time * 0.22f + seed, 0f) - 0.5f) * (2f * amplitude),
                     (Mathf.PerlinNoise(Time.time * 0.18f + seed, 10f) - 0.5f) * (2f * amplitude),
                     (Mathf.PerlinNoise(Time.time * 0.2f + seed, 20f) - 0.5f) * (2f * amplitude));
+                if (LocalOnly) wobble = new Vector3(
+                    (Mathf.PerlinNoise(Time.time * .10f + seed, 0f) - .5f) * amplitude * 2f,
+                    (Mathf.PerlinNoise(Time.time * .12f + seed, 10f) - .5f) * amplitude * 2f,
+                    (Mathf.PerlinNoise(Time.time * .09f + seed, 20f) - .5f) * amplitude * 2f);
                 _swimOffsets.TryGetValue(fish, out var swimOffset);
                 fish.position = basePosition + wobble + swimOffset;
+                if (LocalOnly && _localNearGround)
+                {
+                    Vector3 position = fish.position;
+                    position.y = Mathf.Max(position.y, (_localTarget?.y ?? _knownFloorY ?? 0f) + .03f);
+                    fish.position = position;
+                }
                 yield return null;
             }
             _swimOffsets.Remove(fish);
+            _localAlevins.Remove(fish);
+            _localFacingExempt.Remove(fish);
+            _localDetached.Remove(fish);
+            _poolFish.Remove(fish); _naturalSlots.Remove(fish); _cruiseSpeeds.Remove(fish); _settlingHeadings.Remove(fish); _mouthOffsets.Remove(fish); _localMotionControlled.Remove(fish);
         }
 
         /// <summary>Placeholder for the "device has physically moved" case: rather than actually
@@ -2753,7 +3093,11 @@ namespace ShoalingUpstream.Simulation
                 if (target == null) continue;
                 arrived.Add(target);
                 Vector3 towardHead = target.TransformDirection(Vector3.left);
-                StartCoroutine(SwimOneToEyeStaggered(target, towardHead * nudgeM, trigger.SwimDurationSeconds, gen));
+                Vector3 delta = LocalOnly && _localTarget.HasValue
+                    ? _localTarget.Value + UnityEngine.Random.insideUnitSphere * Mathf.Max(0.1f, trigger.SwimScatterRadiusM) - target.position
+                    : towardHead * nudgeM;
+                if (LocalOnly) StartSceneAction(SwimOneToEye(target, delta, trigger.SwimDurationSeconds));
+                else StartSceneAction(SwimOneToEyeStaggered(target, delta, trigger.SwimDurationSeconds, gen));
             }
         }
 
@@ -2769,7 +3113,7 @@ namespace ShoalingUpstream.Simulation
             yield return WaitOrSkip(delaySeconds, gen);
             if (fish == null) yield break;
             float ownDuration = Mathf.Max(0.01f, durationSeconds) * Mathf.Lerp(0.7f, 1.3f, Mathf.PerlinNoise(seed, 10f));
-            yield return StartCoroutine(SwimOneToEye(fish, delta, ownDuration));
+            yield return StartSceneAction(SwimOneToEye(fish, delta, ownDuration));
         }
 
         /// <summary>Eases the fish's swim offset by `delta` on top of whatever it already is —
@@ -2777,6 +3121,12 @@ namespace ShoalingUpstream.Simulation
         /// so the wobble keeps going the whole time this plays out.</summary>
         private IEnumerator SwimOneToEye(Transform fish, Vector3 delta, float durationSeconds)
         {
+            if (LocalOnly)
+            {
+                yield return SwimOneToward(fish, fish.position + delta, durationSeconds);
+                yield break;
+            }
+
             _swimOffsets.TryGetValue(fish, out var start);
             Vector3 end = start + delta;
             float duration = Mathf.Max(0.01f, durationSeconds);
@@ -2846,6 +3196,7 @@ namespace ShoalingUpstream.Simulation
         /// </summary>
         private void OnGUI()
         {
+            if (!ShowDiagnostics) return;
             var style = new GUIStyle(GUI.skin.label)
             {
                 fontSize = 15,
@@ -2923,6 +3274,401 @@ namespace ShoalingUpstream.Simulation
             GUI.Label(new Rect(16, 12, 548, 216), text.ToString(), style);
         }
 
+        // Local input adapter. The original remote controller remains available in its own scenes.
+        private void ScaleLocalVisuals(GameObject root)
+        {
+            if (!LocalOnly) return;
+            foreach (var part in root.GetComponentsInChildren<Transform>(true))
+            {
+                bool mesh = part.name == "Mesh";
+                if (!mesh && !part.name.StartsWith("Baby Bird")) continue;
+                bool nested = false;
+                for (var parent = part.parent; parent != null && parent != root.transform; parent = parent.parent)
+                    if (parent.name == "Mesh" || parent.name.StartsWith("Baby Bird")) { nested = true; break; }
+                if (nested) continue;
+                part.localScale *= LocalModelScale;
+                part.localPosition *= LocalModelScale; // retain the mesh's centering/feet pivot
+            }
+        }
+
+        private void ObserveDevicePosture()
+        {
+            if (_gravitySensor == null)
+            {
+                _gravitySensor = UnityEngine.InputSystem.GravitySensor.current;
+                if (_gravitySensor != null && !_gravitySensor.enabled)
+                {
+                    UnityEngine.InputSystem.InputSystem.EnableDevice(_gravitySensor);
+                    _enabledGravitySensor = true;
+                }
+            }
+            if (_gravitySensor == null || !_gravitySensor.enabled) return;
+            Vector3 rawGravity = _gravitySensor.gravity.ReadUnprocessedValue();
+            // First following frame happens after Spawn, while the participant holds the iPad.
+            if (!_posture.Calibrated && _stableDevicePosition.HasValue && _eye != null
+                && Vector3.Dot(_eye.transform.up, Vector3.up) > .5f)
+                _posture.Calibrate(rawGravity);
+            _gravityPutDown = _posture.IsPutDown(rawGravity);
+        }
+
+        private void OnDestroy()
+        {
+            if (_enabledGravitySensor && _gravitySensor != null && _gravitySensor.added)
+                UnityEngine.InputSystem.InputSystem.DisableDevice(_gravitySensor);
+        }
+
+        private void ObserveParticipantDirection()
+        {
+            if (_eye == null) return;
+            if (DevicePutDown)
+            { _movementSample = _eye.transform.position; _lastWalkAt = float.NegativeInfinity; _walkSamples = 0; return; }
+            Vector3 position = _eye.transform.position;
+            if (!_movementSample.HasValue) _movementSample = position;
+            Vector3 displacement = position - _movementSample.Value; displacement.y = 0f;
+            if (displacement.sqrMagnitude > 9f) _movementSample = position; // tracking relocalization
+            else if (displacement.sqrMagnitude >= .3f * .3f)
+            {
+                Vector3 direction = displacement.normalized;
+                _walkSamples = Time.unscaledTime - _lastWalkAt < 1.2f
+                    && Vector3.Dot(direction, _walkingHeading) > .85f ? _walkSamples + 1 : 1;
+                float interval = Time.unscaledTime - _lastWalkAt;
+                if (interval > .1f && interval < 2f)
+                    _walkingSpeed = Mathf.Lerp(_walkingSpeed, Mathf.Clamp(displacement.magnitude / interval, 0f, 1.2f), .5f);
+                _walkingHeading = direction;
+                _lastWalkAt = Time.unscaledTime;
+                _movementSample = position;
+            }
+            bool walking = Time.unscaledTime - _lastWalkAt < 1.2f;
+            Vector3 candidate = walking ? _walkingHeading : _eye.transform.forward;
+            candidate.y = 0f;
+            if (_travel.AwaitingParticipantTurn || (candidate.sqrMagnitude > .04f && Vector3.Angle(candidate, _travel.Forward) > 20f))
+                _travel.ObserveTravel(_eye.transform.forward, _walkingHeading, walking);
+        }
+
+        private void LateUpdate()
+        {
+            if (!LocalOnly || !Ready || _eye == null) return;
+            ObserveParticipantDirection();
+            if (DevicePutDown) { _followRequested = false; return; }
+            foreach (var pair in new List<KeyValuePair<Transform, Vector3>>(_settlingHeadings))
+            {
+                if (pair.Key == null || _localMotionControlled.Contains(pair.Key) || _poolFish.Contains(pair.Key)
+                    || _localFacingExempt.Contains(pair.Key)) { _settlingHeadings.Remove(pair.Key); continue; }
+                FaceLocalFish(pair.Key, pair.Value);
+                if (Vector3.Angle(HeadDirection(pair.Key), pair.Value) < .5f) _settlingHeadings.Remove(pair.Key);
+            }
+            if (!LocalSceneBusy)
+                foreach (var fish in new List<Transform>(_swimOffsets.Keys))
+                    if (fish != null && !_localFacingExempt.Contains(fish))
+                        fish.rotation = YawFromLeftTo(HeadDirection(fish));
+            if (!_travel.Turning)
+                _formationHeading = NaturalFishMotion.TurnHeading(_formationHeading, _travel.Forward, 10f * Time.deltaTime);
+            if (!LocalSceneBusy) UpdatePoolSwimming();
+            if (_followRequested) UpdateNaturalFollowers();
+            _followRequested = false;
+        }
+
+        public void BeginUpstreamTurnLocally() => _travel.BeginReturn();
+        public void FinishUpstreamTurnLocally() => _travel.CompleteReturn();
+
+        public bool RejoinParticipantLocally(string beatId, bool around, float seconds)
+        {
+            if (!LocalOnly || !Ready || LocalSceneBusy || _eye == null
+                || !_flocks.TryGetValue(beatId, out var flock) || flock.Count == 0) return false;
+            Vector3 forward = _travel.Forward, right = Vector3.Cross(Vector3.up, forward);
+            Vector3 eye = _eye.transform.position;
+            _poolFish.Clear();
+            _formationHeading = forward;
+            foreach (var fish in flock)
+                if (fish != null) StartSceneAction(SwimOneToward(fish, NaturalDestination(fish, eye, forward), seconds));
+            _followOffset = null;
+            return true;
+        }
+
+        public int LocalFlockCount(string beatId)
+        {
+            if (!_flocks.TryGetValue(beatId, out var flock)) return 0;
+            int count = 0;
+            foreach (var member in flock) if (member != null) count++;
+            return count;
+        }
+
+        public bool JumpLocally()
+        {
+            if (!LocalOnly || !Ready || LocalSceneBusy || !string.IsNullOrEmpty(_localError)) return false;
+            StartSceneAction(JumpAndLeaveBehind());
+            return true;
+        }
+
+        private IEnumerator JumpAndLeaveBehind()
+        {
+            var trigger = SceneTriggers.Find(t => t.BeatId == "beat-12");
+            if (!_flocks.TryGetValue(trigger.TargetBeatId, out var flock)) yield break;
+            var jumps = new List<Coroutine>();
+            foreach (var fish in flock)
+                if (fish != null) jumps.Add(StartSceneAction(JumpOne(fish, trigger)));
+            foreach (var jump in jumps) yield return jump;
+            flock.RemoveAll(fish => fish == null);
+            if (flock.Count <= 5) yield break;
+            int leave = Mathf.Min(UnityEngine.Random.Range(3, 6), flock.Count - 2);
+            for (int i = 0; i < leave; i++)
+            {
+                int index = UnityEngine.Random.Range(0, flock.Count);
+                _localDetached.Add(flock[index]);
+                StartCoroutine(FadeDetachedAfterDelay(flock[index]));
+                flock.RemoveAt(index);
+            }
+        }
+
+        private IEnumerator FadeDetachedAfterDelay(Transform fish)
+        {
+            yield return new WaitForSeconds(15f);
+            if (fish != null) yield return FadeAndDestroy(fish, 3f);
+        }
+
+        public bool ReappearHeronLocally()
+        {
+            if (!LocalOnly || !Ready || LocalSceneBusy || !string.IsNullOrEmpty(_localError)) return false;
+            if (_flocks.TryGetValue("beat-6", out var herons))
+            {
+                foreach (var heron in herons) if (heron != null) Destroy(heron.gameObject);
+                herons.Clear();
+            }
+            PlayScene("beat-6");
+            return true;
+        }
+
+        public bool MoveLocalFlock(string beatId, Vector3 destination, float seconds)
+        {
+            if (!LocalOnly || !Ready || LocalSceneBusy || !string.IsNullOrEmpty(_localError)
+                || !_flocks.TryGetValue(beatId, out var flock)) return false;
+            bool moved = false;
+            foreach (var fish in flock)
+            {
+                if (fish == null) continue;
+                Vector2 scatter = UnityEngine.Random.insideUnitCircle * .5f;
+                Vector3 target = destination + new Vector3(scatter.x, 0f, scatter.y);
+                StartSceneAction(SwimOneToward(fish, target, seconds));
+                moved = true;
+            }
+            _followOffset = null;
+            return moved;
+        }
+
+        public bool FireLocally(string beatId)
+        {
+            if (!LocalOnly || !Ready || LocalSceneBusy || !string.IsNullOrEmpty(_localError)
+                || _progression.StateOf(beatId) == BeatState.Complete) return false;
+            _followOffset = null;
+            if (beatId == "beat-1" && _localTarget.HasValue) _knownFloorY = _localTarget.Value.y;
+            if (beatId == "beat-15") _localNearGround = true;
+            return new Effects(this).FireBeat(beatId);
+        }
+
+        public void SetLocalTarget(Vector3 position) => _localTarget = position;
+
+        public bool ReplayLocally()
+        {
+            if (!LocalOnly || LocalSceneBusy || !Ready) return false;
+            _followOffset = null;
+            return new Effects(this).ReplayCurrent();
+        }
+
+        public void FollowLocally(bool following)
+        {
+            _followRequested = false;
+            if (!LocalOnly || !following || _eye == null)
+            { _stableDevicePosition = null; return; }
+            if (DevicePutDown) return;
+            Vector3 position = _eye.transform.position;
+            bool walking = _walkSamples >= 2 && Time.unscaledTime - _lastWalkAt < .75f;
+            if (!_stableDevicePosition.HasValue || walking || Vector3.Distance(position, _stableDevicePosition.Value) > .3f)
+                _stableDevicePosition = position;
+            _followRequested = true;
+        }
+
+        private Vector4 Slot(Transform fish)
+        {
+            if (!_naturalSlots.TryGetValue(fish, out var slot))
+            {
+                slot = new Vector4(UnityEngine.Random.Range(-22f, 22f), UnityEngine.Random.Range(.5f, 2f),
+                    UnityEngine.Random.Range(.08f, .92f), UnityEngine.Random.Range(-2f, 2f));
+                _naturalSlots[fish] = slot;
+            }
+            return slot;
+        }
+
+        private Vector3 NaturalDestination(Transform fish, Vector3 eye, Vector3 heading)
+        {
+            var slot = Slot(fish);
+            if (_localAlevins.Contains(fish))
+            {
+                Vector3 near = eye + Quaternion.AngleAxis(slot.x, Vector3.up) * heading * slot.y;
+                near.y = Mathf.Max(LocalGroundY + .08f, eye.y - Mathf.Lerp(.4f, .15f, slot.z));
+                return near;
+            }
+            float ground = Mathf.Min(LocalGroundY + .08f, eye.y - .05f);
+            float height = Mathf.Lerp(Mathf.Max(ground, eye.y - 1.8f), eye.y - .05f, slot.z);
+            float vertical = eye.y - height;
+            float distance = Mathf.Max(slot.y, vertical + .05f);
+            float horizontal = Mathf.Sqrt(Mathf.Max(.01f, distance * distance - vertical * vertical));
+            Vector3 bearing = Quaternion.AngleAxis(slot.x, Vector3.up) * heading;
+            Vector3 destination = eye + bearing * horizontal; destination.y = height;
+            return destination;
+        }
+
+        private void SteerLocalFish(Transform fish, Vector3 target, float speed, bool movingTarget = false)
+        {
+            Vector3 heading = HeadDirection(fish);
+            if (_localAlevins.Contains(fish)) speed *= .36f;
+            _cruiseSpeeds.TryGetValue(fish, out float cruise);
+            Vector3 horizontal = Vector3.ProjectOnPlane(target - fish.position, Vector3.up);
+            float requested = movingTarget ? speed : Mathf.Min(speed, Mathf.Sqrt(.6f * Vector3.Distance(fish.position, target)));
+            if (horizontal.sqrMagnitude > .001f && Vector3.Dot(heading, horizontal.normalized) < .995f) requested = 0f;
+            cruise = NaturalFishMotion.CruiseSpeed(cruise, requested, Time.deltaTime);
+            _cruiseSpeeds[fish] = cruise;
+            Vector3 shift = NaturalFishMotion.Step(fish.position, ref heading, target, cruise, 20f, Time.deltaTime);
+            shift = Vector3.ClampMagnitude(shift, cruise * Time.deltaTime);
+            // Buoyancy continues during a head-first horizontal turn, so newborns never wait on the floor.
+            if (_localAlevins.Contains(fish))
+                shift.y = Mathf.Clamp(target.y - fish.position.y, -speed * Time.deltaTime, speed * Time.deltaTime);
+            fish.rotation = Quaternion.AngleAxis(NaturalFishMotion.YawDelta(HeadDirection(fish), heading), Vector3.up) * fish.rotation;
+            _swimOffsets.TryGetValue(fish, out var offset);
+            _swimOffsets[fish] = offset + shift;
+        }
+
+        private void FaceLocalFish(Transform fish, Vector3 desired)
+        {
+            Vector3 heading = NaturalFishMotion.TurnHeading(HeadDirection(fish), desired, 10f * Time.deltaTime);
+            fish.rotation = Quaternion.AngleAxis(NaturalFishMotion.YawDelta(HeadDirection(fish), heading), Vector3.up) * fish.rotation;
+        }
+
+        private IEnumerator SwimNewbornLocally(Transform fish)
+        {
+            _localMotionControlled.Add(fish);
+            try
+            {
+                while (fish != null && _eye != null)
+                {
+                    Vector3 target = NaturalDestination(fish, _eye.transform.position, _travel.Forward);
+                    if (NaturalFishMotion.Arrived(fish.position, target)) break;
+                    SteerLocalFish(fish, target, LocalCruiseSpeed);
+                    yield return null;
+                }
+                if (fish != null) _settlingHeadings[fish] = Quaternion.AngleAxis(Slot(fish).w, Vector3.up) * _travel.Forward;
+            }
+            finally { _localMotionControlled.Remove(fish); }
+        }
+
+        private IEnumerator SwimLocalFish(Transform fish, Vector3 target, float priorDuration, bool settleHeading = true, float speedMultiplier = 1f)
+        {
+            if (fish == null) yield break;
+            _settlingHeadings.Remove(fish);
+            _localMotionControlled.Add(fish); _localSwimTargets[fish] = target;
+            float speed = LocalCruiseSpeed * speedMultiplier; // Distance never makes a fish accelerate or dart forward.
+            int generation = _skipGeneration;
+            try
+            {
+                while (fish != null && !NaturalFishMotion.Arrived(fish.position, target))
+                {
+                    if (generation != _skipGeneration) yield break;
+                    SteerLocalFish(fish, target, speed);
+                    yield return null;
+                }
+                // Facing is cosmetic settling; it must not hold the next narration/button.
+                if (fish != null && settleHeading && AlignLocalFish && !_localFacingExempt.Contains(fish))
+                    _settlingHeadings[fish] = Quaternion.AngleAxis(Slot(fish).w, Vector3.up) * _travel.Forward;
+            }
+            finally { _localMotionControlled.Remove(fish); _localSwimTargets.Remove(fish); }
+        }
+
+        private void UpdateNaturalFollowers()
+        {
+            if (!_stableDevicePosition.HasValue || !AlignLocalFish || _travel.Turning) return;
+            bool walking = _walkSamples >= 2 && Time.unscaledTime - _lastWalkAt < 1.2f;
+            float speed = walking ? Mathf.Max(LocalCruiseSpeed, _walkingSpeed + .24f) : LocalCruiseSpeed;
+            foreach (var fish in new List<Transform>(_swimOffsets.Keys))
+            {
+                if (fish == null || _localDetached.Contains(fish) || _localFacingExempt.Contains(fish)
+                    || _localMotionControlled.Contains(fish) || _poolFish.Contains(fish)) continue;
+                Vector3 target = ClearHeronSightline(fish, NaturalDestination(fish, _stableDevicePosition.Value, _formationHeading));
+                if (!walking && _settlingHeadings.ContainsKey(fish)
+                    && Vector3.ProjectOnPlane(target - fish.position, Vector3.up).magnitude < .1f) continue;
+                _settlingHeadings.Remove(fish);
+                float lag = Vector3.Dot(target - fish.position, _formationHeading);
+                float catchup = lag > 2f ? Mathf.Min(1.44f, speed + lag * .24f) : speed;
+                if (Vector3.ProjectOnPlane(target - fish.position, Vector3.up).magnitude > .1f)
+                    SteerLocalFish(fish, target, catchup, walking);
+                else
+                {
+                    FaceLocalFish(fish, Quaternion.AngleAxis(Slot(fish).w, Vector3.up) * _formationHeading);
+                    if (Mathf.Abs(target.y - fish.position.y) > .06f)
+                    {
+                        _swimOffsets.TryGetValue(fish, out var offset);
+                        offset.y += Mathf.Clamp(target.y - fish.position.y, -LocalCruiseSpeed * Time.deltaTime, LocalCruiseSpeed * Time.deltaTime)
+                            * (_localAlevins.Contains(fish) ? .36f : 1f);
+                        _swimOffsets[fish] = offset;
+                    }
+                }
+            }
+        }
+
+        public void BeginPoolSwimmingLocally(string beatId)
+        {
+            if (!LocalOnly || !_flocks.TryGetValue(beatId, out var flock) || _eye == null) return;
+            _poolFish.Clear();
+            _poolCentre = _localTarget ?? _eye.transform.position + _travel.Forward * 1.5f;
+            _poolCentre.y = Mathf.Clamp(_poolCentre.y, LocalGroundY + .2f, _eye.transform.position.y - .15f);
+            foreach (var fish in flock) if (fish != null) _poolFish.Add(fish);
+        }
+
+        private void UpdatePoolSwimming()
+        {
+            Vector3 forward = _travel.Forward, right = Vector3.Cross(Vector3.up, forward);
+            foreach (var fish in _poolFish)
+            {
+                if (fish == null || _localMotionControlled.Contains(fish) || _localFacingExempt.Contains(fish)) continue;
+                var slot = Slot(fish);
+                float phase = Time.time * .132f + slot.x * .05f;
+                Vector3 target = _poolCentre + right * (Mathf.Sin(phase) * (.3f + slot.z * .35f))
+                    + forward * (Mathf.Cos(phase) * (.2f + slot.z * .2f));
+                target.y += (slot.z - .5f) * .22f + Mathf.Sin(phase * .7f) * .06f;
+                SteerLocalFish(fish, ClearHeronSightline(fish, target), .24f);
+            }
+        }
+
+        private Coroutine StartSceneAction(IEnumerator routine)
+        {
+            _sceneActionCount++;
+            return StartCoroutine(TrackSceneAction(routine));
+        }
+
+        private IEnumerator TrackSceneAction(IEnumerator routine)
+        {
+            try
+            {
+                while (true)
+                {
+                    bool next;
+                    object current = null;
+                    try { next = routine.MoveNext(); if (next) current = routine.Current; }
+                    catch (Exception e)
+                    {
+                        _localError = "Animation stopped: " + e.Message;
+                        Debug.LogException(e);
+                        next = false;
+                    }
+                    if (!next) break;
+                    yield return current;
+                }
+            }
+            finally
+            {
+                (routine as IDisposable)?.Dispose();
+                _sceneActionCount--;
+            }
+        }
+
         // ------------------------------------------------------------------ the bus
 
         /// <summary>What the operator's buttons are allowed to do. Every method answers whether it
@@ -2954,7 +3700,7 @@ namespace ShoalingUpstream.Simulation
                 var current = _driver._progression?.Current;
                 if (current == null || _driver._rebuildInProgress) return false;
                 _driver.Note($"operator replayed {current.id}");
-                _driver.StartCoroutine(_driver.RebuildJourneyUpTo(current.id, includeTarget: true));
+                _driver.StartSceneAction(_driver.RebuildJourneyUpTo(current.id, includeTarget: true));
                 return true;
             }
 
@@ -2966,7 +3712,7 @@ namespace ShoalingUpstream.Simulation
                 var current = _driver._progression?.Current;
                 if (current == null || _driver._rebuildInProgress) return false;
                 _driver.Note($"operator resumed before {current.id}");
-                _driver.StartCoroutine(_driver.RebuildJourneyUpTo(current.id, includeTarget: false));
+                _driver.StartSceneAction(_driver.RebuildJourneyUpTo(current.id, includeTarget: false));
                 return true;
             }
 
@@ -2993,7 +3739,7 @@ namespace ShoalingUpstream.Simulation
                     if (fired)
                     {
                         _driver.Note($"operator fired {beatId}");
-                        _driver.StartCoroutine(PlaySceneDelayed(beatId));
+                        _driver.StartSceneAction(PlaySceneDelayed(beatId));
                     }
                     return fired;
                 }
