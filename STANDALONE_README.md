@@ -74,3 +74,8 @@ Validation: all 5 standalone PlayMode checks passed, including real-model opacit
 - Extend the heron gift narration slice through 39.40 seconds to preserve the final continue tail; resume the next Continue downstream from 39.52 seconds after the 2-second pause.
 
 Validation: all five standalone PlayMode checks passed. The actual GPU image was inspected and all three Striders were visibly unobstructed. iPad testing remains manual.
+
+
+## 给队友直接安装
+
+完整 Xcode 导出已打包为 [distribution/BecomingTrout-iOS-v1.zip](distribution/BecomingTrout-iOS-v1.zip)，通过 Git LFS 保存。队友无需 Unity，下载解压后可用 Xcode 安装到自己的 iPad。具体步骤见 [安装说明](distribution/README.md)。

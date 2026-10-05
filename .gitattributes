@@ -17,3 +17,6 @@
 *.aif  filter=lfs diff=lfs merge=lfs -text
 *.aiff filter=lfs diff=lfs merge=lfs -text
 *.m4a  filter=lfs diff=lfs merge=lfs -text
+
+# Complete standalone Xcode export for teammate device installs.
+distribution/BecomingTrout-iOS-v1.zip filter=lfs diff=lfs merge=lfs -text
